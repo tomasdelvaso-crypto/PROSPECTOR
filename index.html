@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ventapel Prospector</title>
+    <title>Ventapel Prospector - Sistema Inteligente PPVVC</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -11,218 +11,281 @@
     <nav class="bg-white shadow-lg border-b-4 border-blue-600">
         <div class="max-w-7xl mx-auto px-4">
             <div class="flex justify-between items-center py-4">
-                <h1 class="text-2xl font-bold">Ventapel Prospector</h1>
-                <span class="text-sm text-gray-600">Apollo + Claude + Supabase</span>
+                <div>
+                    <h1 class="text-2xl font-bold">Ventapel Prospector</h1>
+                    <p class="text-xs text-gray-600">Sistema de Calificación PPVVC</p>
+                </div>
+                <div class="text-sm text-gray-600">
+                    <span class="bg-green-100 px-2 py-1 rounded">Apollo</span>
+                    <span class="bg-purple-100 px-2 py-1 rounded">Claude AI</span>
+                    <span class="bg-blue-100 px-2 py-1 rounded">Supabase</span>
+                </div>
             </div>
         </div>
     </nav>
 
     <div class="max-w-7xl mx-auto px-4 py-6">
+        <!-- Panel de Búsqueda Inteligente -->
         <div class="bg-white rounded-lg shadow p-6 mb-6">
-            <h2 class="text-lg font-semibold mb-4">Buscar Prospectos</h2>
+            <h2 class="text-lg font-semibold mb-4">
+                <i class="fas fa-search mr-2"></i>Búsqueda Inteligente de Prospectos
+            </h2>
             
-            <div class="grid grid-cols-3 gap-4 mb-4">
+            <!-- Filtros Principales -->
+            <div class="grid grid-cols-4 gap-4 mb-4">
                 <div>
-                    <label class="block text-sm font-medium mb-1">Cargo</label>
+                    <label class="block text-sm font-medium mb-1">Industria Prioritaria</label>
+                    <select id="industryFilter" class="w-full p-2 border rounded">
+                        <option value="">Todas las Industrias</option>
+                        <option value="e-commerce">E-commerce/Marketplace</option>
+                        <option value="logistics">3PL/Logística/Fulfillment</option>
+                        <option value="food">Alimentos y Bebidas</option>
+                        <option value="cosmetics">Cosmética/Farmacéutica</option>
+                        <option value="automotive">Automotriz/Autopartes</option>
+                        <option value="retail">Retail/Textil</option>
+                        <option value="manufacturing">Manufactura General</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium mb-1">Cargo Estratégico</label>
                     <select id="titleFilter" class="w-full p-2 border rounded">
-                        <option value="">Todos</option>
-                        <option value="CEO">CEO</option>
-                        <option value="Director">Director</option>
-                        <option value="Gerente">Gerente</option>
-                        <option value="Gerente de Logística">Gerente de Logística</option>
-                        <option value="Gerente de Operações">Gerente de Operações</option>
-                        <option value="Gerente de Qualidade">Gerente de Qualidade</option>
-                        <option value="Manager">Manager</option>
+                        <option value="quality">Gerente de Calidad/Qualidade</option>
+                        <option value="operations">Gerente de Operaciones/Operações</option>
+                        <option value="logistics">Gerente de Logística</option>
+                        <option value="production">Gerente de Producción/Produção</option>
+                        <option value="supply">Gerente Supply Chain</option>
+                        <option value="director">Director/VP Operaciones</option>
+                        <option value="ceo">CEO/President</option>
                     </select>
                 </div>
                 
                 <div>
-                    <label class="block text-sm font-medium mb-1">Ciudad</label>
+                    <label class="block text-sm font-medium mb-1">Región Brasil</label>
                     <select id="locationFilter" class="w-full p-2 border rounded">
-                        <option value="Brazil">Todo Brasil</option>
-                        <option value="São Paulo, Brazil">São Paulo</option>
+                        <option value="São Paulo, Brazil">São Paulo (Prioridad Alta)</option>
                         <option value="Rio de Janeiro, Brazil">Rio de Janeiro</option>
-                        <option value="Belo Horizonte, Brazil">Belo Horizonte</option>
-                        <option value="Porto Alegre, Brazil">Porto Alegre</option>
-                        <option value="Curitiba, Brazil">Curitiba</option>
+                        <option value="Minas Gerais, Brazil">Minas Gerais</option>
+                        <option value="Santa Catarina, Brazil">Santa Catarina</option>
+                        <option value="Paraná, Brazil">Paraná</option>
+                        <option value="Rio Grande do Sul, Brazil">Rio Grande do Sul</option>
+                        <option value="Brazil">Todo Brasil</option>
                     </select>
                 </div>
                 
                 <div>
-                    <label class="block text-sm font-medium mb-1">Tamaño Empresa</label>
+                    <label class="block text-sm font-medium mb-1">Tamaño (Señal de Volumen)</label>
                     <select id="sizeFilter" class="w-full p-2 border rounded">
-                        <option value="">Todos</option>
-                        <option value="1,50">1-50 empleados</option>
-                        <option value="51,200">51-200 empleados</option>
-                        <option value="201,500">201-500 empleados</option>
-                        <option value="501,1000">501-1000 empleados</option>
-                        <option value="1001,5000">1001+ empleados</option>
+                        <option value="501,1000">501-1000 (Alto Potencial)</option>
+                        <option value="1001,5000">1001-5000 (Muy Alto)</option>
+                        <option value="5001,10000">5001+ (Enterprise)</option>
+                        <option value="201,500">201-500 (Medio)</option>
+                        <option value="51,200">51-200 (Evaluar)</option>
                     </select>
                 </div>
             </div>
+
+            <!-- Filtros Avanzados -->
+            <div class="border-t pt-4 mb-4">
+                <button onclick="toggleAdvanced()" class="text-sm text-blue-600 hover:text-blue-800">
+                    <i class="fas fa-cog mr-1"></i>Filtros Avanzados
+                </button>
+                <div id="advancedFilters" class="hidden mt-4 grid grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Keywords de Dolor</label>
+                        <input type="text" id="painKeywords" placeholder="devoluciones, reclamos, violación" 
+                               class="w-full p-2 border rounded text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Tecnologías Actuales</label>
+                        <input type="text" id="techKeywords" placeholder="SAP, WMS, fulfillment" 
+                               class="w-full p-2 border rounded text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Score Mínimo PPVVC</label>
+                        <select id="minScore" class="w-full p-2 border rounded">
+                            <option value="0">Sin mínimo</option>
+                            <option value="5">≥ 5.0 (Calificado)</option>
+                            <option value="6">≥ 6.0 (Bueno)</option>
+                            <option value="7">≥ 7.0 (Muy Bueno)</option>
+                            <option value="8">≥ 8.0 (Excelente)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
             
-            <button onclick="searchProspects()" class="px-6 py-3 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
-                <i class="fas fa-search mr-2"></i>Buscar Prospectos
-            </button>
+            <div class="flex justify-between items-center">
+                <button onclick="searchProspects()" 
+                        class="px-6 py-3 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
+                    <i class="fas fa-search mr-2"></i>Buscar Prospectos Calificados
+                </button>
+                
+                <div class="flex gap-2">
+                    <button onclick="exportResults('csv')" 
+                            class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm">
+                        <i class="fas fa-download mr-2"></i>Exportar CSV
+                    </button>
+                    <button onclick="exportResults('excel')" 
+                            class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm">
+                        <i class="fas fa-file-excel mr-2"></i>Exportar Excel
+                    </button>
+                </div>
+            </div>
         </div>
 
+        <!-- Panel de Estadísticas -->
+        <div class="grid grid-cols-4 gap-4 mb-6">
+            <div class="bg-white rounded-lg shadow p-4">
+                <div class="text-2xl font-bold text-blue-600" id="totalFound">0</div>
+                <div class="text-sm text-gray-600">Prospectos Encontrados</div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-4">
+                <div class="text-2xl font-bold text-green-600" id="avgScore">0.0</div>
+                <div class="text-sm text-gray-600">Score PPVVC Promedio</div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-4">
+                <div class="text-2xl font-bold text-purple-600" id="withEmail">0</div>
+                <div class="text-sm text-gray-600">Con Email/Teléfono</div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-4">
+                <div class="text-2xl font-bold text-orange-600" id="hotLeads">0</div>
+                <div class="text-sm text-gray-600">Leads Calientes (>7.0)</div>
+            </div>
+        </div>
+
+        <!-- Resultados -->
         <div class="bg-white rounded-lg shadow p-6">
-            <h3 class="font-semibold mb-4">Resultados</h3>
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-semibold">Resultados de Búsqueda</h3>
+                <div class="flex gap-2">
+                    <button onclick="sortResults('score')" class="text-sm px-3 py-1 border rounded hover:bg-gray-50">
+                        <i class="fas fa-sort"></i> Por Score
+                    </button>
+                    <button onclick="sortResults('company')" class="text-sm px-3 py-1 border rounded hover:bg-gray-50">
+                        <i class="fas fa-sort"></i> Por Empresa
+                    </button>
+                    <button onclick="filterHotLeads()" class="text-sm px-3 py-1 border rounded hover:bg-gray-50 text-orange-600">
+                        <i class="fas fa-fire"></i> Solo Hot Leads
+                    </button>
+                </div>
+            </div>
             <div id="results">
                 <p class="text-gray-500">No hay búsquedas activas</p>
             </div>
         </div>
     </div>
 
-    <!-- Modal para mostrar análisis -->
+    <!-- Modal Análisis PPVVC -->
     <div id="analysisModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="relative top-20 mx-auto p-5 border w-[600px] shadow-lg rounded-md bg-white">
             <div class="mt-3">
-                <h3 class="text-lg font-medium text-gray-900 mb-4">Análisis PPVVC</h3>
-                <div id="analysisContent"></div>
-                <div class="mt-4">
-                    <button onclick="closeModal()" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">
-                        Cerrar
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-medium text-gray-900">Análisis PPVVC Detallado</h3>
+                    <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times"></i>
                     </button>
                 </div>
+                <div id="analysisContent"></div>
             </div>
         </div>
     </div>
 
     <script>
+    // CONFIGURACIÓN INTELIGENTE BASADA EN DOCUMENTOS VENTAPEL
+    const INDUSTRY_MAPPING = {
+        'e-commerce': ['e-commerce', 'marketplace', 'online retail', 'fulfillment', 'dropshipping'],
+        'logistics': ['logistics', '3PL', 'third party logistics', 'warehouse', 'distribution', 'supply chain'],
+        'food': ['food', 'beverage', 'alimentos', 'bebidas', 'food processing', 'FMCG'],
+        'cosmetics': ['cosmetics', 'pharmaceutical', 'beauty', 'personal care', 'pharma'],
+        'automotive': ['automotive', 'auto parts', 'car manufacturer', 'autopeças'],
+        'retail': ['retail', 'fashion', 'apparel', 'textil', 'clothing'],
+        'manufacturing': ['manufacturing', 'industrial', 'factory', 'production']
+    };
+
+    const TITLE_MAPPING = {
+        'quality': ['Gerente de Qualidade', 'Quality Manager', 'Gerente de Calidad', 'QA Manager'],
+        'operations': ['Gerente de Operações', 'Operations Manager', 'COO', 'VP Operations'],
+        'logistics': ['Gerente de Logística', 'Logistics Manager', 'Supply Chain Manager'],
+        'production': ['Gerente de Produção', 'Production Manager', 'Plant Manager'],
+        'supply': ['Supply Chain Director', 'Gerente de Cadeia', 'Head of Supply Chain'],
+        'director': ['Director de Operações', 'Operations Director', 'VP Operations'],
+        'ceo': ['CEO', 'President', 'Presidente', 'Chief Executive']
+    };
+
+    let currentResults = [];
+    let analyzedResults = [];
+
     async function searchProspects() {
-        const title = document.getElementById('titleFilter').value;
+        const industry = document.getElementById('industryFilter').value;
+        const titleType = document.getElementById('titleFilter').value;
         const location = document.getElementById('locationFilter').value;
         const size = document.getElementById('sizeFilter').value;
         
         const resultsDiv = document.getElementById('results');
-        resultsDiv.innerHTML = '<p class="text-blue-600"><i class="fas fa-spinner fa-spin mr-2"></i>Buscando prospectos...</p>';
+        resultsDiv.innerHTML = '<p class="text-blue-600"><i class="fas fa-spinner fa-spin mr-2"></i>Buscando prospectos calificados...</p>';
         
         try {
-            // Llamar a tu API route en Vercel
             const response = await fetch('/api/apollo-search', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    query: '', // Podés agregar búsqueda por empresa después
+                    query: industry ? INDUSTRY_MAPPING[industry]?.[0] : '',
                     filters: {
-                        titles: title ? [title] : [],
-                        location: location || 'Brazil',
-                        size: size || null
+                        titles: TITLE_MAPPING[titleType] || [],
+                        location: location,
+                        size: size,
+                        industries: industry ? INDUSTRY_MAPPING[industry] : []
                     }
                 })
             });
             
-            if (!response.ok) {
-                const error = await response.text();
-                throw new Error(`Error ${response.status}: ${error}`);
-            }
+            if (!response.ok) throw new Error('Error en búsqueda');
             
             const data = await response.json();
-            displayResults(data.people || []);
+            currentResults = data.people || [];
+            
+            // Actualizar estadísticas
+            updateStats(currentResults);
+            
+            // Analizar cada prospecto con IA
+            await analyzeAllProspects(currentResults);
             
         } catch (error) {
-            console.error('Error completo:', error);
+            console.error('Error:', error);
             resultsDiv.innerHTML = `
                 <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
                     <p class="font-bold">Error al buscar prospectos</p>
                     <p class="text-sm">${error.message}</p>
-                    <p class="text-xs mt-2">Verificá la consola del navegador para más detalles</p>
                 </div>
             `;
         }
     }
 
-    function displayResults(people) {
-        const resultsDiv = document.getElementById('results');
+    async function analyzeAllProspects(prospects) {
+        analyzedResults = [];
         
-        if (people.length === 0) {
-            resultsDiv.innerHTML = `
-                <div class="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded">
-                    No se encontraron prospectos con esos filtros
-                </div>
-            `;
-            return;
+        for (const prospect of prospects) {
+            try {
+                const analysis = await analyzeProspect(prospect, false); // false = no mostrar modal
+                analyzedResults.push({
+                    ...prospect,
+                    analysis: analysis
+                });
+            } catch (error) {
+                console.error('Error analizando prospecto:', error);
+                analyzedResults.push({
+                    ...prospect,
+                    analysis: { total_score: 0 }
+                });
+            }
         }
         
-        const html = people.map((person, index) => `
-            <div class="border rounded-lg p-4 mb-4 hover:shadow-md transition-shadow">
-                <div class="flex justify-between items-start">
-                    <div class="flex-1">
-                        <h4 class="font-semibold text-lg">${person.name || 'Sin nombre'}</h4>
-                        <p class="text-gray-600">${person.title || 'Cargo no especificado'}</p>
-                        <p class="text-blue-600 font-medium">${person.organization?.name || 'Empresa no especificada'}</p>
-                        
-                        <div class="mt-2 space-y-1">
-                            ${person.email ? `
-                                <p class="text-sm">
-                                    <i class="fas fa-envelope mr-2 text-gray-400"></i>
-                                    <a href="mailto:${person.email}" class="text-blue-500 hover:underline">${person.email}</a>
-                                </p>
-                            ` : ''}
-                            
-                            ${person.phone_numbers?.[0]?.sanitized_number ? `
-                                <p class="text-sm">
-                                    <i class="fas fa-phone mr-2 text-gray-400"></i>
-                                    ${person.phone_numbers[0].sanitized_number}
-                                </p>
-                            ` : ''}
-                            
-                            ${person.linkedin_url ? `
-                                <p class="text-sm">
-                                    <i class="fab fa-linkedin mr-2 text-gray-400"></i>
-                                    <a href="${person.linkedin_url}" target="_blank" class="text-blue-500 hover:underline">Ver LinkedIn</a>
-                                </p>
-                            ` : ''}
-                            
-                            ${person.organization ? `
-                                <p class="text-sm text-gray-500">
-                                    <i class="fas fa-building mr-2 text-gray-400"></i>
-                                    ${person.organization.industry || 'Industria no especificada'} | 
-                                    ${person.organization.estimated_num_employees || 'Tamaño desconocido'} empleados
-                                </p>
-                            ` : ''}
-                        </div>
-                    </div>
-                    
-                    <div class="ml-4 space-y-2">
-                        <button 
-                            onclick='analyzeProspect(${JSON.stringify(person).replace(/'/g, "&apos;")})'
-                            class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-sm"
-                        >
-                            <i class="fas fa-brain mr-2"></i>Analizar IA
-                        </button>
-                        
-                        ${person.email ? `
-                            <button 
-                                onclick='saveQuickProspect(${JSON.stringify(person).replace(/'/g, "&apos;")})'
-                                class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm block w-full"
-                            >
-                                <i class="fas fa-save mr-2"></i>Guardar
-                            </button>
-                        ` : ''}
-                    </div>
-                </div>
-            </div>
-        `).join('');
-        
-        resultsDiv.innerHTML = `
-            <div class="mb-4 text-sm text-gray-600">
-                Se encontraron ${people.length} prospectos
-            </div>
-            ${html}
-        `;
+        displayResults(analyzedResults);
     }
 
-    async function analyzeProspect(person) {
-        const modal = document.getElementById('analysisModal');
-        const content = document.getElementById('analysisContent');
-        
-        modal.classList.remove('hidden');
-        content.innerHTML = '<p class="text-blue-600"><i class="fas fa-spinner fa-spin mr-2"></i>Analizando con Claude...</p>';
-        
+    async function analyzeProspect(person, showModal = true) {
         try {
             const response = await fetch('/api/claude-analyze', {
                 method: 'POST',
@@ -239,73 +302,284 @@
                 })
             });
             
-            if (!response.ok) {
-                throw new Error('Error en el análisis');
-            }
+            if (!response.ok) throw new Error('Error en análisis');
             
             const analysis = await response.json();
             
-            content.innerHTML = `
-                <div class="space-y-3">
-                    <div class="grid grid-cols-2 gap-2">
-                        <div class="bg-gray-50 p-2 rounded">
-                            <span class="text-xs text-gray-600">Pain (Dolor)</span>
-                            <div class="font-semibold">${analysis.scores?.pain || 0}/10</div>
-                        </div>
-                        <div class="bg-gray-50 p-2 rounded">
-                            <span class="text-xs text-gray-600">Power (Poder)</span>
-                            <div class="font-semibold">${analysis.scores?.power || 0}/10</div>
-                        </div>
-                        <div class="bg-gray-50 p-2 rounded">
-                            <span class="text-xs text-gray-600">Vision</span>
-                            <div class="font-semibold">${analysis.scores?.vision || 0}/10</div>
-                        </div>
-                        <div class="bg-gray-50 p-2 rounded">
-                            <span class="text-xs text-gray-600">Value (Valor)</span>
-                            <div class="font-semibold">${analysis.scores?.value || 0}/10</div>
-                        </div>
-                        <div class="bg-gray-50 p-2 rounded">
-                            <span class="text-xs text-gray-600">Control</span>
-                            <div class="font-semibold">${analysis.scores?.control || 0}/10</div>
-                        </div>
-                        <div class="bg-gray-50 p-2 rounded">
-                            <span class="text-xs text-gray-600">Compras</span>
-                            <div class="font-semibold">${analysis.scores?.compras || 0}/10</div>
-                        </div>
-                    </div>
-                    
-                    <div class="bg-blue-50 p-3 rounded">
-                        <span class="text-sm font-semibold">Score Total: ${analysis.total_score || 0}</span>
-                    </div>
-                    
-                    <div class="border-t pt-3">
-                        <p class="text-sm font-semibold mb-1">Análisis:</p>
-                        <p class="text-sm text-gray-600">${analysis.reasoning || 'Sin análisis disponible'}</p>
-                    </div>
-                    
-                    <div class="border-t pt-3">
-                        <p class="text-sm font-semibold mb-1">Approach Recomendado:</p>
-                        <p class="text-sm text-gray-600">${analysis.recommended_approach || 'Sin recomendación'}</p>
-                    </div>
-                    
-                    <button 
-                        onclick='saveAnalyzedProspect(${JSON.stringify(person).replace(/'/g, "&apos;")}, ${JSON.stringify(analysis).replace(/'/g, "&apos;")})'
-                        class="w-full px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
-                    >
-                        <i class="fas fa-save mr-2"></i>Guardar en Base de Datos
-                    </button>
-                </div>
-            `;
+            if (showModal) {
+                showAnalysisModal(person, analysis);
+            }
+            
+            return analysis;
             
         } catch (error) {
-            console.error('Error analizando:', error);
-            content.innerHTML = `
-                <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-                    <p class="font-bold">Error en el análisis</p>
-                    <p class="text-sm">${error.message}</p>
+            console.error('Error:', error);
+            return { total_score: 0 };
+        }
+    }
+
+    function displayResults(results) {
+        const resultsDiv = document.getElementById('results');
+        
+        if (results.length === 0) {
+            resultsDiv.innerHTML = '<p class="text-gray-500">No se encontraron prospectos</p>';
+            return;
+        }
+        
+        // Ordenar por score PPVVC
+        results.sort((a, b) => (b.analysis?.total_score || 0) - (a.analysis?.total_score || 0));
+        
+        const html = results.map((person, index) => {
+            const score = person.analysis?.total_score || 0;
+            const scoreColor = score >= 7 ? 'green' : score >= 5 ? 'yellow' : 'red';
+            const isHot = score >= 7;
+            
+            return `
+                <div class="border rounded-lg p-4 mb-4 hover:shadow-md transition-shadow ${isHot ? 'border-orange-400' : ''}">
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2">
+                                <h4 class="font-semibold text-lg">${person.name || 'Sin nombre'}</h4>
+                                ${isHot ? '<span class="text-orange-500"><i class="fas fa-fire"></i> Hot Lead</span>' : ''}
+                            </div>
+                            <p class="text-gray-600">${person.title || 'Cargo no especificado'}</p>
+                            <p class="text-blue-600 font-medium">${person.organization?.name || 'Empresa no especificada'}</p>
+                            
+                            <div class="mt-2 grid grid-cols-2 gap-2 text-sm">
+                                ${person.email ? `
+                                    <div>
+                                        <i class="fas fa-envelope mr-1 text-gray-400"></i>
+                                        <a href="mailto:${person.email}" class="text-blue-500 hover:underline">${person.email}</a>
+                                    </div>
+                                ` : '<div class="text-gray-400"><i class="fas fa-envelope mr-1"></i>Email no disponible</div>'}
+                                
+                                ${person.phone_numbers?.[0]?.sanitized_number ? `
+                                    <div>
+                                        <i class="fas fa-phone mr-1 text-gray-400"></i>
+                                        <a href="tel:${person.phone_numbers[0].sanitized_number}" class="text-blue-500">${person.phone_numbers[0].sanitized_number}</a>
+                                    </div>
+                                ` : '<div class="text-gray-400"><i class="fas fa-phone mr-1"></i>Teléfono no disponible</div>'}
+                                
+                                ${person.linkedin_url ? `
+                                    <div>
+                                        <i class="fab fa-linkedin mr-1 text-gray-400"></i>
+                                        <a href="${person.linkedin_url}" target="_blank" class="text-blue-500 hover:underline">Ver LinkedIn</a>
+                                    </div>
+                                ` : ''}
+                                
+                                ${person.organization ? `
+                                    <div class="text-gray-500">
+                                        <i class="fas fa-building mr-1 text-gray-400"></i>
+                                        ${person.organization.industry || 'Industria no especificada'}
+                                    </div>
+                                ` : ''}
+                            </div>
+                            
+                            <!-- Mini Score PPVVC -->
+                            <div class="mt-3 flex items-center gap-4">
+                                <div class="flex items-center gap-1">
+                                    <span class="text-xs text-gray-600">Score PPVVC:</span>
+                                    <span class="font-bold text-${scoreColor}-600">${score}/10</span>
+                                </div>
+                                ${person.analysis ? `
+                                    <div class="flex gap-2 text-xs">
+                                        <span title="Pain">P:${person.analysis.scores?.pain || 0}</span>
+                                        <span title="Power">P:${person.analysis.scores?.power || 0}</span>
+                                        <span title="Vision">V:${person.analysis.scores?.vision || 0}</span>
+                                        <span title="Value">V:${person.analysis.scores?.value || 0}</span>
+                                        <span title="Control">C:${person.analysis.scores?.control || 0}</span>
+                                        <span title="Compras">C:${person.analysis.scores?.compras || 0}</span>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                        
+                        <div class="ml-4 space-y-2">
+                            <button 
+                                onclick='showAnalysisModal(${JSON.stringify(person).replace(/'/g, "&apos;")}, ${JSON.stringify(person.analysis).replace(/'/g, "&apos;")})'
+                                class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors text-sm w-full"
+                            >
+                                <i class="fas fa-chart-bar mr-2"></i>Ver Análisis
+                            </button>
+                            
+                            <button 
+                                onclick='saveAnalyzedProspect(${JSON.stringify(person).replace(/'/g, "&apos;")}, ${JSON.stringify(person.analysis).replace(/'/g, "&apos;")})'
+                                class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-sm w-full"
+                            >
+                                <i class="fas fa-save mr-2"></i>Guardar
+                            </button>
+                            
+                            ${person.email ? `
+                                <button 
+                                    onclick='composeEmail(${JSON.stringify(person).replace(/'/g, "&apos;")})'
+                                    class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm w-full"
+                                >
+                                    <i class="fas fa-paper-plane mr-2"></i>Email
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
                 </div>
             `;
+        }).join('');
+        
+        resultsDiv.innerHTML = html;
+    }
+
+    function showAnalysisModal(person, analysis) {
+        const modal = document.getElementById('analysisModal');
+        const content = document.getElementById('analysisContent');
+        
+        modal.classList.remove('hidden');
+        
+        content.innerHTML = `
+            <div class="space-y-4">
+                <!-- Info del Prospecto -->
+                <div class="bg-gray-50 p-4 rounded">
+                    <h4 class="font-semibold">${person.name}</h4>
+                    <p class="text-sm text-gray-600">${person.title} en ${person.organization?.name || 'N/A'}</p>
+                </div>
+                
+                <!-- Scores PPVVC -->
+                <div>
+                    <h5 class="font-semibold mb-2">Análisis PPVVC</h5>
+                    <div class="grid grid-cols-3 gap-3">
+                        <div class="bg-blue-50 p-3 rounded">
+                            <div class="text-xs text-gray-600">Pain (Dolor)</div>
+                            <div class="font-bold text-xl">${analysis?.scores?.pain || 0}/10</div>
+                            <div class="text-xs text-gray-500">Necesidad identificada</div>
+                        </div>
+                        <div class="bg-blue-50 p-3 rounded">
+                            <div class="text-xs text-gray-600">Power (Poder)</div>
+                            <div class="font-bold text-xl">${analysis?.scores?.power || 0}/10</div>
+                            <div class="text-xs text-gray-500">Capacidad de decisión</div>
+                        </div>
+                        <div class="bg-blue-50 p-3 rounded">
+                            <div class="text-xs text-gray-600">Vision (Visión)</div>
+                            <div class="font-bold text-xl">${analysis?.scores?.vision || 0}/10</div>
+                            <div class="text-xs text-gray-500">Comprende solución</div>
+                        </div>
+                        <div class="bg-green-50 p-3 rounded">
+                            <div class="text-xs text-gray-600">Value (Valor)</div>
+                            <div class="font-bold text-xl">${analysis?.scores?.value || 0}/10</div>
+                            <div class="text-xs text-gray-500">Ve el ROI</div>
+                        </div>
+                        <div class="bg-green-50 p-3 rounded">
+                            <div class="text-xs text-gray-600">Control</div>
+                            <div class="font-bold text-xl">${analysis?.scores?.control || 0}/10</div>
+                            <div class="text-xs text-gray-500">Control del proceso</div>
+                        </div>
+                        <div class="bg-green-50 p-3 rounded">
+                            <div class="text-xs text-gray-600">Compras</div>
+                            <div class="font-bold text-xl">${analysis?.scores?.compras || 0}/10</div>
+                            <div class="text-xs text-gray-500">Proceso de compra</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Score Total -->
+                <div class="bg-gradient-to-r from-blue-500 to-green-500 text-white p-4 rounded">
+                    <div class="text-center">
+                        <div class="text-sm">Score Total PPVVC</div>
+                        <div class="text-3xl font-bold">${analysis?.total_score || 0}/10</div>
+                        <div class="text-sm mt-1">
+                            ${analysis?.total_score >= 7 ? '🔥 HOT LEAD - Contactar inmediatamente' : 
+                              analysis?.total_score >= 5 ? '✅ Prospecto Calificado' : 
+                              '⚠️ Requiere más calificación'}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Análisis y Recomendaciones -->
+                <div class="space-y-3">
+                    <div class="border-l-4 border-blue-500 pl-4">
+                        <p class="text-sm font-semibold mb-1">Análisis:</p>
+                        <p class="text-sm text-gray-600">${analysis?.reasoning || 'Sin análisis disponible'}</p>
+                    </div>
+                    
+                    <div class="border-l-4 border-green-500 pl-4">
+                        <p class="text-sm font-semibold mb-1">Approach Recomendado:</p>
+                        <p class="text-sm text-gray-600">${analysis?.recommended_approach || 'Sin recomendación'}</p>
+                    </div>
+                </div>
+                
+                <!-- Acciones -->
+                <div class="flex gap-2 pt-4 border-t">
+                    <button 
+                        onclick='saveAnalyzedProspect(${JSON.stringify(person).replace(/'/g, "&apos;")}, ${JSON.stringify(analysis).replace(/'/g, "&apos;")})'
+                        class="flex-1 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                    >
+                        <i class="fas fa-save mr-2"></i>Guardar en CRM
+                    </button>
+                    ${person.email ? `
+                        <button 
+                            onclick='composeEmail(${JSON.stringify(person).replace(/'/g, "&apos;")})'
+                            class="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                        >
+                            <i class="fas fa-envelope mr-2"></i>Redactar Email
+                        </button>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    }
+
+    function updateStats(results) {
+        document.getElementById('totalFound').textContent = results.length;
+        
+        const withContact = results.filter(p => p.email || p.phone_numbers?.length > 0).length;
+        document.getElementById('withEmail').textContent = withContact;
+        
+        // Los otros stats se actualizarán después del análisis
+    }
+
+    function exportResults(format) {
+        if (analyzedResults.length === 0) {
+            alert('No hay resultados para exportar');
+            return;
         }
+        
+        let csvContent = "Nombre,Cargo,Empresa,Email,Teléfono,LinkedIn,Score PPVVC,Pain,Power,Vision,Value,Control,Compras,Industria,Tamaño\n";
+        
+        analyzedResults.forEach(person => {
+            const row = [
+                person.name || '',
+                person.title || '',
+                person.organization?.name || '',
+                person.email || '',
+                person.phone_numbers?.[0]?.sanitized_number || '',
+                person.linkedin_url || '',
+                person.analysis?.total_score || '0',
+                person.analysis?.scores?.pain || '0',
+                person.analysis?.scores?.power || '0',
+                person.analysis?.scores?.vision || '0',
+                person.analysis?.scores?.value || '0',
+                person.analysis?.scores?.control || '0',
+                person.analysis?.scores?.compras || '0',
+                person.organization?.industry || '',
+                person.organization?.estimated_num_employees || ''
+            ].map(field => `"${field}"`).join(',');
+            
+            csvContent += row + "\n";
+        });
+        
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", `ventapel_prospects_${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    function composeEmail(person) {
+        // Template de email basado en el approach recomendado
+        const subject = `${person.organization?.name || 'Su empresa'} - Solución para reducir 64% costos de empaque`;
+        const body = `Estimado/a ${person.name},\n\nMe dirijo a usted como ${person.title} de ${person.organization?.name || 'su empresa'}...\n\n[Personalizar según el análisis PPVVC]`;
+        
+        window.location.href = `mailto:${person.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     }
 
     async function saveAnalyzedProspect(person, analysis) {
@@ -317,64 +591,58 @@
                 },
                 body: JSON.stringify({
                     company_name: person.organization?.name || 'Sin empresa',
+                    company_domain: person.organization?.domain,
                     company_industry: person.organization?.industry,
                     company_size: person.organization?.estimated_num_employees?.toString(),
+                    company_location: person.organization?.city,
                     contact_name: person.name,
                     contact_title: person.title,
                     contact_email: person.email,
+                    contact_phone: person.phone_numbers?.[0]?.sanitized_number,
                     contact_linkedin: person.linkedin_url,
-                    pain_score: analysis.scores?.pain || 0,
-                    power_score: analysis.scores?.power || 0,
-                    vision_score: analysis.scores?.vision || 0,
-                    value_score: analysis.scores?.value || 0,
-                    control_score: analysis.scores?.control || 0,
-                    compras_score: analysis.scores?.compras || 0,
-                    total_score: analysis.total_score || 0,
-                    reasoning: analysis.reasoning,
-                    recommended_approach: analysis.recommended_approach
+                    pain_score: analysis?.scores?.pain || 0,
+                    power_score: analysis?.scores?.power || 0,
+                    vision_score: analysis?.scores?.vision || 0,
+                    value_score: analysis?.scores?.value || 0,
+                    control_score: analysis?.scores?.control || 0,
+                    compras_score: analysis?.scores?.compras || 0,
+                    total_score: analysis?.total_score || 0,
+                    reasoning: analysis?.reasoning,
+                    recommended_approach: analysis?.recommended_approach,
+                    status: analysis?.total_score >= 7 ? 'hot' : analysis?.total_score >= 5 ? 'qualified' : 'new',
+                    priority: analysis?.total_score >= 7 ? 'high' : 'medium'
                 })
             });
             
             if (response.ok) {
-                alert('✅ Prospecto guardado exitosamente en Supabase');
+                alert('✅ Prospecto guardado exitosamente');
                 closeModal();
             } else {
                 throw new Error('Error al guardar');
             }
         } catch (error) {
-            console.error('Error guardando:', error);
+            console.error('Error:', error);
             alert('❌ Error al guardar el prospecto');
         }
     }
 
-    async function saveQuickProspect(person) {
-        try {
-            const response = await fetch('/api/save-prospect', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    company_name: person.organization?.name || 'Sin empresa',
-                    company_industry: person.organization?.industry,
-                    company_size: person.organization?.estimated_num_employees?.toString(),
-                    contact_name: person.name,
-                    contact_title: person.title,
-                    contact_email: person.email,
-                    contact_linkedin: person.linkedin_url,
-                    status: 'new'
-                })
-            });
-            
-            if (response.ok) {
-                alert('✅ Prospecto guardado (sin análisis)');
-            } else {
-                throw new Error('Error al guardar');
-            }
-        } catch (error) {
-            console.error('Error guardando:', error);
-            alert('❌ Error al guardar el prospecto');
+    function sortResults(by) {
+        if (by === 'score') {
+            analyzedResults.sort((a, b) => (b.analysis?.total_score || 0) - (a.analysis?.total_score || 0));
+        } else if (by === 'company') {
+            analyzedResults.sort((a, b) => (a.organization?.name || '').localeCompare(b.organization?.name || ''));
         }
+        displayResults(analyzedResults);
+    }
+
+    function filterHotLeads() {
+        const hotLeads = analyzedResults.filter(r => (r.analysis?.total_score || 0) >= 7);
+        displayResults(hotLeads);
+    }
+
+    function toggleAdvanced() {
+        const div = document.getElementById('advancedFilters');
+        div.classList.toggle('hidden');
     }
 
     function closeModal() {
