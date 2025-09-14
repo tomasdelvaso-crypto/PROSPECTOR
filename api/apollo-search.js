@@ -25,12 +25,8 @@ module.exports = async (req, res) => {
       throw new Error('Apollo API key not configured');
     }
 
-    console.log('API Key existe:', !!apiKey);
-    console.log('API Key length:', apiKey.length);
-
-    // Construir el payload para Apollo - INCLUYENDO LA API KEY EN EL BODY
+    // Construir el payload para Apollo SIN la API key
     const apolloPayload = {
-      api_key: apiKey,  // <-- Apollo espera la key en el body
       q_organization_name: query || '',
       per_page: 10,
       page: 1,
@@ -45,21 +41,22 @@ module.exports = async (req, res) => {
       apolloPayload.organization_num_employees_ranges = [filters.size];
     }
 
-    console.log('Enviando a Apollo...');
+    console.log('Enviando request a Apollo...');
 
-    // Hacer la llamada a Apollo
+    // Hacer la llamada a Apollo con la API key en el HEADER
     const response = await axios({
       method: 'POST',
       url: 'https://api.apollo.io/v1/mixed_people/search',
       data: apolloPayload,
       headers: {
+        'X-Api-Key': apiKey,  // <-- Este es el header correcto según el aviso de deprecación
         'Content-Type': 'application/json',
         'Cache-Control': 'no-cache'
       },
-      timeout: 30000 // 30 segundos timeout
+      timeout: 30000
     });
 
-    console.log('Respuesta exitosa de Apollo');
+    console.log('Respuesta exitosa de Apollo, personas encontradas:', response.data.people?.length || 0);
     
     res.status(200).json(response.data);
 
@@ -67,13 +64,24 @@ module.exports = async (req, res) => {
     console.error('Error completo:', {
       message: error.message,
       response: error.response?.data,
-      status: error.response?.status
+      status: error.response?.status,
+      headers: error.response?.headers
     });
     
-    if (error.response?.status === 401 || error.response?.status === 422) {
+    if (error.response?.status === 401) {
       res.status(500).json({ 
-        error: 'API key de Apollo inválida o formato incorrecto',
-        details: error.response?.data?.error || 'Verificá la configuración de la API key en Vercel'
+        error: 'API key de Apollo inválida',
+        details: 'La API key fue rechazada. Verificá que esté correcta en Vercel.'
+      });
+    } else if (error.response?.status === 422) {
+      res.status(500).json({ 
+        error: 'Parámetros inválidos',
+        details: error.response?.data?.error || 'Los filtros enviados no son válidos'
+      });
+    } else if (error.response?.status === 429) {
+      res.status(500).json({ 
+        error: 'Límite de rate excedido',
+        details: 'Demasiadas solicitudes. Esperá un momento antes de intentar de nuevo.'
       });
     } else {
       res.status(500).json({ 
