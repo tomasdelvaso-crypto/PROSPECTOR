@@ -1,7 +1,7 @@
 const axios = require('axios');
 
 module.exports = async (req, res) => {
-  // Habilitar CORS
+  // CORS headers
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
@@ -16,78 +16,173 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const { query, filters } = req.body || {};
+    const { query, filters, enrichContacts = true } = req.body || {};
     
-    // Verificar que tenemos la API key
     const apiKey = process.env.APOLLO_API_KEY;
     if (!apiKey) {
-      console.error('Apollo API key not found in environment variables');
       throw new Error('Apollo API key not configured');
     }
 
-    // Construir el payload para Apollo SIN la API key
+    console.log('Buscando prospectos para mercado brasileiro...');
+
+    // Payload optimizado para Brasil
     const apolloPayload = {
       q_organization_name: query || '',
-      per_page: 10,
+      per_page: 25,
       page: 1,
-      person_locations: [filters?.location || "Brazil"],
-      person_titles: filters?.titles && filters.titles.length > 0 
-        ? filters.titles 
-        : ["Gerente de Qualidade", "Gerente de Operações", "Gerente de Logística", "Director", "CEO"]
+      
+      // Localización Brasil
+      person_locations: filters?.location ? [filters.location] : ["Brazil"],
+      organization_locations: ["Brazil"],
+      
+      // Títulos en portugués e inglés
+      person_titles: filters?.titles || [
+        "Gerente de Qualidade", "Quality Manager",
+        "Gerente de Operações", "Operations Manager", 
+        "Gerente de Logística", "Logistics Manager",
+        "Gerente de Produção", "Production Manager",
+        "Diretor de Operações", "Operations Director",
+        "Diretor Industrial", "VP Operations",
+        "Supply Chain Manager", "Gerente Supply Chain",
+        "CEO", "Presidente", "Chief Executive"
+      ],
+      
+      // Industrias prioritarias
+      organization_industry_tag_ids: filters?.industries || [],
+      
+      // Tamaño de empresa
+      organization_num_employees_ranges: filters?.size ? [filters.size] : ["501,1000", "1001,5000", "5001,10000"],
+      
+      // IMPORTANTE: Solicitar datos de contacto
+      contact_email_status: ["verified", "guessed", "verified_likely", "unavailable"],
+      include_contact_info: true,
+      
+      // Campos adicionales para scoring
+      organization_annual_revenue_ranges: filters?.revenue ? [`${filters.revenue}M,`] : [],
+      
+      // Excluir empresas sin datos de contacto
+      must_have_contact_info: false, // Cambiamos a false para obtener más resultados
+      
+      // Tecnologías (si están buscando proveedores)
+      organization_technologies: filters?.techKeywords || [],
+      
+      // Ordenar por relevancia
+      sort_by_field: "organization_num_employees",
+      sort_ascending: false
     };
 
-    // Agregar tamaño si existe
-    if (filters?.size) {
-      apolloPayload.organization_num_employees_ranges = [filters.size];
-    }
+    console.log('Enviando request a Apollo con parámetros optimizados...');
 
-    console.log('Enviando request a Apollo...');
-
-    // Hacer la llamada a Apollo con la API key en el HEADER
     const response = await axios({
       method: 'POST',
       url: 'https://api.apollo.io/v1/mixed_people/search',
       data: apolloPayload,
       headers: {
-        'X-Api-Key': apiKey,  // <-- Este es el header correcto según el aviso de deprecación
+        'X-Api-Key': apiKey,
         'Content-Type': 'application/json',
         'Cache-Control': 'no-cache'
       },
       timeout: 30000
     });
 
-    console.log('Respuesta exitosa de Apollo, personas encontradas:', response.data.people?.length || 0);
+    console.log(`Encontrados ${response.data.people?.length || 0} prospectos`);
+
+    // Enriquecer contactos si está habilitado
+    let enrichedPeople = response.data.people || [];
     
-    res.status(200).json(response.data);
+    if (enrichContacts && enrichedPeople.length > 0) {
+      console.log('Enriqueciendo datos de contacto...');
+      enrichedPeople = await enrichContactData(enrichedPeople, apiKey);
+    }
+
+    // Agregar metadata para scoring
+    enrichedPeople = enrichedPeople.map(person => ({
+      ...person,
+      _metadata: {
+        searchDate: new Date().toISOString(),
+        searchQuery: query,
+        hasEmail: !!person.email,
+        hasPhone: !!(person.phone_numbers && person.phone_numbers.length > 0),
+        hasLinkedIn: !!person.linkedin_url,
+        contactCompleteness: calculateContactCompleteness(person)
+      }
+    }));
+    
+    res.status(200).json({
+      people: enrichedPeople,
+      pagination: response.data.pagination,
+      total_entries: response.data.total_entries
+    });
 
   } catch (error) {
     console.error('Error completo:', {
       message: error.message,
       response: error.response?.data,
-      status: error.response?.status,
-      headers: error.response?.headers
+      status: error.response?.status
     });
     
-    if (error.response?.status === 401) {
-      res.status(500).json({ 
-        error: 'API key de Apollo inválida',
-        details: 'La API key fue rechazada. Verificá que esté correcta en Vercel.'
-      });
-    } else if (error.response?.status === 422) {
-      res.status(500).json({ 
-        error: 'Parámetros inválidos',
-        details: error.response?.data?.error || 'Los filtros enviados no son válidos'
-      });
-    } else if (error.response?.status === 429) {
-      res.status(500).json({ 
-        error: 'Límite de rate excedido',
-        details: 'Demasiadas solicitudes. Esperá un momento antes de intentar de nuevo.'
-      });
-    } else {
-      res.status(500).json({ 
-        error: 'Error searching prospects',
-        details: error.response?.data?.error || error.message 
-      });
-    }
+    res.status(500).json({ 
+      error: 'Error searching prospects',
+      details: error.response?.data?.error || error.message 
+    });
   }
 };
+
+// Función para enriquecer datos de contacto
+async function enrichContactData(people, apiKey) {
+  const enrichedPeople = [];
+  
+  for (const person of people) {
+    try {
+      // Si no tiene email, intentar enriquecerlo
+      if (!person.email && person.name && person.organization?.domain) {
+        const enrichResponse = await axios({
+          method: 'POST',
+          url: 'https://api.apollo.io/v1/people/match',
+          data: {
+            name: person.name,
+            organization_name: person.organization.name,
+            domain: person.organization.domain,
+            reveal_personal_emails: true,
+            reveal_phone_numbers: true
+          },
+          headers: {
+            'X-Api-Key': apiKey,
+            'Content-Type': 'application/json'
+          },
+          timeout: 5000
+        }).catch(err => {
+          console.log(`No se pudo enriquecer ${person.name}`);
+          return null;
+        });
+
+        if (enrichResponse?.data?.person) {
+          enrichedPeople.push({
+            ...person,
+            ...enrichResponse.data.person,
+            _enriched: true
+          });
+        } else {
+          enrichedPeople.push(person);
+        }
+      } else {
+        enrichedPeople.push(person);
+      }
+    } catch (error) {
+      console.error(`Error enriqueciendo ${person.name}:`, error.message);
+      enrichedPeople.push(person);
+    }
+  }
+  
+  return enrichedPeople;
+}
+
+// Calcular completitud de datos de contacto
+function calculateContactCompleteness(person) {
+  let score = 0;
+  if (person.email) score += 40;
+  if (person.phone_numbers?.length > 0) score += 30;
+  if (person.linkedin_url) score += 20;
+  if (person.title) score += 10;
+  return score;
+}
