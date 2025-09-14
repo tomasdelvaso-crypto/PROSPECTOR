@@ -19,21 +19,25 @@ module.exports = async (req, res) => {
     const { query, filters } = req.body || {};
     
     // Verificar que tenemos la API key
-    if (!process.env.APOLLO_API_KEY) {
+    const apiKey = process.env.APOLLO_API_KEY;
+    if (!apiKey) {
+      console.error('Apollo API key not found in environment variables');
       throw new Error('Apollo API key not configured');
     }
 
-    console.log('Recibiendo request con filtros:', filters);
+    console.log('API Key existe:', !!apiKey);
+    console.log('API Key length:', apiKey.length);
 
-    // Construir el payload para Apollo
+    // Construir el payload para Apollo - INCLUYENDO LA API KEY EN EL BODY
     const apolloPayload = {
+      api_key: apiKey,  // <-- Apollo espera la key en el body
       q_organization_name: query || '',
-      per_page: 25,
+      per_page: 10,
       page: 1,
       person_locations: [filters?.location || "Brazil"],
       person_titles: filters?.titles && filters.titles.length > 0 
         ? filters.titles 
-        : ["Gerente", "Director", "CEO", "Manager", "Gerente de Qualidade", "Gerente de Operações", "Gerente de Logística"]
+        : ["Gerente de Qualidade", "Gerente de Operações", "Gerente de Logística", "Director", "CEO"]
     };
 
     // Agregar tamaño si existe
@@ -41,43 +45,40 @@ module.exports = async (req, res) => {
       apolloPayload.organization_num_employees_ranges = [filters.size];
     }
 
-    console.log('Enviando a Apollo con payload:', JSON.stringify(apolloPayload, null, 2));
+    console.log('Enviando a Apollo...');
 
-    // IMPORTANTE: Apollo requiere la API key en el HEADER, no en el body
-    const response = await axios.post(
-      'https://api.apollo.io/v1/mixed_people/search',
-      apolloPayload,
-      {
-        headers: {
-          'Api-Key': process.env.APOLLO_API_KEY,  // <-- API key en el header
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache'
-        }
-      }
-    );
+    // Hacer la llamada a Apollo
+    const response = await axios({
+      method: 'POST',
+      url: 'https://api.apollo.io/v1/mixed_people/search',
+      data: apolloPayload,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache'
+      },
+      timeout: 30000 // 30 segundos timeout
+    });
 
-    console.log('Respuesta de Apollo recibida, personas encontradas:', response.data.people?.length || 0);
+    console.log('Respuesta exitosa de Apollo');
     
     res.status(200).json(response.data);
 
   } catch (error) {
-    console.error('Error completo:', error.response?.data || error.message);
+    console.error('Error completo:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status
+    });
     
-    // Manejo específico de errores de Apollo
-    if (error.response?.status === 401) {
+    if (error.response?.status === 401 || error.response?.status === 422) {
       res.status(500).json({ 
-        error: 'API key de Apollo inválida o expirada',
-        details: 'Verificá que la API key esté correctamente configurada en Vercel'
-      });
-    } else if (error.response?.status === 422) {
-      res.status(500).json({ 
-        error: 'Parámetros inválidos para Apollo',
-        details: error.response?.data?.error || 'Verificá los filtros enviados'
+        error: 'API key de Apollo inválida o formato incorrecto',
+        details: error.response?.data?.error || 'Verificá la configuración de la API key en Vercel'
       });
     } else {
       res.status(500).json({ 
         error: 'Error searching prospects',
-        details: error.response?.data || error.message 
+        details: error.response?.data?.error || error.message 
       });
     }
   }
