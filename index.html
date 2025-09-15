@@ -387,13 +387,12 @@ async function performDeepAnalysis(index) {
         if (person.id || person.email) {
             try {
                 const apolloEnrichResponse = await fetch('/api/apollo-enrich', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        person_id: person.id,
-                        email: person.email
-                    })
-                });
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+        person: person  // Pasar todo el objeto
+    })
+});
                 
                 const apolloData = await apolloEnrichResponse.json();
                 if (apolloData.success && apolloData.person) {
