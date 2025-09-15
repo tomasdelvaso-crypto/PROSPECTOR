@@ -434,108 +434,64 @@ async function performDeepAnalysis(index) {
                 });
                 
                 const lushaData = await lushaResponse.json();
+                console.log('Lusha response:', lushaData);
                 
-                // DEBUG COMPLETO DE LUSHA
-                console.log('=== LUSHA DEBUG START ===');
-                console.log('1. Full Lusha response:', lushaData);
+                // IMPORTANTE: Los datos están en rawData.contact.data
+                let actualData = null;
                 
-                if (lushaData.contact?.rawData) {
-                    console.log('2. Lusha rawData structure:', JSON.stringify(lushaData.contact.rawData, null, 2));
-                }
-                
-                if (lushaData.contact?.debug) {
-                    console.log('3. Lusha debug info:', lushaData.contact.debug);
-                }
-                
-                console.log('4. Full Lusha contact object:', JSON.stringify(lushaData.contact, null, 2));
-                
-                // Buscar teléfonos en TODOS los campos posibles
-                const phoneSearchPaths = [
-                    lushaData.contact?.phones,
-                    lushaData.contact?.phone_numbers,
-                    lushaData.contact?.phone,
-                    lushaData.contact?.rawData?.phoneNumbers,
-                    lushaData.contact?.rawData?.phone,
-                    lushaData.contact?.rawData?.mobilePhone,
-                    lushaData.contact?.rawData?.directPhone,
-                    lushaData.contact?.rawData?.data?.phoneNumbers,
-                    lushaData.contact?.rawData?.data?.phone
-                ];
-                
-                console.log('5. Phone search paths results:', phoneSearchPaths.map((path, i) => ({
-                    index: i,
-                    found: !!path,
-                    value: path
-                })));
-                
-                console.log('=== LUSHA DEBUG END ===');
-                
-                if (lushaData.enriched && lushaData.contact) {
-                    // Email
-                    if (!enrichedPerson.email && lushaData.contact.email) {
-                        enrichedPerson.email = lushaData.contact.email;
-                        console.log('✅ Email found from Lusha:', lushaData.contact.email);
+                // Buscar los datos en la estructura anidada
+                if (lushaData.contact?.rawData?.contact?.data) {
+                    actualData = lushaData.contact.rawData.contact.data;
+                    console.log('✅ Found Lusha data in rawData.contact.data:', actualData);
+                } else if (lushaData.contact?.rawData?.data) {
+                    actualData = lushaData.contact.rawData.data;
+                    console.log('✅ Found Lusha data in rawData.data:', actualData);
+                } else if (lushaData.contact?.rawData) {
+                    // Intentar directamente con rawData si tiene phoneNumbers
+                    if (lushaData.contact.rawData.phoneNumbers) {
+                        actualData = lushaData.contact.rawData;
+                        console.log('✅ Found Lusha data in rawData directly:', actualData);
                     }
-                    
-                    // Teléfonos - chequear todos los paths posibles
-                    let phonesFound = false;
-                    
-                    // Path 1: phones array
-                    if (lushaData.contact.phones && Array.isArray(lushaData.contact.phones) && lushaData.contact.phones.length > 0) {
-                        enrichedPerson.phone_numbers = lushaData.contact.phones.map(p => ({
-                            sanitized_number: p.number || p,
-                            type: p.type || 'unknown',
-                            source: 'Lusha'
+                }
+                
+                if (actualData) {
+                    // Procesar teléfonos
+                    if (actualData.phoneNumbers && Array.isArray(actualData.phoneNumbers)) {
+                        enrichedPerson.phone_numbers = actualData.phoneNumbers.map(p => ({
+                            sanitized_number: p.number,
+                            type: p.phoneType || 'mobile',
+                            source: 'Lusha',
+                            doNotCall: p.doNotCall || false
                         }));
-                        phonesFound = true;
-                        console.log('✅ Phones found in contact.phones:', enrichedPerson.phone_numbers);
+                        console.log('📱 Phones extracted from Lusha:', enrichedPerson.phone_numbers);
                     }
                     
-                    // Path 2: phone_numbers array
-                    else if (lushaData.contact.phone_numbers && Array.isArray(lushaData.contact.phone_numbers) && lushaData.contact.phone_numbers.length > 0) {
-                        enrichedPerson.phone_numbers = lushaData.contact.phone_numbers;
-                        phonesFound = true;
-                        console.log('✅ Phones found in contact.phone_numbers:', enrichedPerson.phone_numbers);
-                    }
-                    
-                    // Path 3: single phone field
-                    else if (lushaData.contact.phone) {
-                        enrichedPerson.phone_numbers = [{
-                            sanitized_number: lushaData.contact.phone,
-                            source: 'Lusha'
-                        }];
-                        phonesFound = true;
-                        console.log('✅ Phone found in contact.phone:', lushaData.contact.phone);
-                    }
-                    
-                    // Path 4: check rawData
-                    else if (lushaData.contact.rawData) {
-                        const raw = lushaData.contact.rawData;
-                        
-                        if (raw.phoneNumbers && Array.isArray(raw.phoneNumbers) && raw.phoneNumbers.length > 0) {
-                            enrichedPerson.phone_numbers = raw.phoneNumbers.map(p => ({
-                                sanitized_number: p.internationalNumber || p.localNumber || p.number || p,
-                                type: p.type || 'unknown',
-                                source: 'Lusha'
-                            }));
-                            phonesFound = true;
-                            console.log('✅ Phones found in rawData.phoneNumbers:', enrichedPerson.phone_numbers);
-                        } else if (raw.mobilePhone || raw.directPhone || raw.phone) {
-                            const phoneNumber = raw.mobilePhone || raw.directPhone || raw.phone;
-                            enrichedPerson.phone_numbers = [{
-                                sanitized_number: phoneNumber,
-                                type: raw.mobilePhone ? 'mobile' : raw.directPhone ? 'direct' : 'unknown',
-                                source: 'Lusha'
-                            }];
-                            phonesFound = true;
-                            console.log('✅ Phone found in rawData fields:', phoneNumber);
+                    // Procesar emails si no los tenemos
+                    if (!enrichedPerson.email && actualData.emailAddresses && Array.isArray(actualData.emailAddresses)) {
+                        const lushaEmail = actualData.emailAddresses[0]?.email;
+                        if (lushaEmail) {
+                            enrichedPerson.email = lushaEmail;
+                            console.log('📧 Email extracted from Lusha:', enrichedPerson.email);
                         }
                     }
                     
-                    if (!phonesFound) {
-                        console.log('❌ No phones found in any Lusha path');
+                    // Guardar información adicional de Lusha
+                    if (actualData.jobTitle) {
+                        enrichedPerson.lushaTitle = actualData.jobTitle.title;
+                        enrichedPerson.seniority = actualData.jobTitle.seniority;
+                        enrichedPerson.departments = actualData.jobTitle.departments;
                     }
+                    
+                    // Guardar ubicación
+                    if (actualData.location) {
+                        enrichedPerson.location = actualData.location;
+                    }
+                    
+                    console.log('✅ Lusha enrichment complete. Credits charged:', lushaData.contact?.rawData?.contact?.isCreditCharged);
+                } else {
+                    console.log('❌ Could not find Lusha data in expected structure');
                 }
+                
             } catch (lushaError) {
                 console.error('❌ Lusha error:', lushaError);
             }
@@ -578,7 +534,9 @@ async function performDeepAnalysis(index) {
                     name: enrichedPerson.name,
                     title: enrichedPerson.title,
                     email: enrichedPerson.email,
-                    phone: enrichedPerson.phone_numbers?.[0]?.sanitized_number
+                    phone: enrichedPerson.phone_numbers?.[0]?.sanitized_number,
+                    seniority: enrichedPerson.seniority,
+                    departments: enrichedPerson.departments
                 },
                 enrichment: enrichData
             })
@@ -601,6 +559,17 @@ async function performDeepAnalysis(index) {
             document.getElementById('hotLeads').textContent = hotLeadsCount;
         }
         
+        // Calcular y actualizar score promedio
+        const avgScore = Math.round((analyzedProspects.reduce((sum, p) => sum + p.score, 0) + analysis.total_score) / (analyzedProspects.length + 1));
+        document.getElementById('avgScore').textContent = avgScore;
+        
+        // Guardar análisis
+        analyzedProspects.push({
+            person: enrichedPerson,
+            analysis: analysis,
+            score: analysis.total_score
+        });
+        
     } catch (error) {
         console.error('Erro na análise:', error);
         analysisDiv.innerHTML = `
@@ -611,6 +580,7 @@ async function performDeepAnalysis(index) {
         `;
     }
 }
+        
     function updateContactDisplay(index, enrichedPerson) {
         const contactDiv = document.getElementById(`contact-info-${index}`);
         const actionButtonsDiv = document.getElementById(`action-buttons-${index}`);
