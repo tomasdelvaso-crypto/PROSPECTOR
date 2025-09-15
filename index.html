@@ -48,30 +48,16 @@
             <!-- Filtros Principais -->
             <div class="grid grid-cols-4 gap-4 mb-4">
                 <div>
-                    <label class="block text-sm font-medium mb-1">Indústria</label>
-                    <select id="industryFilter" class="w-full p-2 border rounded">
-                        <option value="">Todas</option>
-                        <option value="e-commerce">E-commerce/Marketplace</option>
-                        <option value="logistics">3PL/Logística/Fulfillment</option>
-                        <option value="food">Alimentos e Bebidas</option>
-                        <option value="pharma">Farmacêutica/Hospitalar</option>
-                        <option value="cosmetics">Cosmética/Beleza</option>
-                        <option value="automotive">Automotiva/Autopeças</option>
-                        <option value="retail">Varejo/Têxtil</option>
-                    </select>
-                </div>
-                
-                <div>
                     <label class="block text-sm font-medium mb-1">Cargo do Decisor</label>
                     <select id="titleFilter" class="w-full p-2 border rounded">
                         <option value="">Todos</option>
-                        <option value="operations">Gerente de Operações</option>
-                        <option value="logistics">Gerente de Logística</option>
-                        <option value="quality">Gerente de Qualidade</option>
-                        <option value="production">Gerente de Produção</option>
-                        <option value="supply">Supply Chain Manager</option>
-                        <option value="director">Diretor Operações/Industrial</option>
-                        <option value="ceo">CEO/Presidente</option>
+                        <option value="operations">Operations/Operações</option>
+                        <option value="logistics">Logistics/Logística</option>
+                        <option value="quality">Quality/Qualidade</option>
+                        <option value="production">Production/Produção</option>
+                        <option value="supply">Supply Chain</option>
+                        <option value="director">Director Level</option>
+                        <option value="ceo">C-Level/CEO</option>
                     </select>
                 </div>
                 
@@ -88,13 +74,21 @@
                 </div>
                 
                 <div>
-                    <label class="block text-sm font-medium mb-1">Porte</label>
+                    <label class="block text-sm font-medium mb-1">Porte da Empresa</label>
                     <select id="sizeFilter" class="w-full p-2 border rounded">
                         <option value="501,1000">501-1000 funcionários</option>
                         <option value="201,500">201-500</option>
                         <option value="1001,5000">1001-5000</option>
                         <option value="5001,10000">5001+</option>
                     </select>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium mb-1">Empresa (opcional)</label>
+                    <input type="text" 
+                           id="companyFilter" 
+                           placeholder="Ex: Mercado Livre, Natura"
+                           class="w-full p-2 border rounded text-sm">
                 </div>
             </div>
             
@@ -146,29 +140,91 @@
             <div id="results">
                 <p class="text-gray-500">Nenhuma busca realizada</p>
             </div>
+            
+            <!-- Botão Carregar Mais -->
+            <div id="loadMoreContainer" class="mt-4 text-center hidden">
+                <button onclick="loadMoreProspects()" 
+                        class="px-6 py-3 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
+                    <i class="fas fa-plus-circle mr-2"></i>Carregar mais 25 prospectos
+                </button>
+            </div>
         </div>
     </div>
 
     <script>
-    // Configuração
+    // Configuração com termos em INGLÊS para melhor resultado
     const TITLE_MAPPING = {
-        'operations': ['Gerente de Operações', 'Operations Manager', 'Gerente Operacional', 'COO'],
-        'logistics': ['Gerente de Logística', 'Logistics Manager', 'Supply Chain Manager'],
-        'quality': ['Gerente de Qualidade', 'Quality Manager', 'Coordenador de Qualidade'],
-        'production': ['Gerente de Produção', 'Production Manager', 'Plant Manager'],
-        'supply': ['Supply Chain Manager', 'Head of Supply Chain'],
-        'director': ['Diretor de Operações', 'Diretor Industrial', 'Operations Director'],
-        'ceo': ['CEO', 'President', 'Presidente', 'Chief Executive']
+        'operations': [
+            'Operations Manager', 
+            'Operations Director', 
+            'COO', 
+            'Chief Operating Officer',
+            'VP Operations',
+            'Head of Operations'
+        ],
+        'logistics': [
+            'Logistics Manager', 
+            'Supply Chain Manager', 
+            'Logistics Director',
+            'Head of Logistics',
+            'VP Supply Chain',
+            'Logistics Coordinator'
+        ],
+        'quality': [
+            'Quality Manager', 
+            'Quality Assurance Manager',
+            'QA Manager',
+            'Quality Director',
+            'Head of Quality'
+        ],
+        'production': [
+            'Production Manager', 
+            'Plant Manager',
+            'Manufacturing Manager',
+            'Production Director',
+            'Factory Manager'
+        ],
+        'supply': [
+            'Supply Chain Manager', 
+            'Head of Supply Chain',
+            'Procurement Manager',
+            'Sourcing Manager',
+            'VP Supply Chain'
+        ],
+        'director': [
+            'Operations Director', 
+            'Industrial Director',
+            'Managing Director',
+            'Regional Director'
+        ],
+        'ceo': [
+            'CEO', 
+            'Chief Executive Officer',
+            'President',
+            'Founder',
+            'Owner',
+            'General Manager'
+        ]
     };
 
+    // Variables globales para paginación
     let currentResults = [];
     let analyzedCount = 0;
     let analyzedProspects = [];
+    let currentPage = 1;
+    let hasMoreResults = true;
+    let allResults = [];
 
     async function searchProspects() {
+        // Reset paginación
+        currentPage = 1;
+        allResults = [];
+        hasMoreResults = true;
+        
         const titleType = document.getElementById('titleFilter').value;
         const location = document.getElementById('locationFilter').value;
         const size = document.getElementById('sizeFilter').value;
+        const company = document.getElementById('companyFilter').value;
         
         const resultsDiv = document.getElementById('results');
         resultsDiv.innerHTML = '<p class="text-blue-600"><i class="fas fa-spinner fa-spin mr-2"></i>Buscando prospectos...</p>';
@@ -182,10 +238,49 @@
                 body: JSON.stringify({
                     query: '',
                     filters: {
-                        titles: titleType ? TITLE_MAPPING[titleType] : ['Manager', 'Director', 'Gerente'],
+                        titles: titleType ? TITLE_MAPPING[titleType] : [
+                            'Manager',
+                            'Director', 
+                            'Head',
+                            'Chief',
+                            'VP',
+                            'Vice President'
+                        ],
                         location: location || 'Brazil',
-                        size: size || '501,1000'
-                    }
+                        size: size || '501,1000',
+                        company_names: company ? [company] : null,
+                        seniority_levels: [
+                            'manager',
+                            'director', 
+                            'vp',
+                            'owner',
+                            'c_suite',
+                            'partner'
+                        ],
+                        departments: [
+                            'operations',
+                            'logistics',
+                            'supply_chain',
+                            'procurement',
+                            'quality',
+                            'manufacturing',
+                            'production'
+                        ],
+                        excluded_titles: [
+                            'Assistant',
+                            'Analyst', 
+                            'Intern',
+                            'Junior',
+                            'Trainee',
+                            'Student',
+                            'Coordinator',
+                            'Specialist',
+                            'Advisor'
+                        ],
+                        must_have_verified_email: true
+                    },
+                    page: currentPage,
+                    per_page: 25
                 })
             });
             
@@ -195,6 +290,7 @@
             
             const data = await response.json();
             currentResults = data.people || [];
+            allResults = currentResults;
             
             if (currentResults.length === 0) {
                 resultsDiv.innerHTML = `
@@ -208,6 +304,11 @@
             displayResults(currentResults);
             updateStats();
             
+            // Mostrar botão de carregar mais se houver 25 resultados
+            if (currentResults.length >= 25) {
+                document.getElementById('loadMoreContainer').classList.remove('hidden');
+            }
+            
         } catch (error) {
             console.error('Erro:', error);
             resultsDiv.innerHTML = `
@@ -216,6 +317,91 @@
                     <p class="text-sm">${error.message}</p>
                 </div>
             `;
+        }
+    }
+
+    async function loadMoreProspects() {
+        currentPage++;
+        const btn = event.target;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Carregando...';
+        btn.disabled = true;
+        
+        const titleType = document.getElementById('titleFilter').value;
+        const location = document.getElementById('locationFilter').value;
+        const size = document.getElementById('sizeFilter').value;
+        const company = document.getElementById('companyFilter').value;
+        
+        try {
+            const response = await fetch('/api/apollo-search', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    query: '',
+                    filters: {
+                        titles: titleType ? TITLE_MAPPING[titleType] : [
+                            'Manager',
+                            'Director', 
+                            'Head',
+                            'Chief',
+                            'VP',
+                            'Vice President'
+                        ],
+                        location: location || 'Brazil',
+                        size: size || '501,1000',
+                        company_names: company ? [company] : null,
+                        seniority_levels: [
+                            'manager',
+                            'director', 
+                            'vp',
+                            'owner',
+                            'c_suite',
+                            'partner'
+                        ],
+                        departments: [
+                            'operations',
+                            'logistics',
+                            'supply_chain',
+                            'procurement',
+                            'quality',
+                            'manufacturing',
+                            'production'
+                        ],
+                        excluded_titles: [
+                            'Assistant',
+                            'Analyst', 
+                            'Intern',
+                            'Junior',
+                            'Trainee',
+                            'Student',
+                            'Coordinator',
+                            'Specialist',
+                            'Advisor'
+                        ],
+                        must_have_verified_email: true
+                    },
+                    page: currentPage,
+                    per_page: 25
+                })
+            });
+            
+            const data = await response.json();
+            const newResults = data.people || [];
+            
+            if (newResults.length > 0) {
+                allResults = [...allResults, ...newResults];
+                currentResults = allResults;
+                displayResults(allResults);
+                updateStats();
+            } else {
+                hasMoreResults = false;
+                document.getElementById('loadMoreContainer').classList.add('hidden');
+            }
+            
+        } catch (error) {
+            console.error('Erro ao carregar mais:', error);
+        } finally {
+            btn.innerHTML = '<i class="fas fa-plus-circle mr-2"></i>Carregar mais 25 prospectos';
+            btn.disabled = false;
         }
     }
 
@@ -234,7 +420,6 @@
             const hasPhone = person.phone_numbers?.length > 0;
             const hasLinkedIn = person.linkedin_url;
             
-            // Scoring básico inicial
             const basicScore = calculateBasicScore(person);
             const isPromising = basicScore.score >= 50;
             
@@ -291,7 +476,6 @@
                                 ` : ''}
                             </div>
                             
-                            <!-- Container para análise -->
                             <div id="analysis-${index}" class="mt-4"></div>
                         </div>
                         
@@ -331,20 +515,18 @@
         let score = 0;
         let reasons = [];
         
-        // Cargo
         const title = (person.title || '').toLowerCase();
-        if (title.includes('ceo') || title.includes('presidente')) {
+        if (title.includes('ceo') || title.includes('president') || title.includes('chief')) {
             score += 30;
             reasons.push('C-Level');
-        } else if (title.includes('diretor')) {
+        } else if (title.includes('director') || title.includes('head')) {
             score += 25;
-            reasons.push('Diretor');
-        } else if (title.includes('gerente')) {
+            reasons.push('Director');
+        } else if (title.includes('manager')) {
             score += 20;
-            reasons.push('Gerente');
+            reasons.push('Manager');
         }
         
-        // Tamanho
         const employees = person.organization?.estimated_num_employees || 0;
         if (employees > 1000) {
             score += 30;
@@ -354,7 +536,6 @@
             reasons.push(`${employees} func`);
         }
         
-        // Contato
         if (person.email && person.email !== 'email_not_unlocked@domain.com') score += 10;
         if (person.linkedin_url) score += 10;
         
@@ -364,238 +545,217 @@
         };
     }
 
-async function performDeepAnalysis(index) {
-    const person = currentResults[index];
-    const analysisDiv = document.getElementById(`analysis-${index}`);
-    
-    analysisDiv.innerHTML = `
-        <div class="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-indigo-200">
-            <div class="flex items-center">
-                <i class="fas fa-spinner fa-spin text-indigo-600 mr-2"></i>
-                <span class="text-sm font-semibold">Iniciando análise profunda...</span>
-            </div>
-            <div class="mt-2 text-xs text-gray-600">
-                <div id="progress-${index}">
-                    📍 Passo 1/5: Preparando dados...
+    async function performDeepAnalysis(index) {
+        const person = currentResults[index];
+        const analysisDiv = document.getElementById(`analysis-${index}`);
+        
+        analysisDiv.innerHTML = `
+            <div class="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-indigo-200">
+                <div class="flex items-center">
+                    <i class="fas fa-spinner fa-spin text-indigo-600 mr-2"></i>
+                    <span class="text-sm font-semibold">Iniciando análise profunda...</span>
+                </div>
+                <div class="mt-2 text-xs text-gray-600">
+                    <div id="progress-${index}">
+                        📍 Passo 1/5: Preparando dados...
+                    </div>
                 </div>
             </div>
-        </div>
-    `;
-    
-    try {
-        let enrichedPerson = {...person};
-        
-        // Paso 1: Intentar con Apollo primero
-        document.getElementById(`progress-${index}`).innerHTML = '🔍 Passo 1/5: Buscando em Apollo...';
+        `;
         
         try {
-            const apolloResponse = await fetch('/api/apollo-enrich', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contactId: person.id,
-                    contactData: {
-                        first_name: person.first_name,
-                        last_name: person.last_name,
-                        organization_name: person.organization?.name
-                    }
-                })
-            });
+            let enrichedPerson = {...person};
             
-            const apolloData = await apolloResponse.json();
-            
-            if (apolloData.enriched && apolloData.contact) {
-                if (apolloData.contact.email && apolloData.contact.email !== 'email_not_unlocked@domain.com') {
-                    enrichedPerson.email = apolloData.contact.email;
-                }
-                if (apolloData.contact.phone_numbers?.length > 0) {
-                    enrichedPerson.phone_numbers = apolloData.contact.phone_numbers;
-                }
-            }
-        } catch (apolloError) {
-            console.log('Apollo falló:', apolloError);
-        }
-        
-        // Paso 2: Si no tenemos teléfono, intentar con Lusha
-        if (!enrichedPerson.phone_numbers || enrichedPerson.phone_numbers.length === 0) {
-            document.getElementById(`progress-${index}`).innerHTML = '📱 Passo 2/5: Buscando telefone em Lusha...';
+            // Paso 1: Apollo
+            document.getElementById(`progress-${index}`).innerHTML = '🔍 Passo 1/5: Buscando em Apollo...';
             
             try {
-                const lushaResponse = await fetch('/api/lusha-enrich', {
+                const apolloResponse = await fetch('/api/apollo-enrich', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        firstName: person.first_name,
-                        lastName: person.last_name,
-                        company: person.organization?.name,
-                        domain: person.organization?.primary_domain || person.email?.split('@')[1],
-                        linkedinUrl: person.linkedin_url
+                        contactId: person.id,
+                        contactData: {
+                            first_name: person.first_name,
+                            last_name: person.last_name,
+                            organization_name: person.organization?.name
+                        }
                     })
                 });
                 
-                const lushaData = await lushaResponse.json();
-                console.log('Lusha response:', lushaData);
+                const apolloData = await apolloResponse.json();
                 
-                // IMPORTANTE: Los datos están en rawData.contact.data
-                let actualData = null;
-                
-                // Buscar los datos en la estructura anidada
-                if (lushaData.contact?.rawData?.contact?.data) {
-                    actualData = lushaData.contact.rawData.contact.data;
-                    console.log('✅ Found Lusha data in rawData.contact.data');
-                } else if (lushaData.contact?.rawData?.data) {
-                    actualData = lushaData.contact.rawData.data;
-                    console.log('✅ Found Lusha data in rawData.data');
-                } else if (lushaData.contact?.rawData) {
-                    if (lushaData.contact.rawData.phoneNumbers) {
-                        actualData = lushaData.contact.rawData;
-                        console.log('✅ Found Lusha data in rawData directly');
+                if (apolloData.enriched && apolloData.contact) {
+                    if (apolloData.contact.email && apolloData.contact.email !== 'email_not_unlocked@domain.com') {
+                        enrichedPerson.email = apolloData.contact.email;
+                    }
+                    if (apolloData.contact.phone_numbers?.length > 0) {
+                        enrichedPerson.phone_numbers = apolloData.contact.phone_numbers;
                     }
                 }
+            } catch (apolloError) {
+                console.log('Apollo falló:', apolloError);
+            }
+            
+            // Paso 2: Lusha si no hay teléfono
+            if (!enrichedPerson.phone_numbers || enrichedPerson.phone_numbers.length === 0) {
+                document.getElementById(`progress-${index}`).innerHTML = '📱 Passo 2/5: Buscando telefone em Lusha...';
                 
-                if (actualData) {
-                    // GUARDAR TODOS LOS DATOS DE LUSHA (ya los pagamos!)
-                    enrichedPerson.lushaFullData = actualData;
+                try {
+                    const lushaResponse = await fetch('/api/lusha-enrich', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            firstName: person.first_name,
+                            lastName: person.last_name,
+                            company: person.organization?.name,
+                            domain: person.organization?.primary_domain || person.email?.split('@')[1],
+                            linkedinUrl: person.linkedin_url
+                        })
+                    });
                     
-                    // Procesar teléfonos
-                    if (actualData.phoneNumbers && Array.isArray(actualData.phoneNumbers)) {
-                        enrichedPerson.phone_numbers = actualData.phoneNumbers.map(p => ({
-                            sanitized_number: p.number,
-                            type: p.phoneType || 'mobile',
-                            source: 'Lusha',
-                            doNotCall: p.doNotCall || false
-                        }));
-                        console.log('📱 Phones extracted from Lusha:', enrichedPerson.phone_numbers);
-                    }
+                    const lushaData = await lushaResponse.json();
+                    console.log('Lusha response:', lushaData);
                     
-                    // Procesar emails si no los tenemos
-                    if (!enrichedPerson.email && actualData.emailAddresses && Array.isArray(actualData.emailAddresses)) {
-                        const lushaEmail = actualData.emailAddresses[0]?.email;
-                        if (lushaEmail) {
-                            enrichedPerson.email = lushaEmail;
-                            console.log('📧 Email extracted from Lusha:', enrichedPerson.email);
+                    let actualData = null;
+                    
+                    if (lushaData.contact?.rawData?.contact?.data) {
+                        actualData = lushaData.contact.rawData.contact.data;
+                        console.log('✅ Found Lusha data in rawData.contact.data');
+                    } else if (lushaData.contact?.rawData?.data) {
+                        actualData = lushaData.contact.rawData.data;
+                        console.log('✅ Found Lusha data in rawData.data');
+                    } else if (lushaData.contact?.rawData) {
+                        if (lushaData.contact.rawData.phoneNumbers) {
+                            actualData = lushaData.contact.rawData;
+                            console.log('✅ Found Lusha data in rawData directly');
                         }
                     }
                     
-                    // Guardar información adicional de Lusha para el análisis
-                    if (actualData.jobTitle) {
-                        enrichedPerson.lushaTitle = actualData.jobTitle.title;
-                        enrichedPerson.seniority = actualData.jobTitle.seniority;
-                        enrichedPerson.departments = actualData.jobTitle.departments;
+                    if (actualData) {
+                        enrichedPerson.lushaFullData = actualData;
+                        
+                        if (actualData.phoneNumbers && Array.isArray(actualData.phoneNumbers)) {
+                            enrichedPerson.phone_numbers = actualData.phoneNumbers.map(p => ({
+                                sanitized_number: p.number,
+                                type: p.phoneType || 'mobile',
+                                source: 'Lusha',
+                                doNotCall: p.doNotCall || false
+                            }));
+                            console.log('📱 Phones extracted from Lusha:', enrichedPerson.phone_numbers);
+                        }
+                        
+                        if (!enrichedPerson.email && actualData.emailAddresses && Array.isArray(actualData.emailAddresses)) {
+                            const lushaEmail = actualData.emailAddresses[0]?.email;
+                            if (lushaEmail) {
+                                enrichedPerson.email = lushaEmail;
+                                console.log('📧 Email extracted from Lusha:', enrichedPerson.email);
+                            }
+                        }
+                        
+                        if (actualData.jobTitle) {
+                            enrichedPerson.lushaTitle = actualData.jobTitle.title;
+                            enrichedPerson.seniority = actualData.jobTitle.seniority;
+                            enrichedPerson.departments = actualData.jobTitle.departments;
+                        }
+                        
+                        if (actualData.location) {
+                            enrichedPerson.location = actualData.location;
+                        }
+                        
+                        enrichedPerson.jobStartDate = actualData.jobStartDate;
+                        enrichedPerson.previousJob = actualData.previousJob;
+                        enrichedPerson.companyDetails = actualData.company;
+                        
+                        console.log('✅ Lusha enrichment complete');
                     }
-                    
-                    // Guardar ubicación
-                    if (actualData.location) {
-                        enrichedPerson.location = actualData.location;
-                    }
-                    
-                    // Guardar datos críticos para análisis PPVVC
-                    enrichedPerson.jobStartDate = actualData.jobStartDate;
-                    enrichedPerson.previousJob = actualData.previousJob;
-                    enrichedPerson.companyDetails = actualData.company;
-                    
-                    console.log('✅ Lusha enrichment complete. Credits charged:', lushaData.contact?.rawData?.contact?.isCreditCharged);
-                    console.log('📊 Full Lusha data saved for PPVVC analysis');
-                } else {
-                    console.log('❌ Could not find Lusha data in expected structure');
+                } catch (lushaError) {
+                    console.error('❌ Lusha error:', lushaError);
                 }
-                
-            } catch (lushaError) {
-                console.error('❌ Lusha error:', lushaError);
             }
+            
+            updateContactDisplay(index, enrichedPerson);
+            
+            // Paso 3: Serper
+            document.getElementById(`progress-${index}`).innerHTML = '🔍 Passo 3/5: Buscando inteligência de mercado...';
+            
+            const enrichResponse = await fetch('/api/enrich-prospect', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    company: { 
+                        name: enrichedPerson.organization?.name || '',
+                        employees: enrichedPerson.organization?.estimated_num_employees
+                    },
+                    contact: enrichedPerson
+                })
+            });
+            
+            const enrichData = await enrichResponse.json();
+            
+            // Paso 4: Claude con TODOS los datos
+            document.getElementById(`progress-${index}`).innerHTML = '🧠 Passo 4/5: Analisando com IA (PPVVC)...';
+            
+            const analysisResponse = await fetch('/api/claude-analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    company: {
+                        name: enrichedPerson.organization?.name,
+                        industry: enrichedPerson.organization?.industry,
+                        estimated_num_employees: enrichedPerson.organization?.estimated_num_employees,
+                        headquarters_location: enrichedPerson.organization?.headquarters_location,
+                        lushaCompanyData: enrichedPerson.lushaFullData?.company || null
+                    },
+                    contact: {
+                        name: enrichedPerson.name,
+                        title: enrichedPerson.title,
+                        email: enrichedPerson.email,
+                        phone: enrichedPerson.phone_numbers?.[0]?.sanitized_number,
+                        seniority: enrichedPerson.seniority,
+                        departments: enrichedPerson.departments,
+                        jobStartDate: enrichedPerson.lushaFullData?.jobStartDate,
+                        previousJob: enrichedPerson.lushaFullData?.previousJob,
+                        location: enrichedPerson.lushaFullData?.location,
+                        lushaFullProfile: enrichedPerson.lushaFullData
+                    },
+                    enrichment: enrichData
+                })
+            });
+            
+            const analysis = await analysisResponse.json();
+            console.log('Claude analysis:', analysis);
+            
+            // Paso 5: Display
+            document.getElementById(`progress-${index}`).innerHTML = '✅ Passo 5/5: Compilando resultados...';
+            
+            displayCompleteAnalysis(index, enrichedPerson, enrichData, analysis);
+            
+            analyzedCount++;
+            document.getElementById('analyzed').textContent = analyzedCount;
+            
+            if (analysis.total_score >= 7) {
+                const hotLeadsCount = parseInt(document.getElementById('hotLeads').textContent) + 1;
+                document.getElementById('hotLeads').textContent = hotLeadsCount;
+            }
+            
+            analyzedProspects.push({
+                person: enrichedPerson,
+                analysis: analysis,
+                score: analysis.total_score
+            });
+            
+        } catch (error) {
+            console.error('Erro na análise:', error);
+            analysisDiv.innerHTML = `
+                <div class="p-3 bg-red-50 rounded border border-red-200">
+                    <p class="text-red-600 text-sm font-semibold">❌ Erro na análise</p>
+                    <p class="text-xs text-gray-600 mt-1">${error.message}</p>
+                </div>
+            `;
         }
-        
-        // Actualizar display si encontramos nuevos datos
-        updateContactDisplay(index, enrichedPerson);
-        
-        // Paso 3: Buscar inteligencia de mercado con Serper
-        document.getElementById(`progress-${index}`).innerHTML = '🔍 Passo 3/5: Buscando inteligência de mercado...';
-        
-        const enrichResponse = await fetch('/api/enrich-prospect', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                company: { 
-                    name: enrichedPerson.organization?.name || '',
-                    employees: enrichedPerson.organization?.estimated_num_employees
-                },
-                contact: enrichedPerson
-            })
-        });
-        
-        const enrichData = await enrichResponse.json();
-        
-        // Paso 4: Análisis PPVVC con Claude - CON TODOS LOS DATOS
-        document.getElementById(`progress-${index}`).innerHTML = '🧠 Passo 4/5: Analisando com IA (PPVVC)...';
-        
-        const analysisResponse = await fetch('/api/claude-analyze', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                company: {
-                    name: enrichedPerson.organization?.name,
-                    industry: enrichedPerson.organization?.industry,
-                    estimated_num_employees: enrichedPerson.organization?.estimated_num_employees,
-                    headquarters_location: enrichedPerson.organization?.headquarters_location,
-                    // DATOS ADICIONALES DE LUSHA
-                    lushaCompanyData: enrichedPerson.lushaFullData?.company || null
-                },
-                contact: {
-                    name: enrichedPerson.name,
-                    title: enrichedPerson.title,
-                    email: enrichedPerson.email,
-                    phone: enrichedPerson.phone_numbers?.[0]?.sanitized_number,
-                    seniority: enrichedPerson.seniority,
-                    departments: enrichedPerson.departments,
-                    // DATOS COMPLETOS DE LUSHA
-                    jobStartDate: enrichedPerson.lushaFullData?.jobStartDate,
-                    previousJob: enrichedPerson.lushaFullData?.previousJob,
-                    location: enrichedPerson.lushaFullData?.location,
-                    lushaFullProfile: enrichedPerson.lushaFullData
-                },
-                enrichment: enrichData
-            })
-        });
-        
-        const analysis = await analysisResponse.json();
-        
-        // Paso 5: Mostrar resultado completo
-        document.getElementById(`progress-${index}`).innerHTML = '✅ Passo 5/5: Compilando resultados...';
-        
-        displayCompleteAnalysis(index, enrichedPerson, enrichData, analysis);
-        
-        // Actualizar estadísticas
-        analyzedCount++;
-        document.getElementById('analyzed').textContent = analyzedCount;
-        
-        // Actualizar hot leads si el score es alto
-        if (analysis.total_score >= 7) {
-            const hotLeadsCount = parseInt(document.getElementById('hotLeads').textContent) + 1;
-            document.getElementById('hotLeads').textContent = hotLeadsCount;
-        }
-        
-        // Calcular y actualizar score promedio
-        const avgScore = Math.round((analyzedProspects.reduce((sum, p) => sum + p.score, 0) + analysis.total_score) / (analyzedProspects.length + 1));
-        document.getElementById('avgScore').textContent = avgScore;
-        
-        // Guardar análisis
-        analyzedProspects.push({
-            person: enrichedPerson,
-            analysis: analysis,
-            score: analysis.total_score
-        });
-        
-    } catch (error) {
-        console.error('Erro na análise:', error);
-        analysisDiv.innerHTML = `
-            <div class="p-3 bg-red-50 rounded border border-red-200">
-                <p class="text-red-600 text-sm font-semibold">❌ Erro na análise</p>
-                <p class="text-xs text-gray-600 mt-1">${error.message}</p>
-            </div>
-        `;
     }
-}
-        
+
     function updateContactDisplay(index, enrichedPerson) {
         const contactDiv = document.getElementById(`contact-info-${index}`);
         const actionButtonsDiv = document.getElementById(`action-buttons-${index}`);
@@ -605,7 +765,6 @@ async function performDeepAnalysis(index) {
         let updatedHTML = '';
         let newButtons = '';
         
-        // Email revelado
         if (enrichedPerson.email && enrichedPerson.email !== 'email_not_unlocked@domain.com') {
             updatedHTML += `
                 <div>
@@ -625,7 +784,6 @@ async function performDeepAnalysis(index) {
             updatedHTML += '<div class="text-gray-400"><i class="fas fa-envelope mr-1"></i>Email não revelado</div>';
         }
         
-        // Teléfono revelado
         const phone = enrichedPerson.phone_numbers?.[0]?.sanitized_number || 
                       enrichedPerson.phone_numbers?.[0]?.number;
         
@@ -641,7 +799,6 @@ async function performDeepAnalysis(index) {
             updatedHTML += '<div class="text-gray-400"><i class="fas fa-phone mr-1"></i>Telefone não revelado</div>';
         }
         
-        // LinkedIn
         if (enrichedPerson.linkedin_url) {
             updatedHTML += `
                 <div>
@@ -658,7 +815,6 @@ async function performDeepAnalysis(index) {
             `;
         }
         
-        // Información de la empresa
         if (enrichedPerson.organization?.estimated_num_employees) {
             updatedHTML += `
                 <div>
@@ -677,137 +833,111 @@ async function performDeepAnalysis(index) {
             `;
         }
         
-        // Actualizar el DOM
         contactDiv.innerHTML = updatedHTML;
         if (newButtons && actionButtonsDiv) {
             actionButtonsDiv.innerHTML = newButtons;
         }
     }
 
-function displayCompleteAnalysis(index, person, enrichData, analysis) {
-    const analysisDiv = document.getElementById(`analysis-${index}`);
-    
-    if (!analysisDiv) {
-        console.error('Analysis div not found for index:', index);
-        return;
-    }
-    
-    // Si no hay análisis, mostrar error
-    if (!analysis) {
-        analysisDiv.innerHTML = `
-            <div class="p-3 bg-red-50 rounded border border-red-200">
-                <p class="text-red-600 text-sm font-semibold">❌ Erro na análise</p>
-                <p class="text-xs text-gray-600 mt-1">Não foi possível completar a análise</p>
-            </div>
-        `;
-        return;
-    }
-    
-    let html = `
-        <div class="p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg border border-indigo-300">
-            <!-- Header -->
-            <div class="flex justify-between items-start mb-4">
-                <h4 class="font-bold text-lg">🧠 Análise Profunda Completa</h4>
-                <span class="px-3 py-1 ${analysis.total_score >= 7 ? 'bg-green-500' : analysis.total_score >= 5 ? 'bg-yellow-500' : 'bg-red-500'} text-white rounded-full text-sm font-bold">
-                    ${analysis.total_score}/10
-                </span>
-            </div>
-            
-            <!-- Inteligência de Mercado (Serper) -->
-            ${enrichData.enriched ? `
-                <div class="bg-white p-3 rounded mb-3">
-                    <h5 class="font-semibold text-sm mb-2">📊 Inteligência de Mercado</h5>
-                    ${enrichData.enrichmentData?.publicProblems?.length > 0 ? `
-                        <div class="text-red-600 text-sm mb-2">
-                            ⚠️ <strong>Problemas detectados:</strong> ${enrichData.enrichmentData.publicProblems[0].issue || enrichData.enrichmentData.publicProblems[0].details}
-                        </div>
-                    ` : ''}
-                    ${enrichData.enrichmentData?.buyingSignals?.length > 0 ? `
-                        <div class="text-green-600 text-sm mb-2">
-                            🛒 <strong>Buscando fornecedores ativamente!</strong>
-                        </div>
-                    ` : ''}
-                    ${enrichData.enrichmentData?.news?.length > 0 ? `
-                        <div class="text-blue-600 text-sm">
-                            📰 ${enrichData.enrichmentData.news[0].title || enrichData.enrichmentData.news[0].snippet}
-                        </div>
-                    ` : ''}
-                    ${!enrichData.enrichmentData?.publicProblems?.length && !enrichData.enrichmentData?.buyingSignals?.length && !enrichData.enrichmentData?.news?.length ? `
-                        <p class="text-gray-500 text-sm">Sem sinais públicos relevantes detectados</p>
-                    ` : ''}
+    function displayCompleteAnalysis(index, person, enrichData, analysis) {
+        const analysisDiv = document.getElementById(`analysis-${index}`);
+        
+        if (!analysisDiv) {
+            console.error('Analysis div not found for index:', index);
+            return;
+        }
+        
+        if (!analysis) {
+            analysisDiv.innerHTML = `
+                <div class="p-3 bg-red-50 rounded border border-red-200">
+                    <p class="text-red-600 text-sm font-semibold">❌ Erro na análise</p>
+                    <p class="text-xs text-gray-600 mt-1">Não foi possível completar a análise</p>
                 </div>
-            ` : ''}
-            
-            <!-- Análise PPVVC -->
-            <div class="bg-white p-3 rounded mb-3">
-                <h5 class="font-semibold text-sm mb-3">📈 Análise PPVVC</h5>
-                <div class="grid grid-cols-3 gap-2">
-                    ${analysis.scores ? Object.entries(analysis.scores).map(([key, value]) => `
-                        <div class="text-center">
-                            <div class="text-xs font-semibold uppercase text-gray-600">${key}</div>
-                            <div class="mt-1">
-                                <div class="h-2 bg-gray-200 rounded-full">
-                                    <div class="h-2 ${value >= 7 ? 'bg-green-500' : value >= 5 ? 'bg-yellow-500' : 'bg-red-400'} rounded-full" style="width: ${value * 10}%"></div>
-                                </div>
-                                <div class="text-sm font-bold mt-1">${value}/10</div>
+            `;
+            return;
+        }
+        
+        let html = `
+            <div class="p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg border border-indigo-300">
+                <div class="flex justify-between items-start mb-4">
+                    <h4 class="font-bold text-lg">🧠 Análise Profunda Completa</h4>
+                    <span class="px-3 py-1 ${analysis.total_score >= 7 ? 'bg-green-500' : analysis.total_score >= 5 ? 'bg-yellow-500' : 'bg-red-500'} text-white rounded-full text-sm font-bold">
+                        ${analysis.total_score}/10
+                    </span>
+                </div>
+                
+                ${enrichData.enriched ? `
+                    <div class="bg-white p-3 rounded mb-3">
+                        <h5 class="font-semibold text-sm mb-2">📊 Inteligência de Mercado</h5>
+                        ${enrichData.enrichmentData?.publicProblems?.length > 0 ? `
+                            <div class="text-red-600 text-sm mb-2">
+                                ⚠️ <strong>Problemas:</strong> ${enrichData.enrichmentData.publicProblems[0].issue || enrichData.enrichmentData.publicProblems[0].details}
                             </div>
-                        </div>
-                    `).join('') : '<p class="text-gray-500 text-sm">Scores não disponíveis</p>'}
-                </div>
-            </div>
-            
-            <!-- Justificación de Scores -->
-            ${analysis.explanations ? `
-                <div class="bg-gray-50 p-3 rounded mb-3 border border-gray-200">
-                    <h5 class="font-semibold text-sm mb-2">📝 Justificación de Scores</h5>
-                    <div class="space-y-2 text-xs">
-                        <div class="flex items-start">
-                            <span class="font-bold w-24 text-indigo-700">PAIN:</span>
-                            <span class="text-gray-600 flex-1">${analysis.explanations.pain || 'Sin explicación'}</span>
-                        </div>
-                        <div class="flex items-start">
-                            <span class="font-bold w-24 text-purple-700">POWER:</span>
-                            <span class="text-gray-600 flex-1">${analysis.explanations.power || 'Sin explicación'}</span>
-                        </div>
-                        <div class="flex items-start">
-                            <span class="font-bold w-24 text-blue-700">VISION:</span>
-                            <span class="text-gray-600 flex-1">${analysis.explanations.vision || 'Sin explicación'}</span>
-                        </div>
-                        <div class="flex items-start">
-                            <span class="font-bold w-24 text-green-700">VALUE:</span>
-                            <span class="text-gray-600 flex-1">${analysis.explanations.value || 'Sin explicación'}</span>
-                        </div>
-                        <div class="flex items-start">
-                            <span class="font-bold w-24 text-orange-700">CONTROL:</span>
-                            <span class="text-gray-600 flex-1">${analysis.explanations.control || 'Sin explicación'}</span>
-                        </div>
-                        <div class="flex items-start">
-                            <span class="font-bold w-24 text-pink-700">COMPRAS:</span>
-                            <span class="text-gray-600 flex-1">${analysis.explanations.compras || 'Sin explicación'}</span>
-                        </div>
+                        ` : ''}
+                        ${enrichData.enrichmentData?.buyingSignals?.length > 0 ? `
+                            <div class="text-green-600 text-sm mb-2">
+                                🛒 <strong>Buscando fornecedores!</strong>
+                            </div>
+                        ` : ''}
+                        ${enrichData.enrichmentData?.news?.length > 0 ? `
+                            <div class="text-blue-600 text-sm">
+                                📰 ${enrichData.enrichmentData.news[0].title || enrichData.enrichmentData.news[0].snippet}
+                            </div>
+                        ` : ''}
+                        ${!enrichData.enrichmentData?.publicProblems?.length && !enrichData.enrichmentData?.buyingSignals?.length && !enrichData.enrichmentData?.news?.length ? `
+                            <p class="text-gray-500 text-sm">Sem sinais públicos detectados</p>
+                        ` : ''}
+                    </div>
+                ` : ''}
+                
+                <div class="bg-white p-3 rounded mb-3">
+                    <h5 class="font-semibold text-sm mb-3">📈 Análise PPVVC</h5>
+                    <div class="grid grid-cols-3 gap-2">
+                        ${analysis.scores ? Object.entries(analysis.scores).map(([key, value]) => `
+                            <div class="text-center">
+                                <div class="text-xs font-semibold uppercase text-gray-600">${key}</div>
+                                <div class="mt-1">
+                                    <div class="h-2 bg-gray-200 rounded-full">
+                                        <div class="h-2 ${value >= 7 ? 'bg-green-500' : value >= 5 ? 'bg-yellow-500' : 'bg-red-400'} rounded-full" style="width: ${value * 10}%"></div>
+                                    </div>
+                                    <div class="text-sm font-bold mt-1">${value}/10</div>
+                                </div>
+                            </div>
+                        `).join('') : ''}
                     </div>
                 </div>
-            ` : ''}
-            
-            <!-- Approach Recomendado -->
-            ${analysis.recommended_approach ? `
-                <div class="bg-purple-100 p-3 rounded mb-3">
-                    <p class="text-sm font-semibold text-purple-900">
-                        🎯 ${analysis.recommended_approach}
-                    </p>
+                
+                ${analysis.explanations ? `
+                    <div class="bg-gray-50 p-3 rounded mb-3 border border-gray-200">
+                        <h5 class="font-semibold text-sm mb-2">📝 Justificación</h5>
+                        <div class="space-y-2 text-xs">
+                            <div><span class="font-bold text-indigo-700">PAIN:</span> ${analysis.explanations.pain || ''}</div>
+                            <div><span class="font-bold text-purple-700">POWER:</span> ${analysis.explanations.power || ''}</div>
+                            <div><span class="font-bold text-blue-700">VISION:</span> ${analysis.explanations.vision || ''}</div>
+                            <div><span class="font-bold text-green-700">VALUE:</span> ${analysis.explanations.value || ''}</div>
+                            <div><span class="font-bold text-orange-700">CONTROL:</span> ${analysis.explanations.control || ''}</div>
+                            <div><span class="font-bold text-pink-700">COMPRAS:</span> ${analysis.explanations.compras || ''}</div>
+                        </div>
+                    </div>
+                ` : ''}
+                
+                ${analysis.recommended_approach ? `
+                    <div class="bg-purple-100 p-3 rounded mb-3">
+                        <p class="text-sm font-semibold text-purple-900">
+                            🎯 ${analysis.recommended_approach}
+                        </p>
+                    </div>
+                ` : ''}
+                
+                <div class="flex justify-between items-center text-xs text-gray-600 pt-2 border-t">
+                    <span><i class="fas fa-clock mr-1"></i>${analysis.decision_timeline || 'Timeline não definida'}</span>
+                    <span><i class="fas fa-chart-line mr-1"></i>Potencial: ${analysis.estimated_potential || 'médio'}</span>
                 </div>
-            ` : ''}
-            
-            <!-- Bottom Info -->
-            <div class="flex justify-between items-center text-xs text-gray-600 pt-2 border-t">
-                <span><i class="fas fa-clock mr-1"></i>${analysis.decision_timeline || 'Timeline não definida'}</span>
-                <span><i class="fas fa-chart-line mr-1"></i>Potencial: ${analysis.estimated_potential || 'médio'}</span>
             </div>
-        </div>
-    `;
-    
-    analysisDiv.innerHTML = html;
-}
+        `;
+        
+        analysisDiv.innerHTML = html;
+    }
 
     function copyEmail(email) {
         navigator.clipboard.writeText(email);
@@ -841,7 +971,7 @@ function displayCompleteAnalysis(index, person, enrichData, analysis) {
         }
         
         const BOM = '\uFEFF';
-        let csvContent = BOM + "Nome,Cargo,Empresa,Email,Telefone,LinkedIn,Funcionários,Indústria,Score Básico\n";
+        let csvContent = BOM + "Nome,Cargo,Empresa,Email,Telefone,LinkedIn,Funcionários,Indústria,Score\n";
         
         currentResults.forEach(person => {
             const basicScore = calculateBasicScore(person);
