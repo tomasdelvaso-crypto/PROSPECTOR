@@ -45,68 +45,44 @@
                 <i class="fas fa-search mr-2"></i>Busca de Prospectos B2B
             </h2>
             
-            <!-- Filtros Principais -->
-            <div class="grid grid-cols-4 gap-4 mb-4">
-                <div>
-                    <label class="block text-sm font-medium mb-1">Cargo do Decisor</label>
-                    <select id="titleFilter" class="w-full p-2 border rounded">
-                        <option value="">Todos</option>
-                        <option value="operations">Operations/Operações</option>
-                        <option value="logistics">Logistics/Logística</option>
-                        <option value="quality">Quality/Qualidade</option>
-                        <option value="production">Production/Produção</option>
-                        <option value="supply">Supply Chain</option>
-                        <option value="director">Director Level</option>
-                        <option value="ceo">C-Level/CEO</option>
-                    </select>
-                </div>
-                
-                <div>
-                    <label class="block text-sm font-medium mb-1">Região</label>
-                    <select id="locationFilter" class="w-full p-2 border rounded">
-                        <option value="Brazil">Brasil (Todos)</option>
-                        <option value="São Paulo, Brazil">São Paulo - SP</option>
-                        <option value="Rio de Janeiro, Brazil">Rio de Janeiro - RJ</option>
-                        <option value="Minas Gerais, Brazil">Minas Gerais - MG</option>
-                        <option value="Santa Catarina, Brazil">Santa Catarina - SC</option>
-                        <option value="Paraná, Brazil">Paraná - PR</option>
-                    </select>
-                </div>
-                
-                <div>
-                    <label class="block text-sm font-medium mb-1">Porte da Empresa</label>
-                    <select id="sizeFilter" class="w-full p-2 border rounded">
-                        <option value="501,1000">501-1000 funcionários</option>
-                        <option value="201,500">201-500</option>
-                        <option value="1001,5000">1001-5000</option>
-                        <option value="5001,10000">5001+</option>
-                    </select>
-                </div>
-                
-                <div>
-                    <label class="block text-sm font-medium mb-1">Empresa (opcional)</label>
-                    <input type="text" 
-                           id="companyFilter" 
-                           placeholder="Ex: Mercado Livre, Natura"
-                           class="w-full p-2 border rounded text-sm">
-                </div>
-            </div>
-            
-            <div class="flex justify-between items-center">
-                <button onclick="searchProspects()" 
-                        class="px-6 py-3 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
-                    <i class="fas fa-search mr-2"></i>Buscar Prospectos
-                </button>
-                
-                <div class="flex gap-2">
-                    <button onclick="exportResults()" 
-                            class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm">
-                        <i class="fas fa-download mr-2"></i>Exportar CSV
-                    </button>
-                </div>
-            </div>
-        </div>
-
+<!-- Filtros Principais -->
+<div class="grid grid-cols-4 gap-4 mb-4">
+    <div>
+        <label class="block text-sm font-medium mb-1">Cargo do Decisor</label>
+        <select id="titleFilter" class="w-full p-2 border rounded">
+            <option value="">Todos</option>
+            <option value="operations">Operations/Operações</option>
+            <option value="logistics">Logistics/Logística</option>
+            <option value="quality">Quality/Qualidade</option>
+            <option value="production">Production/Produção</option>
+            <option value="supply">Supply Chain</option>
+            <option value="director">Director Level</option>
+            <option value="ceo">C-Level/CEO</option>
+        </select>
+    </div>
+    
+    <div>
+        <label class="block text-sm font-medium mb-1">Indústria Prioritária</label>
+        <select id="industryFilter" class="w-full p-2 border rounded">
+            <option value="">Todas</option>
+            <option value="ecommerce">E-commerce/Retail</option>
+            <option value="logistics">Logística/3PL/Fulfillment</option>
+            <option value="manufacturing">Manufactura/Indústria</option>
+            <option value="food">Alimentos e Bebidas</option>
+            <option value="pharma">Farmacêutica/Cosmética</option>
+            <option value="automotive">Automotiva/Autopeças</option>
+        </select>
+    </div>
+    
+    <div>
+        <label class="block text-sm font-medium mb-1">Região</label>
+        <select id="locationFilter" class="w-full p-2 border rounded">
+            <option value="Brazil">Brasil (Todos)</option>
+            <option value="São Paulo, Brazil">São Paulo - SP</option>
+            <option value="Rio de Janeiro, Brazil">Rio de Janeiro - RJ</option>
+            <option value="Minas Gerais, Brazil">Minas Gerais - MG</option>
+            <option value="Santa Catarina, Brazil">Santa Catarina - SC</option>
+            <option value="Paraná, Brazil">Paraná
         <!-- Métricas -->
         <div class="grid grid-cols-5 gap-4 mb-6">
             <div class="bg-white rounded-lg shadow p-4">
