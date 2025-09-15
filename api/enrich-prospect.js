@@ -1,206 +1,192 @@
 const axios = require('axios');
 
 module.exports = async (req, res) => {
-    // ... validaciones existentes ...
+  // CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  try {
+    const { company, contact } = req.body;
     
+    // Validar entrada
+    if (!company || !company.name) {
+      return res.status(200).json({ 
+        enriched: false,
+        message: 'Nombre de empresa no proporcionado'
+      });
+    }
+    
+    const apiKey = process.env.SERPER_API_KEY;
+    if (!apiKey) {
+      console.log('Serper API key no configurada');
+      return res.status(200).json({ 
+        enriched: false,
+        message: 'API no configurada'
+      });
+    }
+
     const enrichmentData = {
-        publicProblems: [],
-        buyingSignals: [],
-        news: []
+      news: [],
+      publicProblems: [],
+      buyingSignals: []
     };
-    
-    // Solo 2 búsquedas críticas en lugar de 6:
-    
-    // 1. Problemas y reclamos (la más importante)
-    const problemsQuery = `"${company.name}" (avaria OR violação OR roubo OR reclamação)`;
-    const problemsResponse = await searchSerper(problemsQuery);
-    // ... procesar resultados ...
-    
-    // 2. Señales de compra/expansión (combinada)
-    const signalsQuery = `"${company.name}" (licitação OR "novo fornecedor" OR expansão)`;
-    const signalsResponse = await searchSerper(signalsQuery);
-    // ... procesar resultados ...
-    
-    // ELIMINAR: búsquedas de ESG, ergonomía, competidores
-    
-    res.status(200).json({
-        enriched: true,
-        enrichmentData,
-        additionalScore: calculateScore(enrichmentData)
-    });
-};
 
-    if (newsResponse.data.organic) {
-      enrichmentData.news = newsResponse.data.organic.map(result => ({
-        title: result.title,
-        snippet: result.snippet,
-        link: result.link,
-        date: result.date
-      }));
-    }
+    // Búsqueda 1: Problemas logísticos
+    try {
+      const problemsQuery = `"${company.name}" (avaria OR violação OR roubo OR "reclamação" OR "atraso entrega")`;
+      console.log('Buscando problemas:', problemsQuery);
+      
+      const problemsResponse = await axios({
+        method: 'POST',
+        url: 'https://google.serper.dev/search',
+        headers: {
+          'X-API-KEY': apiKey,
+          'Content-Type': 'application/json'
+        },
+        data: {
+          q: problemsQuery,
+          location: 'Brazil',
+          gl: 'br',
+          hl: 'pt',
+          num: 3
+        },
+        timeout: 10000
+      });
 
-    // 2. Buscar problemas de fulfillment/logística
-    const problemsQuery = `"${company.name}" (avaria OR violação OR roubo OR "atraso entrega" OR reclame aqui)`;
-    const problemsResponse = await axios({
-      method: 'POST',
-      url: 'https://google.serper.dev/search',
-      headers: {
-        'X-API-KEY': process.env.SERPER_API_KEY
-      },
-      data: {
-        q: problemsQuery,
-        location: 'Brazil',
-        num: 3
+      if (problemsResponse.data?.organic) {
+        enrichmentData.publicProblems = problemsResponse.data.organic
+          .filter(r => {
+            const snippet = (r.snippet || '').toLowerCase();
+            return snippet.includes('problema') || 
+                   snippet.includes('reclam') ||
+                   snippet.includes('avaria') ||
+                   snippet.includes('atraso');
+          })
+          .slice(0, 2)
+          .map(r => ({
+            issue: r.title || 'Problema detectado',
+            details: (r.snippet || '').substring(0, 150)
+          }));
       }
-    });
-
-    if (problemsResponse.data.organic) {
-      enrichmentData.publicProblems = problemsResponse.data.organic
-        .filter(r => r.snippet.toLowerCase().includes('problema') || 
-                     r.snippet.toLowerCase().includes('reclam') ||
-                     r.snippet.toLowerCase().includes('avaria'))
-        .map(r => ({
-          issue: r.title,
-          details: r.snippet,
-          source: r.link
-        }));
+    } catch (searchError) {
+      console.error('Error en búsqueda de problemas:', searchError.message);
     }
 
-    // 3. Buscar señales de compra
-    const buyingSignalsQuery = `"${company.name}" (licitação OR RFP OR "busca fornecedor" OR "novo fornecedor")`;
-    const buyingResponse = await axios({
-      method: 'POST',
-      url: 'https://google.serper.dev/search',
-      headers: {
-        'X-API-KEY': process.env.SERPER_API_KEY
-      },
-      data: {
-        q: buyingSignalsQuery,
-        location: 'Brazil',
-        num: 3,
-        dateRange: '6m'
+    // Búsqueda 2: Señales de compra/expansión
+    try {
+      const signalsQuery = `"${company.name}" (licitação OR expansão OR "novo centro" OR "novo fornecedor")`;
+      console.log('Buscando señales:', signalsQuery);
+      
+      const signalsResponse = await axios({
+        method: 'POST',
+        url: 'https://google.serper.dev/search',
+        headers: {
+          'X-API-KEY': apiKey,
+          'Content-Type': 'application/json'
+        },
+        data: {
+          q: signalsQuery,
+          location: 'Brazil',
+          gl: 'br',
+          hl: 'pt',
+          num: 2
+        },
+        timeout: 10000
+      });
+
+      if (signalsResponse.data?.organic) {
+        // Buscar expansión
+        const expansionResults = signalsResponse.data.organic.filter(r => {
+          const text = ((r.title || '') + (r.snippet || '')).toLowerCase();
+          return text.includes('expansão') || text.includes('crescimento') || text.includes('novo');
+        });
+        
+        if (expansionResults.length > 0) {
+          enrichmentData.news = [{
+            title: expansionResults[0].title || 'Expansão detectada',
+            snippet: (expansionResults[0].snippet || '').substring(0, 150)
+          }];
+        }
+        
+        // Buscar licitaciones
+        const buyingResults = signalsResponse.data.organic.filter(r => {
+          const text = ((r.title || '') + (r.snippet || '')).toLowerCase();
+          return text.includes('licitação') || text.includes('fornecedor');
+        });
+        
+        if (buyingResults.length > 0) {
+          enrichmentData.buyingSignals = [{
+            signal: 'Buscando fornecedores',
+            details: (buyingResults[0].snippet || '').substring(0, 150)
+          }];
+        }
       }
-    });
-
-    if (buyingResponse.data.organic) {
-      enrichmentData.buyingSignals = buyingResponse.data.organic.map(r => ({
-        signal: r.title,
-        details: r.snippet,
-        date: r.date
-      }));
+    } catch (searchError) {
+      console.error('Error en búsqueda de señales:', searchError.message);
     }
 
-    // 4. Información de sustentabilidad/ESG
-    const esgQuery = `"${company.name}" (sustentabilidade OR ESG OR "pegada carbono" OR reciclagem)`;
-    const esgResponse = await axios({
-      method: 'POST',
-      url: 'https://google.serper.dev/search',
-      headers: {
-        'X-API-KEY': process.env.SERPER_API_KEY
-      },
-      data: {
-        q: esgQuery,
-        location: 'Brazil',
-        num: 2
-      }
-    });
-
-    if (esgResponse.data.organic && esgResponse.data.organic.length > 0) {
-      enrichmentData.sustainabilityInfo = {
-        hasESGFocus: true,
-        details: esgResponse.data.organic[0].snippet
-      };
-    }
-
-    // 5. NUEVO: Búsqueda de problemas ergonómicos (no prioritario pero incluido)
-    const ergonomicQuery = `"${company.name}" ("acidente trabalho" OR "afastamento" OR "LER" OR "DORT" OR "túnel carpo" OR "tendinite")`;
-    const ergonomicResponse = await axios({
-      method: 'POST',
-      url: 'https://google.serper.dev/search',
-      headers: {
-        'X-API-KEY': process.env.SERPER_API_KEY
-      },
-      data: {
-        q: ergonomicQuery,
-        location: 'Brazil',
-        num: 2
-      }
-    }).catch(() => null); // No fallar si no encuentra nada
-
-    if (ergonomicResponse?.data?.organic) {
-      enrichmentData.ergonomicProblems = ergonomicResponse.data.organic
-        .filter(r => r.snippet.toLowerCase().includes('acidente') || 
-                     r.snippet.toLowerCase().includes('afastamento'))
-        .map(r => ({
-          issue: r.title,
-          details: r.snippet
-        }));
-    }
-
-    // 6. Calcular score adicional basado en señales
+    // Calcular score adicional
     let additionalScore = 0;
-    
     if (enrichmentData.publicProblems.length > 0) {
       additionalScore += 15;
     }
-    
     if (enrichmentData.buyingSignals.length > 0) {
       additionalScore += 20;
     }
-    
-    if (enrichmentData.news.some(n => n.snippet?.includes('expansão') || n.snippet?.includes('crescimento'))) {
+    if (enrichmentData.news.length > 0) {
       additionalScore += 10;
     }
-    
-    if (enrichmentData.sustainabilityInfo?.hasESGFocus) {
-      additionalScore += 5;
-    }
 
-    if (enrichmentData.ergonomicProblems?.length > 0) {
-      additionalScore += 5; // Bonus menor por no ser prioridad
-    }
+    console.log('Enriquecimiento completado:', {
+      company: company.name,
+      problems: enrichmentData.publicProblems.length,
+      signals: enrichmentData.buyingSignals.length,
+      news: enrichmentData.news.length,
+      score: additionalScore
+    });
 
     res.status(200).json({
       enriched: true,
       enrichmentData,
       additionalScore,
-      summary: generateEnrichmentSummary(enrichmentData, company)
+      summary: generateSummary(enrichmentData, company.name)
     });
 
   } catch (error) {
-    console.error('Error enriching with Serper:', error);
-    res.status(200).json({ enriched: false });
+    console.error('Error general en enrich-prospect:', error);
+    
+    res.status(200).json({ 
+      enriched: false,
+      error: error.message,
+      enrichmentData: {
+        message: 'Error al enriquecer'
+      },
+      additionalScore: 0
+    });
   }
 };
 
-function generateEnrichmentSummary(data, company) {
-  let summary = [];
+function generateSummary(data, companyName) {
+  const points = [];
   
   if (data.publicProblems && data.publicProblems.length > 0) {
-    summary.push(`⚠️ ${data.publicProblems.length} problemas detectados`);
+    points.push(`⚠️ ${data.publicProblems.length} problemas detectados`);
   }
   
   if (data.buyingSignals && data.buyingSignals.length > 0) {
-    summary.push(`🛒 Buscando fornecedores ativamente`);
+    points.push(`🛒 Buscando fornecedores`);
   }
   
   if (data.news && data.news.length > 0) {
-    const expansion = data.news.some(n => 
-      n.snippet?.toLowerCase().includes('expansão') || 
-      n.snippet?.toLowerCase().includes('crescimento')
-    );
-    if (expansion) summary.push(`📈 Empresa em expansão`);
+    points.push(`📈 Empresa em expansão`);
   }
   
-  if (data.sustainabilityInfo?.hasESGFocus) {
-    summary.push(`🌱 Foco em sustentabilidade`);
-  }
-
-  if (data.ergonomicProblems && data.ergonomicProblems.length > 0) {
-    summary.push(`👷 Problemas ergonômicos reportados`);
-  }
-  
-  return summary.length > 0 ? 
-    summary.join(' | ') : 
-    `${company.name || 'Empresa'} sem sinais públicos relevantes detectados`;
+  return points.length > 0 ? 
+    points.join(' | ') : 
+    `${companyName} - Sem sinais relevantes`;
 }
