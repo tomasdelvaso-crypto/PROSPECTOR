@@ -1,90 +1,80 @@
+// api/apollo-enrich.js
 const axios = require('axios');
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
   try {
-    const { person } = req.body;
+    const { contactId, contactData } = req.body;
+    
+    if (!contactId && !contactData) {
+      return res.status(400).json({ 
+        error: 'Se requiere contactId o contactData' 
+      });
+    }
+
     const apiKey = process.env.APOLLO_API_KEY;
     
-    if (!apiKey) {
-      return res.status(500).json({ error: 'API key not configured' });
-    }
-
-    // Opción 1: Si tenemos el ID de Apollo, usar people/match
-    if (person.id) {
+    // OPCIÓN 1: Si tenés el ID del contacto
+    if (contactId) {
       const response = await axios({
-        method: 'GET',
-        url: `https://api.apollo.io/v1/people/${person.id}`,
+        method: 'POST',
+        url: 'https://api.apollo.io/v1/people/match',
         headers: {
+          'Cache-Control': 'no-cache',
+          'Content-Type': 'application/json',
           'X-Api-Key': apiKey
         },
-        timeout: 10000
+        data: {
+          id: contactId,
+          reveal_personal_emails: true,
+          reveal_phone_numbers: true
+        }
       });
       
-      console.log('Apollo GET person response:', response.data);
-      
-      // Si aún no tiene email real, intentar revelar
-      if (response.data.email?.includes('not_unlocked')) {
-        const revealResponse = await axios({
-          method: 'POST',
-          url: 'https://api.apollo.io/v1/emails/reveal',
-          headers: {
-            'X-Api-Key': apiKey,
-            'Content-Type': 'application/json'
-          },
-          data: {
-            person_id: person.id
-          }
-        });
-        
-        console.log('Email revealed:', revealResponse.data);
-        return res.status(200).json({
-          success: true,
-          person: revealResponse.data
-        });
-      }
-      
       return res.status(200).json({
-        success: true,
-        person: response.data
+        enriched: true,
+        contact: response.data.person
       });
     }
     
-    // Opción 2: Buscar por nombre y empresa
-    const searchResponse = await axios({
-      method: 'POST',
-      url: 'https://api.apollo.io/v1/people/search',
-      headers: {
-        'X-Api-Key': apiKey,
-        'Content-Type': 'application/json'
-      },
-      data: {
-        q_person_name: person.name,
-        q_organization_name: person.organization?.name,
-        reveal_personal_emails: true,
-        reveal_phone_numbers: true
-      }
-    });
+    // OPCIÓN 2: Match por nombre y empresa
+    if (contactData) {
+      const response = await axios({
+        method: 'POST',
+        url: 'https://api.apollo.io/v1/people/match',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Content-Type': 'application/json',
+          'X-Api-Key': apiKey
+        },
+        data: {
+          first_name: contactData.first_name,
+          last_name: contactData.last_name,
+          organization_name: contactData.organization_name,
+          reveal_personal_emails: true,
+          reveal_phone_numbers: true
+        }
+      });
+      
+      return res.status(200).json({
+        enriched: true,
+        contact: response.data.person
+      });
+    }
     
-    console.log('Apollo search response:', searchResponse.data);
-    
-    res.status(200).json({
-      success: true,
-      person: searchResponse.data.people?.[0] || person
-    });
-
   } catch (error) {
-    console.error('Apollo enrich error:', error.response?.data || error.message);
-    res.status(200).json({ 
-      success: false,
-      error: error.message,
-      details: error.response?.data
+    console.error('Error en Apollo enrich:', error.response?.data || error.message);
+    
+    return res.status(200).json({ 
+      enriched: false,
+      error: error.response?.data?.error || error.message
     });
   }
 };
