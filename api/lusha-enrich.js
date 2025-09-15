@@ -30,7 +30,6 @@ module.exports = async (req, res) => {
     if (company) params.companyName = company;
     if (domain) params.companyDomain = domain;
     
-    // Activar revelación de datos
     params.revealPhones = true;
     params.revealEmails = true;
     
@@ -46,100 +45,51 @@ module.exports = async (req, res) => {
       params: params
     });
     
-    console.log('Lusha full response structure:', Object.keys(response.data));
-    console.log('Lusha raw response:', JSON.stringify(response.data, null, 2));
+    console.log('Lusha response received, isCreditCharged:', response.data?.isCreditCharged);
     
-    // CAMBIO IMPORTANTE: Los datos pueden estar en diferentes lugares
-    let personData = null;
-    
-    // Opción 1: response.data.data (estructura esperada v2)
+    // LA ESTRUCTURA CORRECTA ES response.data.data
     if (response.data && response.data.data) {
-      personData = response.data.data;
-      console.log('Found data in response.data.data');
-    }
-    // Opción 2: response.data.contact (estructura alternativa)
-    else if (response.data && response.data.contact) {
-      personData = response.data.contact;
-      console.log('Found data in response.data.contact');
-    }
-    // Opción 3: response.data directamente
-    else if (response.data && (response.data.phoneNumbers || response.data.emailAddresses || response.data.email)) {
-      personData = response.data;
-      console.log('Found data in response.data root');
-    }
-    
-    if (personData) {
-      // Procesar teléfonos
+      const personData = response.data.data;
+      
+      // Procesar teléfonos - ESTÁN EN personData.phoneNumbers
       const phones = [];
-      
-      // Buscar en todos los campos posibles
-      const phoneFields = ['phoneNumbers', 'phone_numbers', 'phones', 'phone', 'mobilePhone', 'mobile_phone', 'directPhone', 'direct_phone'];
-      
-      for (const field of phoneFields) {
-        if (personData[field]) {
-          console.log(`Found phone field "${field}":`, personData[field]);
-          
-          if (Array.isArray(personData[field])) {
-            personData[field].forEach(phone => {
-              if (phone) {
-                const number = phone.internationalNumber || 
-                              phone.localNumber || 
-                              phone.number || 
-                              phone;
-                if (number && typeof number === 'string') {
-                  phones.push({
-                    number: number,
-                    type: phone.type || phone.phoneType || field,
-                    source: 'Lusha'
-                  });
-                }
-              }
-            });
-          } else if (typeof personData[field] === 'string') {
+      if (personData.phoneNumbers && Array.isArray(personData.phoneNumbers)) {
+        personData.phoneNumbers.forEach(phone => {
+          if (phone && phone.number) {
             phones.push({
-              number: personData[field],
-              type: field,
+              number: phone.number,
+              type: phone.phoneType || 'unknown',
+              doNotCall: phone.doNotCall,
               source: 'Lusha'
             });
           }
-        }
+        });
       }
       
-      // Procesar emails
+      // Procesar emails - ESTÁN EN personData.emailAddresses
       const emails = [];
-      
-      const emailFields = ['emailAddresses', 'email_addresses', 'emails', 'email'];
-      
-      for (const field of emailFields) {
-        if (personData[field]) {
-          console.log(`Found email field "${field}":`, personData[field]);
-          
-          if (Array.isArray(personData[field])) {
-            personData[field].forEach(email => {
-              if (email) {
-                const address = typeof email === 'string' ? email : 
-                               email.email || email.address || email;
-                if (address && typeof address === 'string' && !emails.includes(address)) {
-                  emails.push(address);
-                }
-              }
-            });
-          } else if (typeof personData[field] === 'string' && !emails.includes(personData[field])) {
-            emails.push(personData[field]);
+      if (personData.emailAddresses && Array.isArray(personData.emailAddresses)) {
+        personData.emailAddresses.forEach(email => {
+          if (email && email.email) {
+            emails.push(email.email);
           }
-        }
+        });
       }
       
-      console.log('📱 Final phones found:', phones);
-      console.log('📧 Final emails found:', emails);
+      console.log('✅ Phones found:', phones);
+      console.log('✅ Emails found:', emails);
+      console.log('💳 Credits charged:', response.data.isCreditCharged);
       
       return res.status(200).json({
         enriched: true,
         source: 'lusha',
-        creditsUsed: phones.length > 0 ? 6 : (emails.length > 0 ? 1 : 0),
+        creditsCharged: response.data.isCreditCharged,
         contact: {
+          // Emails
           email: emails[0] || null,
           emails: emails,
+          
+          // Teléfonos
           phone: phones[0]?.number || null,
           phones: phones,
           phone_numbers: phones.map(p => ({
@@ -147,27 +97,34 @@ module.exports = async (req, res) => {
             type: p.type,
             source: 'Lusha'
           })),
-          fullName: personData.fullName || personData.full_name || `${firstName} ${lastName}`,
-          firstName: personData.firstName || personData.first_name || firstName,
-          lastName: personData.lastName || personData.last_name || lastName,
-          title: personData.title || personData.jobTitle || personData.job_title,
-          company: personData.company || personData.companyName || company,
-          rawData: personData
+          
+          // Información personal
+          fullName: personData.fullName,
+          firstName: personData.firstName,
+          lastName: personData.lastName,
+          
+          // Información laboral
+          title: personData.jobTitle?.title,
+          seniority: personData.jobTitle?.seniority,
+          departments: personData.jobTitle?.departments,
+          company: personData.company?.name,
+          
+          // LinkedIn
+          linkedinUrl: personData.socialLinks?.linkedin,
+          
+          // Ubicación
+          location: personData.location,
+          
+          // Datos completos para referencia
+          rawData: response.data
         }
       });
     }
     
-    // No se encontraron datos
     return res.status(200).json({
       enriched: false,
-      message: 'No contact data found in Lusha response',
-      rawResponse: response.data,
-      structure: {
-        hasData: !!response.data,
-        hasDataData: !!(response.data?.data),
-        hasContact: !!(response.data?.contact),
-        keys: Object.keys(response.data || {})
-      }
+      message: 'No data found in expected structure',
+      rawResponse: response.data
     });
     
   } catch (error) {
