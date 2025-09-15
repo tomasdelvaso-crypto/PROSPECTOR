@@ -32,7 +32,7 @@
                 <div>
                     <p class="text-sm font-semibold">Processo Otimizado em 3 Passos</p>
                     <p class="text-xs text-gray-600">
-                        1. Busca rápida (Apollo) → 2. Identificar 2-3 prometedores → 3. Análise Profunda (Serper + Claude PPVVC)
+                        1. Busca rápida (Apollo) → 2. Identificar 2-3 prometedores → 3. Análise Profunda (Reveal + Serper + Claude PPVVC)
                     </p>
                 </div>
             </div>
@@ -229,7 +229,7 @@
         let html = '<div class="space-y-4">';
         
         prospects.forEach((person, index) => {
-            const hasEmail = person.email;
+            const hasEmail = person.email && person.email !== 'email_not_unlocked@domain.com';
             const hasPhone = person.phone_numbers?.length > 0;
             const hasLinkedIn = person.linkedin_url;
             
@@ -253,20 +253,20 @@
                             <p class="text-gray-600">${person.title || 'Cargo não especificado'}</p>
                             <p class="text-blue-600 font-medium">${person.organization?.name || 'Empresa não especificada'}</p>
                             
-                            <div class="mt-2 text-sm space-y-1">
+                            <div id="contact-info-${index}" class="mt-2 text-sm space-y-1">
                                 ${hasEmail ? `
                                     <div>
                                         <i class="fas fa-envelope mr-1 text-gray-400"></i>
                                         <a href="mailto:${person.email}" class="text-blue-500">${person.email}</a>
                                     </div>
-                                ` : '<div class="text-gray-400"><i class="fas fa-envelope mr-1"></i>Email não disponível</div>'}
+                                ` : '<div class="text-gray-400"><i class="fas fa-envelope mr-1"></i>Email não revelado</div>'}
                                 
                                 ${hasPhone ? `
                                     <div>
                                         <i class="fas fa-phone mr-1 text-gray-400"></i>
                                         ${person.phone_numbers[0].sanitized_number || person.phone_numbers[0].number}
                                     </div>
-                                ` : ''}
+                                ` : '<div class="text-gray-400"><i class="fas fa-phone mr-1"></i>Telefone não revelado</div>'}
                                 
                                 ${hasLinkedIn ? `
                                     <div>
@@ -300,19 +300,21 @@
                                 <i class="fas fa-microscope mr-1"></i>Análise Profunda
                             </button>
                             
-                            ${hasEmail ? `
-                                <button onclick="copyEmail('${person.email}')" 
-                                        class="px-4 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 w-full">
-                                    <i class="fas fa-copy mr-1"></i>Copiar Email
-                                </button>
-                            ` : ''}
-                            
-                            ${hasLinkedIn ? `
-                                <button onclick="window.open('${person.linkedin_url}', '_blank')" 
-                                        class="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 w-full">
-                                    <i class="fab fa-linkedin mr-1"></i>Abrir LinkedIn
-                                </button>
-                            ` : ''}
+                            <div id="action-buttons-${index}">
+                                ${hasEmail ? `
+                                    <button onclick="copyEmail('${person.email}')" 
+                                            class="px-4 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 w-full">
+                                        <i class="fas fa-copy mr-1"></i>Copiar Email
+                                    </button>
+                                ` : ''}
+                                
+                                ${hasLinkedIn ? `
+                                    <button onclick="window.open('${person.linkedin_url}', '_blank')" 
+                                            class="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 w-full">
+                                        <i class="fab fa-linkedin mr-1"></i>Abrir LinkedIn
+                                    </button>
+                                ` : ''}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -352,7 +354,7 @@
         }
         
         // Contato
-        if (person.email) score += 10;
+        if (person.email && person.email !== 'email_not_unlocked@domain.com') score += 10;
         if (person.linkedin_url) score += 10;
         
         return {
@@ -361,291 +363,337 @@
         };
     }
 
-async function performDeepAnalysis(index) {
-    const person = currentResults[index];
-    const analysisDiv = document.getElementById(`analysis-${index}`);
-    
-    analysisDiv.innerHTML = `
-        <div class="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-indigo-200">
-            <div class="flex items-center">
-                <i class="fas fa-spinner fa-spin text-indigo-600 mr-2"></i>
-                <span class="text-sm font-semibold">Iniciando análise profunda...</span>
-            </div>
-            <div class="mt-2 text-xs text-gray-600">
-                <div id="progress-${index}">
-                    📍 Passo 1/4: Preparando dados...
+    async function performDeepAnalysis(index) {
+        const person = currentResults[index];
+        const analysisDiv = document.getElementById(`analysis-${index}`);
+        
+        analysisDiv.innerHTML = `
+            <div class="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-indigo-200">
+                <div class="flex items-center">
+                    <i class="fas fa-spinner fa-spin text-indigo-600 mr-2"></i>
+                    <span class="text-sm font-semibold">Iniciando análise profunda...</span>
+                </div>
+                <div class="mt-2 text-xs text-gray-600">
+                    <div id="progress-${index}">
+                        📍 Passo 1/4: Preparando dados...
+                    </div>
                 </div>
             </div>
-        </div>
-    `;
-    
-    try {
-        // NUEVO - Paso 1: Enriquecer contacto con Apollo
-        document.getElementById(`progress-${index}`).innerHTML = '👤 Passo 1/4: Enriquecendo dados de contato...';
+        `;
         
-        let enrichedPerson = person;
-        if (person.id || person.email) {
+        try {
+            // Paso 1: Enriquecer contacto con Apollo para revelar email/teléfono
+            document.getElementById(`progress-${index}`).innerHTML = '👤 Passo 1/4: Revelando dados de contato...';
+            
+            let enrichedPerson = {...person}; // Copia del objeto original
+            
             try {
                 const apolloEnrichResponse = await fetch('/api/apollo-enrich', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-        person: person  // Pasar todo el objeto
-    })
-});
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contactId: person.id,
+                        contactData: {
+                            first_name: person.first_name,
+                            last_name: person.last_name,
+                            organization_name: person.organization?.name
+                        }
+                    })
+                });
                 
                 const apolloData = await apolloEnrichResponse.json();
-                if (apolloData.success && apolloData.person) {
-                    // Actualizar datos del contacto con info enriquecida
-                    enrichedPerson = {
-                        ...person,
-                        ...apolloData.person,
-                        email: apolloData.person.email || person.email,
-                        phone_numbers: apolloData.person.phone_numbers || person.phone_numbers,
-                        mobile_phone: apolloData.person.mobile_phone,
-                        direct_phone: apolloData.person.direct_phone
-                    };
+                
+                if (apolloData.enriched && apolloData.contact) {
+                    // Actualizar datos con información revelada
+                    if (apolloData.contact.email && apolloData.contact.email !== 'email_not_unlocked@domain.com') {
+                        enrichedPerson.email = apolloData.contact.email;
+                    }
                     
-                    // Actualizar display del contacto principal
+                    if (apolloData.contact.phone_numbers && apolloData.contact.phone_numbers.length > 0) {
+                        enrichedPerson.phone_numbers = apolloData.contact.phone_numbers;
+                    }
+                    
+                    if (apolloData.contact.mobile_phone) {
+                        enrichedPerson.mobile_phone = apolloData.contact.mobile_phone;
+                    }
+                    
+                    if (apolloData.contact.direct_phone) {
+                        enrichedPerson.direct_phone = apolloData.contact.direct_phone;
+                    }
+                    
+                    // Actualizar la visualización del contacto
                     updateContactDisplay(index, enrichedPerson);
                 }
             } catch (apolloError) {
-                console.log('No se pudo enriquecer con Apollo:', apolloError);
+                console.log('Apollo enrich error:', apolloError);
+                // Continuar con el análisis aunque falle el enriquecimiento
             }
+            
+            // Paso 2: Buscar inteligencia de mercado con Serper
+            document.getElementById(`progress-${index}`).innerHTML = '🔍 Passo 2/4: Buscando inteligência de mercado...';
+            
+            const enrichResponse = await fetch('/api/enrich-prospect', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    company: { 
+                        name: enrichedPerson.organization?.name || '',
+                        employees: enrichedPerson.organization?.estimated_num_employees
+                    },
+                    contact: enrichedPerson
+                })
+            });
+            
+            const enrichData = await enrichResponse.json();
+            
+            // Paso 3: Análisis PPVVC con Claude
+            document.getElementById(`progress-${index}`).innerHTML = '🧠 Passo 3/4: Analisando com IA (PPVVC)...';
+            
+            const analysisResponse = await fetch('/api/claude-analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    company: {
+                        name: enrichedPerson.organization?.name,
+                        industry: enrichedPerson.organization?.industry,
+                        estimated_num_employees: enrichedPerson.organization?.estimated_num_employees,
+                        headquarters_location: enrichedPerson.organization?.headquarters_location
+                    },
+                    contact: {
+                        name: enrichedPerson.name,
+                        title: enrichedPerson.title,
+                        email: enrichedPerson.email,
+                        phone: enrichedPerson.mobile_phone || enrichedPerson.direct_phone || enrichedPerson.phone_numbers?.[0]?.sanitized_number
+                    },
+                    enrichment: enrichData
+                })
+            });
+            
+            const analysis = await analysisResponse.json();
+            
+            // Paso 4: Mostrar resultado completo
+            document.getElementById(`progress-${index}`).innerHTML = '✅ Passo 4/4: Compilando resultados...';
+            
+            displayCompleteAnalysis(index, enrichedPerson, enrichData, analysis);
+            
+            // Actualizar estadísticas
+            analyzedCount++;
+            document.getElementById('analyzed').textContent = analyzedCount;
+            
+            // Actualizar hot leads si el score es alto
+            if (analysis.total_score >= 7) {
+                const hotLeadsCount = parseInt(document.getElementById('hotLeads').textContent) + 1;
+                document.getElementById('hotLeads').textContent = hotLeadsCount;
+            }
+            
+        } catch (error) {
+            console.error('Erro na análise:', error);
+            analysisDiv.innerHTML = `
+                <div class="p-3 bg-red-50 rounded border border-red-200">
+                    <p class="text-red-600 text-sm font-semibold">❌ Erro na análise</p>
+                    <p class="text-xs text-gray-600 mt-1">${error.message}</p>
+                </div>
+            `;
+        }
+    }
+
+    function updateContactDisplay(index, enrichedPerson) {
+        const contactDiv = document.getElementById(`contact-info-${index}`);
+        const actionButtonsDiv = document.getElementById(`action-buttons-${index}`);
+        
+        if (!contactDiv) return;
+        
+        let updatedHTML = '';
+        let newButtons = '';
+        
+        // Email revelado
+        if (enrichedPerson.email && enrichedPerson.email !== 'email_not_unlocked@domain.com') {
+            updatedHTML += `
+                <div>
+                    <i class="fas fa-envelope mr-1 text-green-500"></i>
+                    <a href="mailto:${enrichedPerson.email}" class="text-blue-500">${enrichedPerson.email}</a>
+                    <span class="text-xs text-green-600 ml-1">(revelado)</span>
+                </div>
+            `;
+            
+            newButtons += `
+                <button onclick="copyEmail('${enrichedPerson.email}')" 
+                        class="px-4 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 w-full">
+                    <i class="fas fa-copy mr-1"></i>Copiar Email
+                </button>
+            `;
+        } else {
+            updatedHTML += '<div class="text-gray-400"><i class="fas fa-envelope mr-1"></i>Email não revelado</div>';
         }
         
-        // Paso 2: Buscar inteligencia de mercado (Serper)
-        document.getElementById(`progress-${index}`).innerHTML = '🔍 Passo 2/4: Buscando inteligência de mercado...';
+        // Teléfono revelado
+        const phone = enrichedPerson.mobile_phone || 
+                      enrichedPerson.direct_phone || 
+                      enrichedPerson.phone_numbers?.[0]?.sanitized_number;
         
-        const enrichResponse = await fetch('/api/enrich-prospect', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                company: { 
-                    name: enrichedPerson.organization?.name || '',
-                    employees: enrichedPerson.organization?.estimated_num_employees
-                },
-                contact: enrichedPerson
-            })
-        });
-        
-        const enrichData = await enrichResponse.json();
-        
-        // Paso 3: Análisis PPVVC con Claude
-        document.getElementById(`progress-${index}`).innerHTML = '🧠 Passo 3/4: Analisando com IA (PPVVC)...';
-        
-        const analysisResponse = await fetch('/api/claude-analyze', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                company: {
-                    name: enrichedPerson.organization?.name,
-                    industry: enrichedPerson.organization?.industry,
-                    estimated_num_employees: enrichedPerson.organization?.estimated_num_employees,
-                    headquarters_location: enrichedPerson.organization?.headquarters_location
-                },
-                contact: {
-                    name: enrichedPerson.name,
-                    title: enrichedPerson.title,
-                    email: enrichedPerson.email,
-                    phone: enrichedPerson.mobile_phone || enrichedPerson.direct_phone
-                },
-                enrichment: enrichData
-            })
-        });
-        
-        const analysis = await analysisResponse.json();
-        
-        // Paso 4: Mostrar resultado completo
-        document.getElementById(`progress-${index}`).innerHTML = '✅ Passo 4/4: Compilando resultados...';
-        
-        displayCompleteAnalysis(index, enrichedPerson, enrichData, analysis);
-        
-        // Actualizar estadísticas
-        analyzedCount++;
-        document.getElementById('analyzed').textContent = analyzedCount;
-        
-    } catch (error) {
-        console.error('Erro na análise:', error);
-        analysisDiv.innerHTML = `
-            <div class="p-3 bg-red-50 rounded border border-red-200">
-                <p class="text-red-600 text-sm font-semibold">❌ Erro na análise</p>
-                <p class="text-xs text-gray-600 mt-1">${error.message}</p>
-            </div>
-        `;
-    }
-}
-
-// Nueva función para actualizar el display del contacto
-function updateContactDisplay(index, enrichedPerson) {
-    const contactDiv = document.querySelector(`#prospect-${index} .text-sm.space-y-1`);
-    if (!contactDiv) return;
-    
-    let updatedHTML = '';
-    
-    if (enrichedPerson.email) {
-        updatedHTML += `
-            <div>
-                <i class="fas fa-envelope mr-1 text-green-500"></i>
-                <a href="mailto:${enrichedPerson.email}" class="text-blue-500">${enrichedPerson.email}</a>
-                <span class="text-xs text-green-600 ml-1">(revelado)</span>
-            </div>
-        `;
-    }
-    
-    const phone = enrichedPerson.mobile_phone || 
-                  enrichedPerson.direct_phone || 
-                  enrichedPerson.phone_numbers?.[0]?.sanitized_number;
-    
-    if (phone) {
-        updatedHTML += `
-            <div>
-                <i class="fas fa-phone mr-1 text-green-500"></i>
-                ${phone}
-                <span class="text-xs text-green-600 ml-1">(revelado)</span>
-            </div>
-        `;
-    }
-    
-    if (enrichedPerson.linkedin_url) {
-        updatedHTML += `
-            <div>
-                <i class="fab fa-linkedin mr-1 text-gray-400"></i>
-                <a href="${enrichedPerson.linkedin_url}" target="_blank" class="text-blue-500">LinkedIn</a>
-            </div>
-        `;
-    }
-    
-    if (updatedHTML) {
-        contactDiv.innerHTML = updatedHTML + contactDiv.innerHTML.replace(/<div>.*?email.*?<\/div>/gi, '').replace(/<div>.*?phone.*?<\/div>/gi, '');
-    }
-}
-
-function displayCompleteAnalysis(index, person, enrichData, analysis) {
-    const analysisDiv = document.getElementById(`analysis-${index}`);
-    
-    let html = `
-        <div class="p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg border border-indigo-300">
-            <!-- Header -->
-            <div class="flex justify-between items-start mb-4">
-                <h4 class="font-bold text-lg">🧠 Análise Profunda Completa</h4>
-                <span class="px-3 py-1 ${analysis.total_score >= 7 ? 'bg-green-500' : analysis.total_score >= 5 ? 'bg-yellow-500' : 'bg-red-500'} text-white rounded-full text-sm font-bold">
-                    ${analysis.total_score}/10
-                </span>
-            </div>
-            
-            <!-- Inteligência de Mercado (Serper) -->
-            ${enrichData.enriched ? `
-                <div class="bg-white p-3 rounded mb-3">
-                    <h5 class="font-semibold text-sm mb-2">📊 Inteligência de Mercado</h5>
-                    ${enrichData.enrichmentData?.publicProblems?.length > 0 ? `
-                        <div class="text-red-600 text-sm mb-2">
-                            ⚠️ <strong>Problemas detectados:</strong> ${enrichData.enrichmentData.publicProblems[0].issue || enrichData.enrichmentData.publicProblems[0].details}
-                        </div>
-                    ` : ''}
-                    ${enrichData.enrichmentData?.buyingSignals?.length > 0 ? `
-                        <div class="text-green-600 text-sm mb-2">
-                            🛒 <strong>Buscando fornecedores ativamente!</strong>
-                        </div>
-                    ` : ''}
-                    ${enrichData.enrichmentData?.news?.length > 0 ? `
-                        <div class="text-blue-600 text-sm">
-                            📰 ${enrichData.enrichmentData.news[0].title || enrichData.enrichmentData.news[0].snippet}
-                        </div>
-                    ` : ''}
-                    ${!enrichData.enrichmentData?.publicProblems?.length && !enrichData.enrichmentData?.buyingSignals?.length && !enrichData.enrichmentData?.news?.length ? `
-                        <p class="text-gray-500 text-sm">Sem sinais públicos relevantes detectados</p>
-                    ` : ''}
+        if (phone) {
+            updatedHTML += `
+                <div>
+                    <i class="fas fa-phone mr-1 text-green-500"></i>
+                    ${phone}
+                    <span class="text-xs text-green-600 ml-1">(revelado)</span>
                 </div>
-            ` : ''}
+            `;
+        } else {
+            updatedHTML += '<div class="text-gray-400"><i class="fas fa-phone mr-1"></i>Telefone não revelado</div>';
+        }
+        
+        // LinkedIn
+        if (enrichedPerson.linkedin_url) {
+            updatedHTML += `
+                <div>
+                    <i class="fab fa-linkedin mr-1 text-gray-400"></i>
+                    <a href="${enrichedPerson.linkedin_url}" target="_blank" class="text-blue-500">LinkedIn</a>
+                </div>
+            `;
             
-            <!-- Análise PPVVC -->
-            <div class="bg-white p-3 rounded mb-3">
-                <h5 class="font-semibold text-sm mb-3">📈 Análise PPVVC</h5>
-                <div class="grid grid-cols-3 gap-2">
-                    ${Object.entries(analysis.scores || {}).map(([key, value]) => `
-                        <div class="text-center">
-                            <div class="text-xs font-semibold uppercase text-gray-600">${key}</div>
-                            <div class="mt-1">
-                                <div class="h-2 bg-gray-200 rounded-full">
-                                    <div class="h-2 ${value >= 7 ? 'bg-green-500' : value >= 5 ? 'bg-yellow-500' : 'bg-red-400'} rounded-full" style="width: ${value * 10}%"></div>
-                                </div>
-                                <div class="text-sm font-bold mt-1">${value}/10</div>
+            newButtons += `
+                <button onclick="window.open('${enrichedPerson.linkedin_url}', '_blank')" 
+                        class="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 w-full">
+                    <i class="fab fa-linkedin mr-1"></i>Abrir LinkedIn
+                </button>
+            `;
+        }
+        
+        // Información de la empresa
+        if (enrichedPerson.organization?.estimated_num_employees) {
+            updatedHTML += `
+                <div>
+                    <i class="fas fa-users mr-1 text-gray-400"></i>
+                    ${enrichedPerson.organization.estimated_num_employees} funcionários
+                </div>
+            `;
+        }
+        
+        if (enrichedPerson.organization?.industry) {
+            updatedHTML += `
+                <div>
+                    <i class="fas fa-industry mr-1 text-gray-400"></i>
+                    ${enrichedPerson.organization.industry}
+                </div>
+            `;
+        }
+        
+        // Actualizar el DOM
+        contactDiv.innerHTML = updatedHTML;
+        if (newButtons && actionButtonsDiv) {
+            actionButtonsDiv.innerHTML = newButtons;
+        }
+    }
+
+    function displayCompleteAnalysis(index, person, enrichData, analysis) {
+        const analysisDiv = document.getElementById(`analysis-${index}`);
+        
+        let html = `
+            <div class="p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg border border-indigo-300">
+                <!-- Header -->
+                <div class="flex justify-between items-start mb-4">
+                    <h4 class="font-bold text-lg">🧠 Análise Profunda Completa</h4>
+                    <span class="px-3 py-1 ${analysis.total_score >= 7 ? 'bg-green-500' : analysis.total_score >= 5 ? 'bg-yellow-500' : 'bg-red-500'} text-white rounded-full text-sm font-bold">
+                        ${analysis.total_score}/10
+                    </span>
+                </div>
+                
+                <!-- Inteligência de Mercado (Serper) -->
+                ${enrichData.enriched ? `
+                    <div class="bg-white p-3 rounded mb-3">
+                        <h5 class="font-semibold text-sm mb-2">📊 Inteligência de Mercado</h5>
+                        ${enrichData.enrichmentData?.publicProblems?.length > 0 ? `
+                            <div class="text-red-600 text-sm mb-2">
+                                ⚠️ <strong>Problemas detectados:</strong> ${enrichData.enrichmentData.publicProblems[0].issue || enrichData.enrichmentData.publicProblems[0].details}
                             </div>
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-            
-            <!-- Justificación de Scores -->
-            ${analysis.explanations ? `
-                <div class="bg-gray-50 p-3 rounded mb-3 border border-gray-200">
-                    <h5 class="font-semibold text-sm mb-2">📝 Justificación de Scores</h5>
-                    <div class="space-y-2 text-xs">
-                        <div class="flex items-start">
-                            <span class="font-bold w-24 text-indigo-700">PAIN:</span>
-                            <span class="text-gray-600 flex-1">${analysis.explanations.pain || 'Sin explicación'}</span>
-                        </div>
-                        <div class="flex items-start">
-                            <span class="font-bold w-24 text-purple-700">POWER:</span>
-                            <span class="text-gray-600 flex-1">${analysis.explanations.power || 'Sin explicación'}</span>
-                        </div>
-                        <div class="flex items-start">
-                            <span class="font-bold w-24 text-blue-700">VISION:</span>
-                            <span class="text-gray-600 flex-1">${analysis.explanations.vision || 'Sin explicación'}</span>
-                        </div>
-                        <div class="flex items-start">
-                            <span class="font-bold w-24 text-green-700">VALUE:</span>
-                            <span class="text-gray-600 flex-1">${analysis.explanations.value || 'Sin explicación'}</span>
-                        </div>
-                        <div class="flex items-start">
-                            <span class="font-bold w-24 text-orange-700">CONTROL:</span>
-                            <span class="text-gray-600 flex-1">${analysis.explanations.control || 'Sin explicación'}</span>
-                        </div>
-                        <div class="flex items-start">
-                            <span class="font-bold w-24 text-pink-700">COMPRAS:</span>
-                            <span class="text-gray-600 flex-1">${analysis.explanations.compras || 'Sin explicación'}</span>
-                        </div>
+                        ` : ''}
+                        ${enrichData.enrichmentData?.buyingSignals?.length > 0 ? `
+                            <div class="text-green-600 text-sm mb-2">
+                                🛒 <strong>Buscando fornecedores ativamente!</strong>
+                            </div>
+                        ` : ''}
+                        ${enrichData.enrichmentData?.news?.length > 0 ? `
+                            <div class="text-blue-600 text-sm">
+                                📰 ${enrichData.enrichmentData.news[0].title || enrichData.enrichmentData.news[0].snippet}
+                            </div>
+                        ` : ''}
+                        ${!enrichData.enrichmentData?.publicProblems?.length && !enrichData.enrichmentData?.buyingSignals?.length && !enrichData.enrichmentData?.news?.length ? `
+                            <p class="text-gray-500 text-sm">Sem sinais públicos relevantes detectados</p>
+                        ` : ''}
+                    </div>
+                ` : ''}
+                
+                <!-- Análise PPVVC -->
+                <div class="bg-white p-3 rounded mb-3">
+                    <h5 class="font-semibold text-sm mb-3">📈 Análise PPVVC</h5>
+                    <div class="grid grid-cols-3 gap-2">
+                        ${Object.entries(analysis.scores || {}).map(([key, value]) => `
+                            <div class="text-center">
+                                <div class="text-xs font-semibold uppercase text-gray-600">${key}</div>
+                                <div class="mt-1">
+                                    <div class="h-2 bg-gray-200 rounded-full">
+                                        <div class="h-2 ${value >= 7 ? 'bg-green-500' : value >= 5 ? 'bg-yellow-500' : 'bg-red-400'} rounded-full" style="width: ${value * 10}%"></div>
+                                    </div>
+                                    <div class="text-sm font-bold mt-1">${value}/10</div>
+                                </div>
+                            </div>
+                        `).join('')}
                     </div>
                 </div>
-            ` : ''}
-            
-            <!-- Reasoning -->
-            ${analysis.reasoning ? `
-                <div class="bg-yellow-50 p-3 rounded mb-3">
-                    <p class="text-sm text-gray-700">${analysis.reasoning}</p>
+                
+                <!-- Justificación de Scores -->
+                ${analysis.explanations ? `
+                    <div class="bg-gray-50 p-3 rounded mb-3 border border-gray-200">
+                        <h5 class="font-semibold text-sm mb-2">📝 Justificación de Scores</h5>
+                        <div class="space-y-2 text-xs">
+                            <div class="flex items-start">
+                                <span class="font-bold w-24 text-indigo-700">PAIN:</span>
+                                <span class="text-gray-600 flex-1">${analysis.explanations.pain || 'Sin explicación'}</span>
+                            </div>
+                            <div class="flex items-start">
+                                <span class="font-bold w-24 text-purple-700">POWER:</span>
+                                <span class="text-gray-600 flex-1">${analysis.explanations.power || 'Sin explicación'}</span>
+                            </div>
+                            <div class="flex items-start">
+                                <span class="font-bold w-24 text-blue-700">VISION:</span>
+                                <span class="text-gray-600 flex-1">${analysis.explanations.vision || 'Sin explicación'}</span>
+                            </div>
+                            <div class="flex items-start">
+                                <span class="font-bold w-24 text-green-700">VALUE:</span>
+                                <span class="text-gray-600 flex-1">${analysis.explanations.value || 'Sin explicación'}</span>
+                            </div>
+                            <div class="flex items-start">
+                                <span class="font-bold w-24 text-orange-700">CONTROL:</span>
+                                <span class="text-gray-600 flex-1">${analysis.explanations.control || 'Sin explicación'}</span>
+                            </div>
+                            <div class="flex items-start">
+                                <span class="font-bold w-24 text-pink-700">COMPRAS:</span>
+                                <span class="text-gray-600 flex-1">${analysis.explanations.compras || 'Sin explicación'}</span>
+                            </div>
+                        </div>
+                    </div>
+                ` : ''}
+                
+                <!-- Approach Recomendado -->
+                ${analysis.recommended_approach ? `
+                    <div class="bg-purple-100 p-3 rounded mb-3">
+                        <p class="text-sm font-semibold text-purple-900">
+                            🎯 ${analysis.recommended_approach}
+                        </p>
+                    </div>
+                ` : ''}
+                
+                <!-- Bottom Info -->
+                <div class="flex justify-between items-center text-xs text-gray-600 pt-2 border-t">
+                    <span><i class="fas fa-clock mr-1"></i>${analysis.decision_timeline || 'Timeline não definida'}</span>
+                    <span><i class="fas fa-chart-line mr-1"></i>Potencial: ${analysis.estimated_potential || 'médio'}</span>
                 </div>
-            ` : ''}
-            
-            <!-- Approach Recomendado -->
-            ${analysis.recommended_approach ? `
-                <div class="bg-purple-100 p-3 rounded mb-3">
-                    <p class="text-sm font-semibold text-purple-900">
-                        🎯 ${analysis.recommended_approach}
-                    </p>
-                </div>
-            ` : ''}
-            
-            <!-- Pain Points -->
-            ${analysis.key_pain_points?.length > 0 ? `
-                <div class="mb-3">
-                    <p class="text-xs font-semibold text-gray-700 mb-1">Dolores Potenciais:</p>
-                    <ul class="text-xs text-gray-600 list-disc list-inside">
-                        ${analysis.key_pain_points.map(pain => `<li>${pain}</li>`).join('')}
-                    </ul>
-                </div>
-            ` : ''}
-            
-            <!-- Bottom Info -->
-            <div class="flex justify-between items-center text-xs text-gray-600 pt-2 border-t">
-                <span><i class="fas fa-clock mr-1"></i>${analysis.decision_timeline || 'Timeline não definida'}</span>
-                <span><i class="fas fa-chart-line mr-1"></i>Potencial: ${analysis.estimated_potential || 'médio'}</span>
             </div>
-        </div>
-    `;
-    
-    analysisDiv.innerHTML = html;
-}
+        `;
+        
+        analysisDiv.innerHTML = html;
+    }
 
     function copyEmail(email) {
         navigator.clipboard.writeText(email);
@@ -667,7 +715,7 @@ function displayCompleteAnalysis(index, person, enrichData, analysis) {
         document.getElementById('totalFound').textContent = currentResults.length;
         
         const withContact = currentResults.filter(p => 
-            p.email || p.phone_numbers?.length > 0
+            (p.email && p.email !== 'email_not_unlocked@domain.com') || p.phone_numbers?.length > 0
         ).length;
         document.getElementById('withContact').textContent = withContact;
     }
