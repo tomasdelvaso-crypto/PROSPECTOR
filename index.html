@@ -455,98 +455,131 @@
         }
     }
 
-    function displayCompleteAnalysis(index, person, enrichData, analysis) {
-        const analysisDiv = document.getElementById(`analysis-${index}`);
-        
-        let html = `
-            <div class="p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg border border-indigo-300">
-                <!-- Header -->
-                <div class="flex justify-between items-start mb-4">
-                    <h4 class="font-bold text-lg">🧠 Análise Profunda Completa</h4>
-                    <span class="px-3 py-1 ${analysis.total_score >= 7 ? 'bg-green-500' : analysis.total_score >= 5 ? 'bg-yellow-500' : 'bg-red-500'} text-white rounded-full text-sm font-bold">
-                        ${analysis.total_score}/10
-                    </span>
-                </div>
-                
-                <!-- Inteligência de Mercado (Serper) -->
-                ${enrichData.enriched ? `
-                    <div class="bg-white p-3 rounded mb-3">
-                        <h5 class="font-semibold text-sm mb-2">📊 Inteligência de Mercado</h5>
-                        ${enrichData.enrichmentData?.publicProblems?.length > 0 ? `
-                            <div class="text-red-600 text-sm mb-2">
-                                ⚠️ <strong>Problemas detectados:</strong> ${enrichData.enrichmentData.publicProblems[0].issue || enrichData.enrichmentData.publicProblems[0].details}
-                            </div>
-                        ` : ''}
-                        ${enrichData.enrichmentData?.buyingSignals?.length > 0 ? `
-                            <div class="text-green-600 text-sm mb-2">
-                                🛒 <strong>Buscando fornecedores ativamente!</strong>
-                            </div>
-                        ` : ''}
-                        ${enrichData.enrichmentData?.news?.length > 0 ? `
-                            <div class="text-blue-600 text-sm">
-                                📰 ${enrichData.enrichmentData.news[0].title || enrichData.enrichmentData.news[0].snippet}
-                            </div>
-                        ` : ''}
-                        ${!enrichData.enrichmentData?.publicProblems?.length && !enrichData.enrichmentData?.buyingSignals?.length && !enrichData.enrichmentData?.news?.length ? `
-                            <p class="text-gray-500 text-sm">Sem sinais públicos relevantes detectados</p>
-                        ` : ''}
-                    </div>
-                ` : ''}
-                
-                <!-- Análise PPVVC -->
+function displayCompleteAnalysis(index, person, enrichData, analysis) {
+    const analysisDiv = document.getElementById(`analysis-${index}`);
+    
+    let html = `
+        <div class="p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg border border-indigo-300">
+            <!-- Header -->
+            <div class="flex justify-between items-start mb-4">
+                <h4 class="font-bold text-lg">🧠 Análise Profunda Completa</h4>
+                <span class="px-3 py-1 ${analysis.total_score >= 7 ? 'bg-green-500' : analysis.total_score >= 5 ? 'bg-yellow-500' : 'bg-red-500'} text-white rounded-full text-sm font-bold">
+                    ${analysis.total_score}/10
+                </span>
+            </div>
+            
+            <!-- Inteligência de Mercado (Serper) -->
+            ${enrichData.enriched ? `
                 <div class="bg-white p-3 rounded mb-3">
-                    <h5 class="font-semibold text-sm mb-3">📈 Análise PPVVC</h5>
-                    <div class="grid grid-cols-3 gap-2">
-                        ${Object.entries(analysis.scores || {}).map(([key, value]) => `
-                            <div class="text-center">
-                                <div class="text-xs font-semibold uppercase text-gray-600">${key}</div>
-                                <div class="mt-1">
-                                    <div class="h-2 bg-gray-200 rounded-full">
-                                        <div class="h-2 ${value >= 7 ? 'bg-green-500' : value >= 5 ? 'bg-yellow-500' : 'bg-red-400'} rounded-full" style="width: ${value * 10}%"></div>
-                                    </div>
-                                    <div class="text-sm font-bold mt-1">${value}/10</div>
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
+                    <h5 class="font-semibold text-sm mb-2">📊 Inteligência de Mercado</h5>
+                    ${enrichData.enrichmentData?.publicProblems?.length > 0 ? `
+                        <div class="text-red-600 text-sm mb-2">
+                            ⚠️ <strong>Problemas detectados:</strong> ${enrichData.enrichmentData.publicProblems[0].issue || enrichData.enrichmentData.publicProblems[0].details}
+                        </div>
+                    ` : ''}
+                    ${enrichData.enrichmentData?.buyingSignals?.length > 0 ? `
+                        <div class="text-green-600 text-sm mb-2">
+                            🛒 <strong>Buscando fornecedores ativamente!</strong>
+                        </div>
+                    ` : ''}
+                    ${enrichData.enrichmentData?.news?.length > 0 ? `
+                        <div class="text-blue-600 text-sm">
+                            📰 ${enrichData.enrichmentData.news[0].title || enrichData.enrichmentData.news[0].snippet}
+                        </div>
+                    ` : ''}
+                    ${!enrichData.enrichmentData?.publicProblems?.length && !enrichData.enrichmentData?.buyingSignals?.length && !enrichData.enrichmentData?.news?.length ? `
+                        <p class="text-gray-500 text-sm">Sem sinais públicos relevantes detectados</p>
+                    ` : ''}
                 </div>
-                
-                <!-- Reasoning -->
-                ${analysis.reasoning ? `
-                    <div class="bg-yellow-50 p-3 rounded mb-3">
-                        <p class="text-sm text-gray-700">${analysis.reasoning}</p>
-                    </div>
-                ` : ''}
-                
-                <!-- Approach Recomendado -->
-                ${analysis.recommended_approach ? `
-                    <div class="bg-purple-100 p-3 rounded mb-3">
-                        <p class="text-sm font-semibold text-purple-900">
-                            🎯 ${analysis.recommended_approach}
-                        </p>
-                    </div>
-                ` : ''}
-                
-                <!-- Pain Points -->
-                ${analysis.key_pain_points?.length > 0 ? `
-                    <div class="mb-3">
-                        <p class="text-xs font-semibold text-gray-700 mb-1">Dolores Potenciais:</p>
-                        <ul class="text-xs text-gray-600 list-disc list-inside">
-                            ${analysis.key_pain_points.map(pain => `<li>${pain}</li>`).join('')}
-                        </ul>
-                    </div>
-                ` : ''}
-                
-                <!-- Bottom Info -->
-                <div class="flex justify-between items-center text-xs text-gray-600 pt-2 border-t">
-                    <span><i class="fas fa-clock mr-1"></i>${analysis.decision_timeline || 'Timeline não definida'}</span>
-                    <span><i class="fas fa-chart-line mr-1"></i>Potencial: ${analysis.estimated_potential || 'médio'}</span>
+            ` : ''}
+            
+            <!-- Análise PPVVC -->
+            <div class="bg-white p-3 rounded mb-3">
+                <h5 class="font-semibold text-sm mb-3">📈 Análise PPVVC</h5>
+                <div class="grid grid-cols-3 gap-2">
+                    ${Object.entries(analysis.scores || {}).map(([key, value]) => `
+                        <div class="text-center">
+                            <div class="text-xs font-semibold uppercase text-gray-600">${key}</div>
+                            <div class="mt-1">
+                                <div class="h-2 bg-gray-200 rounded-full">
+                                    <div class="h-2 ${value >= 7 ? 'bg-green-500' : value >= 5 ? 'bg-yellow-500' : 'bg-red-400'} rounded-full" style="width: ${value * 10}%"></div>
+                                </div>
+                                <div class="text-sm font-bold mt-1">${value}/10</div>
+                            </div>
+                        </div>
+                    `).join('')}
                 </div>
             </div>
-        `;
-        
-        analysisDiv.innerHTML = html;
-    }
+            
+            <!-- Justificación de Scores -->
+            ${analysis.explanations ? `
+                <div class="bg-gray-50 p-3 rounded mb-3 border border-gray-200">
+                    <h5 class="font-semibold text-sm mb-2">📝 Justificación de Scores</h5>
+                    <div class="space-y-2 text-xs">
+                        <div class="flex items-start">
+                            <span class="font-bold w-24 text-indigo-700">PAIN:</span>
+                            <span class="text-gray-600 flex-1">${analysis.explanations.pain || 'Sin explicación'}</span>
+                        </div>
+                        <div class="flex items-start">
+                            <span class="font-bold w-24 text-purple-700">POWER:</span>
+                            <span class="text-gray-600 flex-1">${analysis.explanations.power || 'Sin explicación'}</span>
+                        </div>
+                        <div class="flex items-start">
+                            <span class="font-bold w-24 text-blue-700">VISION:</span>
+                            <span class="text-gray-600 flex-1">${analysis.explanations.vision || 'Sin explicación'}</span>
+                        </div>
+                        <div class="flex items-start">
+                            <span class="font-bold w-24 text-green-700">VALUE:</span>
+                            <span class="text-gray-600 flex-1">${analysis.explanations.value || 'Sin explicación'}</span>
+                        </div>
+                        <div class="flex items-start">
+                            <span class="font-bold w-24 text-orange-700">CONTROL:</span>
+                            <span class="text-gray-600 flex-1">${analysis.explanations.control || 'Sin explicación'}</span>
+                        </div>
+                        <div class="flex items-start">
+                            <span class="font-bold w-24 text-pink-700">COMPRAS:</span>
+                            <span class="text-gray-600 flex-1">${analysis.explanations.compras || 'Sin explicación'}</span>
+                        </div>
+                    </div>
+                </div>
+            ` : ''}
+            
+            <!-- Reasoning -->
+            ${analysis.reasoning ? `
+                <div class="bg-yellow-50 p-3 rounded mb-3">
+                    <p class="text-sm text-gray-700">${analysis.reasoning}</p>
+                </div>
+            ` : ''}
+            
+            <!-- Approach Recomendado -->
+            ${analysis.recommended_approach ? `
+                <div class="bg-purple-100 p-3 rounded mb-3">
+                    <p class="text-sm font-semibold text-purple-900">
+                        🎯 ${analysis.recommended_approach}
+                    </p>
+                </div>
+            ` : ''}
+            
+            <!-- Pain Points -->
+            ${analysis.key_pain_points?.length > 0 ? `
+                <div class="mb-3">
+                    <p class="text-xs font-semibold text-gray-700 mb-1">Dolores Potenciais:</p>
+                    <ul class="text-xs text-gray-600 list-disc list-inside">
+                        ${analysis.key_pain_points.map(pain => `<li>${pain}</li>`).join('')}
+                    </ul>
+                </div>
+            ` : ''}
+            
+            <!-- Bottom Info -->
+            <div class="flex justify-between items-center text-xs text-gray-600 pt-2 border-t">
+                <span><i class="fas fa-clock mr-1"></i>${analysis.decision_timeline || 'Timeline não definida'}</span>
+                <span><i class="fas fa-chart-line mr-1"></i>Potencial: ${analysis.estimated_potential || 'médio'}</span>
+            </div>
+        </div>
+    `;
+    
+    analysisDiv.innerHTML = html;
+}
 
     function copyEmail(email) {
         navigator.clipboard.writeText(email);
