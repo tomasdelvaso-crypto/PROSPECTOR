@@ -1075,15 +1075,22 @@ function saveProspect(person) {
         navigator.clipboard.writeText(message);
     }
 
-    function exportResults(format) {
-        if (analyzedResults.length === 0) {
-            alert('Nenhum resultado para exportar');
-            return;
-        }
+// 🔴 REEMPLAZAR TODA LA FUNCIÓN exportResults CON ESTA:
+function exportResults(format) {
+    // Usar analyzedResults si existe, sino currentResults
+    const dataToExport = analyzedResults.length > 0 ? analyzedResults : currentResults;
+    
+    if (dataToExport.length === 0) {
+        alert('Nenhum resultado para exportar');
+        return;
+    }
+    
+    if (format === 'csv') {
+        // Crear CSV con BOM para Excel en portugués
+        const BOM = '\uFEFF';
+        let csvContent = BOM + "Nome,Cargo,Empresa,Email,Telefone,LinkedIn,Score Ventapel,Tier,Dor,Poder,Sinais,Indústria,Funcionários,Cidade,Estado,Enriquecimento,Próxima Ação\n";
         
-        let csvContent = "Nome,Cargo,Empresa,Email,Telefone,LinkedIn,Score Ventapel,Tier,Dor,Poder,Sinais,PPVVC Total,Indústria,Funcionários,Cidade\n";
-        
-        analyzedResults.forEach(person => {
+        dataToExport.forEach(person => {
             const row = [
                 person.name || '',
                 person.title || '',
@@ -1091,30 +1098,58 @@ function saveProspect(person) {
                 person.email || '',
                 person.phone_numbers?.[0]?.sanitized_number || '',
                 person.linkedin_url || '',
-                person.ventapelScore || '0',
-                person.tier || '',
+                person.ventapelScore || person.enrichmentScore || '0',
+                person.tier || 'N/A',
                 person.scoreDetails?.dolor || '0',
                 person.scoreDetails?.poder || '0',
                 person.scoreDetails?.sinais || '0',
-                person.ppvvc?.total_score || '0',
                 person.organization?.industry || '',
                 person.organization?.estimated_num_employees || '',
-                person.organization?.city || ''
-            ].map(field => `"${field}"`).join(',');
+                person.organization?.city || '',
+                person.organization?.state || '',
+                person.enrichmentSummary || '',
+                person.tier === 'A' ? 'Contatar em 24h' : 
+                person.tier === 'B' ? 'Contatar em 72h' : 'Nutrir'
+            ].map(field => {
+                // Escapar campos con comas o quotes
+                const fieldStr = String(field);
+                if (fieldStr.includes(',') || fieldStr.includes('"') || fieldStr.includes('\n')) {
+                    return `"${fieldStr.replace(/"/g, '""')}"`;
+                }
+                return fieldStr;
+            }).join(',');
             
             csvContent += row + "\n";
         });
         
+        // Crear blob y descargar
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
         const url = URL.createObjectURL(blob);
+        const fileName = `ventapel_prospectos_${new Date().toISOString().split('T')[0]}.csv`;
+        
         link.setAttribute("href", url);
-        link.setAttribute("download", `ventapel_prospectos_${new Date().toISOString().split('T')[0]}.csv`);
+        link.setAttribute("download", fileName);
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        
+        // Mostrar mensaje de éxito
+        const successDiv = document.createElement('div');
+        successDiv.className = 'fixed top-4 right-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded z-50';
+        successDiv.innerHTML = `
+            <span class="block sm:inline">✅ Exportado ${dataToExport.length} prospectos para ${fileName}</span>
+        `;
+        document.body.appendChild(successDiv);
+        setTimeout(() => successDiv.remove(), 3000);
+        
+    } else if (format === 'excel') {
+        // Para Excel, usar el mismo CSV pero con extensión .xls
+        alert('Para Excel, use a opção CSV e abra no Excel. O arquivo está formatado corretamente.');
+        exportResults('csv');
     }
+}
 
     async function saveToSuCRM(person) {
         try {
