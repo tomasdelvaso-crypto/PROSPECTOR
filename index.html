@@ -1,4 +1,4 @@
-<!DOCTYPE html>se
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
@@ -144,11 +144,11 @@
                                 Excluir varejo físico sem e-commerce
                             </label>
                             <label class="flex items-center">
-                                <input type="checkbox" id="excludeRJ" checked class="mr-2">
+                                <input type="checkbox" id="excludeRJ" class="mr-2">
                                 Excluir empresas em RJ
                             </label>
                             <label class="flex items-center">
-                                <input type="checkbox" id="excludeClients" checked class="mr-2">
+                                <input type="checkbox" id="excludeClients" class="mr-2">
                                 Excluir clientes atuais
                             </label>
                         </div>
@@ -192,6 +192,10 @@
                     <button onclick="exportResults('csv')" 
                             class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm">
                         <i class="fas fa-download mr-2"></i>Exportar CSV
+                    </button>
+                    <button onclick="exportResults('excel')" 
+                            class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 text-sm">
+                        <i class="fas fa-file-excel mr-2"></i>Exportar Excel
                     </button>
                 </div>
             </div>
@@ -352,860 +356,345 @@
     let analyzedResults = [];
 
     async function searchProspects() {
-    const industry = document.getElementById('industryFilter').value;
-    const titleType = document.getElementById('titleFilter').value;
-    const location = document.getElementById('locationFilter').value;
-    const size = document.getElementById('sizeFilter').value;
-    
-    const resultsDiv = document.getElementById('results');
-    resultsDiv.innerHTML = '<p class="text-blue-600"><i class="fas fa-spinner fa-spin mr-2"></i>Buscando prospectos qualificados...</p>';
-    
-    try {
-        // 1. Buscar en Apollo
-        const response = await fetch('/api/apollo-search', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                query: '',
-                filters: {
-                    titles: ['Gerente de Operações', 'Operations Manager', 'Gerente'],
-                    location: location || 'Brazil',
-                    size: size
-                }
-            })
-        });
+        const industry = document.getElementById('industryFilter').value;
+        const titleType = document.getElementById('titleFilter').value;
+        const location = document.getElementById('locationFilter').value;
+        const size = document.getElementById('sizeFilter').value;
         
-        if (!response.ok) throw new Error(`Error ${response.status}`);
+        const resultsDiv = document.getElementById('results');
+        resultsDiv.innerHTML = '<p class="text-blue-600"><i class="fas fa-spinner fa-spin mr-2"></i>Buscando prospectos qualificados...</p>';
         
-        const data = await response.json();
-        let prospects = data.people || [];
-        
-        // 2. ENRIQUECER CON SERPER (NUEVO)
-        resultsDiv.innerHTML = '<p class="text-purple-600"><i class="fas fa-spinner fa-spin mr-2"></i>Enriqueciendo con inteligencia de mercado...</p>';
-        
-        const enrichedProspects = [];
-        for (const prospect of prospects.slice(0, 5)) { // Solo los primeros 5 para no gastar créditos
-            if (prospect.organization?.name) {
-                try {
-                    const enrichResponse = await fetch('/api/enrich-prospect', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            company: prospect.organization,
-                            contact: prospect
-                        })
-                    });
-                    
-                    const enrichData = await enrichResponse.json();
-                    
-                    enrichedProspects.push({
-                        ...prospect,
-                        enrichment: enrichData.enriched ? enrichData.enrichmentData : null,
-                        enrichmentScore: enrichData.additionalScore || 0,
-                        enrichmentSummary: enrichData.summary || ''
-                    });
-                } catch (error) {
-                    console.error('Error enriching:', error);
-                    enrichedProspects.push(prospect);
-                }
-            } else {
-                enrichedProspects.push(prospect);
-            }
-        }
-        
-        // Agregar los no enriquecidos
-        enrichedProspects.push(...prospects.slice(5));
-        
-        // 3. Mostrar resultados enriquecidos
-        displayEnrichedResults(enrichedProspects);
-        
-    } catch (error) {
-        console.error('Error:', error);
-        resultsDiv.innerHTML = `
-            <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-                <p class="font-bold">Erro ao buscar prospectos</p>
-                <p class="text-sm">${error.message}</p>
-            </div>
-        `;
-    }
-}
-
-function displayEnrichedResults(prospects) {
-    const resultsDiv = document.getElementById('results');
-    
-    if (prospects.length === 0) {
-        resultsDiv.innerHTML = '<p class="text-gray-500">Nenhum prospecto encontrado</p>';
-        return;
-    }
-    
-    let html = '<div class="space-y-4">';
-    
-    prospects.forEach(person => {
-        const hasEnrichment = person.enrichment && person.enrichmentScore > 0;
-        const borderColor = hasEnrichment && person.enrichmentScore > 20 ? 'border-orange-400' : 'border-gray-200';
-        
-        html += `
-            <div class="border ${borderColor} rounded-lg p-4 hover:shadow-md transition-shadow ${hasEnrichment ? 'bg-orange-50' : ''}">
-                <div class="flex justify-between">
-                    <div class="flex-1">
-                        <div class="flex items-center gap-2 mb-2">
-                            <h4 class="font-semibold text-lg">${person.name || 'Nome não disponível'}</h4>
-                            ${hasEnrichment && person.enrichmentScore > 20 ? 
-                                '<span class="px-2 py-1 bg-orange-500 text-white text-xs rounded">🔥 HOT LEAD</span>' : ''}
-                        </div>
-                        
-                        <p class="text-gray-600">${person.title || 'Cargo não especificado'}</p>
-                        <p class="text-blue-600 font-medium">${person.organization?.name || 'Empresa não especificada'}</p>
-                        
-                        <!-- Dados de contato -->
-                        <div class="mt-2 text-sm space-y-1">
-                            ${person.email ? `
-                                <div>
-                                    <i class="fas fa-envelope mr-1 text-gray-400"></i>
-                                    <a href="mailto:${person.email}" class="text-blue-500">${person.email}</a>
-                                </div>
-                            ` : '<div class="text-gray-400"><i class="fas fa-envelope mr-1"></i>Email não disponível</div>'}
-                            
-                            ${person.phone_numbers?.[0] ? `
-                                <div>
-                                    <i class="fas fa-phone mr-1 text-gray-400"></i>
-                                    ${person.phone_numbers[0].sanitized_number || person.phone_numbers[0].number}
-                                </div>
-                            ` : ''}
-                            
-                            ${person.linkedin_url ? `
-                                <div>
-                                    <i class="fab fa-linkedin mr-1 text-gray-400"></i>
-                                    <a href="${person.linkedin_url}" target="_blank" class="text-blue-500">Ver LinkedIn</a>
-                                </div>
-                            ` : ''}
-                        </div>
-                        
-                        <!-- ENRIQUECIMENTO SERPER (NOVO) -->
-                        ${hasEnrichment ? `
-                            <div class="mt-3 p-3 bg-white rounded border border-yellow-400">
-                                <div class="flex items-center gap-2 mb-2">
-                                    <span class="text-sm font-semibold">🔍 Inteligência de Mercado</span>
-                                    <span class="text-xs bg-yellow-100 px-2 py-1 rounded">+${person.enrichmentScore} pontos</span>
-                                </div>
-                                
-                                ${person.enrichment.publicProblems?.length > 0 ? `
-                                    <div class="text-sm text-red-600 mb-2">
-                                        <i class="fas fa-exclamation-triangle mr-1"></i>
-                                        <strong>Problemas detectados:</strong> ${person.enrichment.publicProblems[0].issue}
-                                    </div>
-                                ` : ''}
-                                
-                                ${person.enrichment.buyingSignals?.length > 0 ? `
-                                    <div class="text-sm text-green-600 mb-2">
-                                        <i class="fas fa-shopping-cart mr-1"></i>
-                                        <strong>Buscando fornecedores!</strong>
-                                    </div>
-                                ` : ''}
-                                
-                                ${person.enrichment.news?.length > 0 ? `
-                                    <div class="text-sm text-blue-600 mb-2">
-                                        <i class="fas fa-newspaper mr-1"></i>
-                                        <strong>Notícia recente:</strong> ${person.enrichment.news[0].title}
-                                    </div>
-                                ` : ''}
-                                
-                                ${person.enrichmentSummary ? `
-                                    <div class="text-xs text-gray-700 mt-2 pt-2 border-t">
-                                        ${person.enrichmentSummary}
-                                    </div>
-                                ` : ''}
-                            </div>
-                        ` : ''}
-                    </div>
-                    
-                    <div class="ml-4 space-y-2">
-                        ${hasEnrichment && person.enrichmentScore > 20 ? `
-                            <button onclick="alert('Contato prioritário - implementar ação rápida')" 
-                                    class="px-4 py-2 bg-orange-600 text-white rounded text-sm hover:bg-orange-700 w-full">
-                                <i class="fas fa-bolt mr-1"></i>Ação Imediata
-                            </button>
-                        ` : ''}
-                        
-                        <button onclick="saveProspect(${JSON.stringify(person).replace(/'/g, '&apos;').replace(/"/g, '&quot;')})" 
-                                class="px-4 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 w-full">
-                            <i class="fas fa-save mr-1"></i>Salvar
-                        </button>
-                        
-                        ${person.linkedin_url ? `
-                            <button onclick="window.open('${person.linkedin_url}', '_blank')" 
-                                    class="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 w-full">
-                                <i class="fab fa-linkedin mr-1"></i>LinkedIn
-                            </button>
-                        ` : ''}
-                    </div>
-                </div>
-            </div>
-        `;
-    });
-    
-    html += '</div>';
-    resultsDiv.innerHTML = html;
-    
-    // Actualizar estadísticas
-    updateEnrichedStats(prospects);
-}
-
-function updateEnrichedStats(prospects) {
-    document.getElementById('totalFound').textContent = prospects.length;
-    
-    const withContact = prospects.filter(p => p.email || p.phone_numbers?.length > 0).length;
-    document.getElementById('withContact').textContent = withContact;
-    
-    const hotLeads = prospects.filter(p => p.enrichmentScore > 20).length;
-    document.getElementById('tierA').textContent = hotLeads;
-    
-    const avgScore = prospects.reduce((sum, p) => sum + (p.enrichmentScore || 0), 0) / prospects.length;
-    document.getElementById('avgScore').textContent = Math.round(avgScore);
-}
-
-function saveProspect(person) {
-    // Implementar guardado
-    console.log('Salvando:', person);
-    alert('Prospecto salvo!');
-}
-
-    async function analyzeAndScoreProspects(prospects) {
-        analyzedResults = [];
-        
-        for (const prospect of prospects) {
-            // Calcular score baseado nos critérios
-            let score = 0;
-            let scoreDetails = {
-                dolor: 0,
-                poder: 0,
-                sinais: 0,
-                bonus: 0
-            };
-            
-            // DOLOR POTENCIAL (40 pontos max)
-            const industry = document.getElementById('industryFilter').value;
-            if (industry && INDUSTRY_MAPPING[industry]) {
-                scoreDetails.dolor += INDUSTRY_MAPPING[industry].score;
-            }
-            
-            // Verificar palavras-chave de dor
-            const painKeywords = document.getElementById('painKeywords')?.value;
-            if (painKeywords && prospect.organization?.description) {
-                const keywords = painKeywords.split(',').map(k => k.trim());
-                if (keywords.some(k => prospect.organization.description.toLowerCase().includes(k.toLowerCase()))) {
-                    scoreDetails.dolor += 10;
-                }
-            }
-            
-            // Operação 24/7 ou multi-turno (inferido pelo tamanho)
-            if (prospect.organization?.estimated_num_employees > 1000) {
-                scoreDetails.dolor += 10;
-            }
-            
-            // PODER DE DECISÃO (30 pontos max)
-            const titleType = document.getElementById('titleFilter').value;
-            if (titleType && TITLE_MAPPING[titleType]) {
-                scoreDetails.poder = TITLE_MAPPING[titleType].score;
-            }
-            
-            // Empresa matriz estrangeira (bonus)
-            if (prospect.organization?.headquarters_location && 
-                !prospect.organization.headquarters_location.includes('Brazil')) {
-                scoreDetails.poder += 5;
-            }
-            
-            // SINAIS DE COMPRA (30 pontos max)
-            const buySignals = document.getElementById('buySignals')?.value;
-            if (buySignals && prospect.organization?.description) {
-                const signals = buySignals.split(',').map(s => s.trim());
-                if (signals.some(s => prospect.organization.description.toLowerCase().includes(s.toLowerCase()))) {
-                    scoreDetails.sinais += 15;
-                }
-            }
-            
-            // Score total
-            score = scoreDetails.dolor + scoreDetails.poder + scoreDetails.sinais + scoreDetails.bonus;
-            
-            // Determinar Tier
-            let tier = 'C';
-            let priority = 'baixa';
-            if (score >= 70) {
-                tier = 'A';
-                priority = 'alta';
-            } else if (score >= 50) {
-                tier = 'B';
-                priority = 'média';
-            }
-            
-            // Análise PPVVC via Claude
-            let ppvvcAnalysis = null;
-            try {
-                ppvvcAnalysis = await analyzeWithClaude(prospect);
-            } catch (error) {
-                console.error('Erro na análise PPVVC:', error);
-            }
-            
-            analyzedResults.push({
-                ...prospect,
-                ventapelScore: score,
-                scoreDetails: scoreDetails,
-                tier: tier,
-                priority: priority,
-                ppvvc: ppvvcAnalysis
-            });
-        }
-        
-        // Ordenar por score
-        analyzedResults.sort((a, b) => b.ventapelScore - a.ventapelScore);
-        
-        // Atualizar estatísticas
-        updateStats(analyzedResults);
-        
-        // Exibir resultados
-        displayResults(analyzedResults);
-    }
-
-    async function analyzeWithClaude(person) {
         try {
-            const response = await fetch('/api/claude-analyze', {
+            // 1. Buscar en Apollo
+            const response = await fetch('/api/apollo-search', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    company: person.organization || {},
-                    contact: {
-                        name: person.name,
-                        title: person.title,
-                        email: person.email
-                    },
-                    context: 'ventapel_brasil_b2b'
+                    query: '',
+                    filters: {
+                        titles: TITLE_MAPPING[titleType]?.titles || ['Gerente', 'Manager', 'Diretor'],
+                        location: location || 'Brazil',
+                        size: size
+                    }
                 })
             });
             
-            if (!response.ok) throw new Error('Erro na análise');
+            if (!response.ok) throw new Error(`Error ${response.status}`);
             
-            return await response.json();
+            const data = await response.json();
+            let prospects = data.people || [];
+            
+            // Store for export
+            currentResults = prospects;
+            
+            // 2. ENRIQUECER CON SERPER
+            resultsDiv.innerHTML = '<p class="text-purple-600"><i class="fas fa-spinner fa-spin mr-2"></i>Enriquecendo com inteligência de mercado...</p>';
+            
+            const enrichedProspects = [];
+            for (const prospect of prospects.slice(0, 5)) { // Solo los primeros 5 para no gastar créditos
+                if (prospect.organization?.name) {
+                    try {
+                        const enrichResponse = await fetch('/api/enrich-prospect', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                company: prospect.organization,
+                                contact: prospect
+                            })
+                        });
+                        
+                        const enrichData = await enrichResponse.json();
+                        
+                        enrichedProspects.push({
+                            ...prospect,
+                            enrichment: enrichData.enriched ? enrichData.enrichmentData : null,
+                            enrichmentScore: enrichData.additionalScore || 0,
+                            enrichmentSummary: enrichData.summary || ''
+                        });
+                    } catch (error) {
+                        console.error('Error enriching:', error);
+                        enrichedProspects.push(prospect);
+                    }
+                } else {
+                    enrichedProspects.push(prospect);
+                }
+            }
+            
+            // Agregar los no enriquecidos
+            enrichedProspects.push(...prospects.slice(5));
+            
+            // Store enriched results for export
+            analyzedResults = enrichedProspects;
+            
+            // 3. Mostrar resultados enriquecidos
+            displayEnrichedResults(enrichedProspects);
             
         } catch (error) {
-            console.error('Erro:', error);
-            return null;
+            console.error('Error:', error);
+            resultsDiv.innerHTML = `
+                <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+                    <p class="font-bold">Erro ao buscar prospectos</p>
+                    <p class="text-sm">${error.message}</p>
+                </div>
+            `;
         }
     }
 
-    function displayResults(results) {
+    function displayEnrichedResults(prospects) {
         const resultsDiv = document.getElementById('results');
         
-        if (results.length === 0) {
-            resultsDiv.innerHTML = '<p class="text-gray-500">Nenhum prospecto encontrado com os filtros aplicados</p>';
+        if (prospects.length === 0) {
+            resultsDiv.innerHTML = '<p class="text-gray-500">Nenhum prospecto encontrado</p>';
             return;
         }
         
-        const html = results.map((person, index) => {
-            const score = person.ventapelScore;
-            const tier = person.tier;
-            const tierColor = tier === 'A' ? 'orange' : tier === 'B' ? 'yellow' : 'gray';
-            const tierText = tier === 'A' ? '🔥 TIER A - Contatar em 24h' : 
-                            tier === 'B' ? '⚡ TIER B - Contatar em 72h' : 
-                            '📧 TIER C - Nutrir com conteúdo';
+        let html = '<div class="space-y-4">';
+        
+        prospects.forEach(person => {
+            const hasEnrichment = person.enrichment && person.enrichmentScore > 0;
+            const borderColor = hasEnrichment && person.enrichmentScore > 20 ? 'border-orange-400' : 'border-gray-200';
             
-            return `
-                <div class="border rounded-lg p-4 mb-4 hover:shadow-md transition-shadow ${tier === 'A' ? 'border-orange-400 bg-orange-50' : ''}">
-                    <div class="flex justify-between items-start">
+            html += `
+                <div class="border ${borderColor} rounded-lg p-4 hover:shadow-md transition-shadow ${hasEnrichment ? 'bg-orange-50' : ''}">
+                    <div class="flex justify-between">
                         <div class="flex-1">
-                            <div class="flex items-center gap-3 mb-2">
+                            <div class="flex items-center gap-2 mb-2">
                                 <h4 class="font-semibold text-lg">${person.name || 'Nome não disponível'}</h4>
-                                <span class="px-2 py-1 bg-${tierColor}-100 text-${tierColor}-800 text-xs rounded font-semibold">
-                                    ${tierText}
-                                </span>
+                                ${hasEnrichment && person.enrichmentScore > 20 ? 
+                                    '<span class="px-2 py-1 bg-orange-500 text-white text-xs rounded">🔥 HOT LEAD</span>' : ''}
                             </div>
                             
                             <p class="text-gray-600">${person.title || 'Cargo não especificado'}</p>
-                            <p class="text-blue-600 font-medium text-lg">${person.organization?.name || 'Empresa não especificada'}</p>
+                            <p class="text-blue-600 font-medium">${person.organization?.name || 'Empresa não especificada'}</p>
                             
-                            <!-- Informações da Empresa -->
-                            ${person.organization ? `
-                                <div class="mt-2 p-2 bg-gray-50 rounded text-sm">
-                                    <div class="grid grid-cols-2 gap-2">
-                                        <div>
-                                            <span class="text-gray-500">Indústria:</span>
-                                            <span class="ml-1">${person.organization.industry || 'Não especificada'}</span>
-                                        </div>
-                                        <div>
-                                            <span class="text-gray-500">Funcionários:</span>
-                                            <span class="ml-1">${person.organization.estimated_num_employees || 'Não informado'}</span>
-                                        </div>
-                                        ${person.organization.city ? `
-                                            <div>
-                                                <span class="text-gray-500">Cidade:</span>
-                                                <span class="ml-1">${person.organization.city}, ${person.organization.state || ''}</span>
-                                            </div>
-                                        ` : ''}
-                                    </div>
-                                </div>
-                            ` : ''}
-                            
-                            <!-- Contatos -->
-                            <div class="mt-3 grid grid-cols-2 gap-2 text-sm">
+                            <!-- Dados de contato -->
+                            <div class="mt-2 text-sm space-y-1">
                                 ${person.email ? `
                                     <div>
                                         <i class="fas fa-envelope mr-1 text-gray-400"></i>
-                                        <a href="mailto:${person.email}" class="text-blue-500 hover:underline">${person.email}</a>
+                                        <a href="mailto:${person.email}" class="text-blue-500">${person.email}</a>
                                     </div>
-                                ` : '<div class="text-red-400"><i class="fas fa-envelope mr-1"></i>Email não disponível ⚠️</div>'}
+                                ` : '<div class="text-gray-400"><i class="fas fa-envelope mr-1"></i>Email não disponível</div>'}
                                 
-                                ${person.phone_numbers?.[0]?.sanitized_number ? `
+                                ${person.phone_numbers?.[0] ? `
                                     <div>
                                         <i class="fas fa-phone mr-1 text-gray-400"></i>
-                                        <a href="tel:${person.phone_numbers[0].sanitized_number}" class="text-blue-500">
-                                            ${person.phone_numbers[0].sanitized_number}
-                                        </a>
+                                        ${person.phone_numbers[0].sanitized_number || person.phone_numbers[0].number}
                                     </div>
-                                ` : '<div class="text-red-400"><i class="fas fa-phone mr-1"></i>Telefone não disponível ⚠️</div>'}
+                                ` : ''}
                                 
                                 ${person.linkedin_url ? `
                                     <div>
                                         <i class="fab fa-linkedin mr-1 text-gray-400"></i>
-                                        <a href="${person.linkedin_url}" target="_blank" class="text-blue-500 hover:underline">
-                                            Perfil LinkedIn
-                                        </a>
+                                        <a href="${person.linkedin_url}" target="_blank" class="text-blue-500">Ver LinkedIn</a>
                                     </div>
                                 ` : ''}
                             </div>
                             
-                            <!-- Scoring Detalhado -->
-                            <div class="mt-3 p-3 bg-white rounded border">
-                                <div class="flex justify-between items-center mb-2">
-                                    <span class="text-sm font-semibold">Score de Qualificação Ventapel</span>
-                                    <span class="text-2xl font-bold text-${score >= 70 ? 'green' : score >= 50 ? 'yellow' : 'red'}-600">
-                                        ${score}/100
-                                    </span>
-                                </div>
-                                <div class="grid grid-cols-3 gap-2 text-xs">
-                                    <div>
-                                        <span class="text-gray-500">Dor Potencial:</span>
-                                        <span class="ml-1 font-semibold">${person.scoreDetails.dolor}/40</span>
+                            <!-- ENRIQUECIMENTO SERPER -->
+                            ${hasEnrichment ? `
+                                <div class="mt-3 p-3 bg-white rounded border border-yellow-400">
+                                    <div class="flex items-center gap-2 mb-2">
+                                        <span class="text-sm font-semibold">🔍 Inteligência de Mercado</span>
+                                        <span class="text-xs bg-yellow-100 px-2 py-1 rounded">+${person.enrichmentScore} pontos</span>
                                     </div>
-                                    <div>
-                                        <span class="text-gray-500">Poder Decisão:</span>
-                                        <span class="ml-1 font-semibold">${person.scoreDetails.poder}/30</span>
-                                    </div>
-                                    <div>
-                                        <span class="text-gray-500">Sinais Compra:</span>
-                                        <span class="ml-1 font-semibold">${person.scoreDetails.sinais}/30</span>
-                                    </div>
-                                </div>
-                                
-                                ${person.ppvvc ? `
-                                    <div class="mt-2 pt-2 border-t">
-                                        <div class="text-xs font-semibold mb-1">Análise PPVVC (IA):</div>
-                                        <div class="grid grid-cols-6 gap-1 text-xs">
-                                            <div class="text-center">
-                                                <div class="text-gray-500">Pain</div>
-                                                <div class="font-bold">${person.ppvvc.scores?.pain || 0}</div>
-                                            </div>
-                                            <div class="text-center">
-                                                <div class="text-gray-500">Power</div>
-                                                <div class="font-bold">${person.ppvvc.scores?.power || 0}</div>
-                                            </div>
-                                            <div class="text-center">
-                                                <div class="text-gray-500">Vision</div>
-                                                <div class="font-bold">${person.ppvvc.scores?.vision || 0}</div>
-                                            </div>
-                                            <div class="text-center">
-                                                <div class="text-gray-500">Value</div>
-                                                <div class="font-bold">${person.ppvvc.scores?.value || 0}</div>
-                                            </div>
-                                            <div class="text-center">
-                                                <div class="text-gray-500">Control</div>
-                                                <div class="font-bold">${person.ppvvc.scores?.control || 0}</div>
-                                            </div>
-                                            <div class="text-center">
-                                                <div class="text-gray-500">Compras</div>
-                                                <div class="font-bold">${person.ppvvc.scores?.compras || 0}</div>
-                                            </div>
+                                    
+                                    ${person.enrichment.publicProblems?.length > 0 ? `
+                                        <div class="text-sm text-red-600 mb-2">
+                                            <i class="fas fa-exclamation-triangle mr-1"></i>
+                                            <strong>Problemas detectados:</strong> ${person.enrichment.publicProblems[0].issue}
                                         </div>
-                                    </div>
-                                ` : ''}
-                            </div>
+                                    ` : ''}
+                                    
+                                    ${person.enrichment.buyingSignals?.length > 0 ? `
+                                        <div class="text-sm text-green-600 mb-2">
+                                            <i class="fas fa-shopping-cart mr-1"></i>
+                                            <strong>Buscando fornecedores!</strong>
+                                        </div>
+                                    ` : ''}
+                                    
+                                    ${person.enrichment.news?.length > 0 ? `
+                                        <div class="text-sm text-blue-600 mb-2">
+                                            <i class="fas fa-newspaper mr-1"></i>
+                                            <strong>Notícia recente:</strong> ${person.enrichment.news[0].title}
+                                        </div>
+                                    ` : ''}
+                                    
+                                    ${person.enrichment.ergonomicProblems?.length > 0 ? `
+                                        <div class="text-sm text-purple-600 mb-2">
+                                            <i class="fas fa-user-injured mr-1"></i>
+                                            <strong>Problemas ergonômicos detectados</strong>
+                                        </div>
+                                    ` : ''}
+                                    
+                                    ${person.enrichmentSummary ? `
+                                        <div class="text-xs text-gray-700 mt-2 pt-2 border-t">
+                                            ${person.enrichmentSummary}
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            ` : ''}
                         </div>
                         
-                        <!-- Ações -->
                         <div class="ml-4 space-y-2">
-                            <button 
-                                onclick='showDetailedAnalysis(${JSON.stringify(person).replace(/'/g, "&apos;")})'
-                                class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm w-full"
-                            >
-                                <i class="fas fa-chart-line mr-1"></i>Análise Completa
-                            </button>
-                            
-                            ${person.tier === 'A' ? `
-                                <button 
-                                    onclick='createFollowUpPlan(${JSON.stringify(person).replace(/'/g, "&apos;")})'
-                                    class="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 text-sm w-full"
-                                >
-                                    <i class="fas fa-calendar-check mr-1"></i>Criar Follow-up
+                            ${hasEnrichment && person.enrichmentScore > 20 ? `
+                                <button onclick="generateQuickMessage(${JSON.stringify(person).replace(/'/g, '&apos;').replace(/"/g, '&quot;')})" 
+                                        class="px-4 py-2 bg-orange-600 text-white rounded text-sm hover:bg-orange-700 w-full">
+                                    <i class="fas fa-bolt mr-1"></i>Ação Imediata
                                 </button>
                             ` : ''}
                             
-                            <button 
-                                onclick='saveToSuCRM(${JSON.stringify(person).replace(/'/g, "&apos;")})'
-                                class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm w-full"
-                            >
-                                <i class="fas fa-save mr-1"></i>Salvar no CRM
+                            <button onclick="saveProspect(${JSON.stringify(person).replace(/'/g, '&apos;').replace(/"/g, '&quot;')})" 
+                                    class="px-4 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 w-full">
+                                <i class="fas fa-save mr-1"></i>Salvar
                             </button>
                             
                             ${person.linkedin_url ? `
-                                <button 
-                                    onclick='generateLinkedInMessage(${JSON.stringify(person).replace(/'/g, "&apos;")})'
-                                    class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm w-full"
-                                >
-                                    <i class="fab fa-linkedin mr-1"></i>Msg LinkedIn
+                                <button onclick="window.open('${person.linkedin_url}', '_blank')" 
+                                        class="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 w-full">
+                                    <i class="fab fa-linkedin mr-1"></i>LinkedIn
                                 </button>
                             ` : ''}
                         </div>
                     </div>
                 </div>
             `;
-        }).join('');
+        });
         
+        html += '</div>';
         resultsDiv.innerHTML = html;
+        
+        // Actualizar estadísticas
+        updateEnrichedStats(prospects);
     }
 
-    function updateStats(results) {
-        document.getElementById('totalFound').textContent = results.length;
+    function updateEnrichedStats(prospects) {
+        document.getElementById('totalFound').textContent = prospects.length;
         
-        const withContact = results.filter(p => p.email || p.phone_numbers?.length > 0).length;
+        const withContact = prospects.filter(p => p.email || p.phone_numbers?.length > 0).length;
         document.getElementById('withContact').textContent = withContact;
         
-        const avgScore = results.length > 0 
-            ? Math.round(results.reduce((sum, r) => sum + r.ventapelScore, 0) / results.length)
-            : 0;
-        document.getElementById('avgScore').textContent = avgScore;
+        const hotLeads = prospects.filter(p => p.enrichmentScore > 20).length;
+        document.getElementById('tierA').textContent = hotLeads;
         
-        const tierA = results.filter(r => r.tier === 'A').length;
-        document.getElementById('tierA').textContent = tierA;
+        const avgScore = prospects.length > 0 ? 
+            prospects.reduce((sum, p) => sum + (p.enrichmentScore || 0), 0) / prospects.length : 0;
+        document.getElementById('avgScore').textContent = Math.round(avgScore);
         
-        const tierB = results.filter(r => r.tier === 'B').length;
+        const tierB = prospects.filter(p => p.enrichmentScore >= 10 && p.enrichmentScore <= 20).length;
         document.getElementById('tierB').textContent = tierB;
     }
 
-    function showDetailedAnalysis(person) {
-        const modal = document.getElementById('analysisModal');
-        const content = document.getElementById('analysisContent');
+    function generateQuickMessage(person) {
+        let message = `Olá ${person.name?.split(' ')[0] || 'Prezado(a)'},\n\n`;
         
-        modal.classList.remove('hidden');
-        
-        // Gerar mensagem personalizada baseada na indústria
-        let industryMessage = '';
-        if (person.organization?.industry?.toLowerCase().includes('commerce') || 
-            person.organization?.industry?.toLowerCase().includes('marketplace')) {
-            industryMessage = `Vi que a ${person.organization.name} está no e-commerce. Em operações similares, reduzimos 40% do retrabalho por violação de caixas. Quanto custa hoje cada devolução por produto danificado?`;
-        } else if (person.organization?.industry?.toLowerCase().includes('log') || 
-                   person.organization?.industry?.toLowerCase().includes('3pl')) {
-            industryMessage = `A ${person.organization.name} gerencia múltiplos clientes com diferentes SLAs. Nossa solução reduziu 95% as penalizações por avaria em trânsito. Vocês têm KPIs de integridade de pacotes?`;
-        } else if (person.organization?.industry?.toLowerCase().includes('farm') || 
-                   person.organization?.industry?.toLowerCase().includes('cosm')) {
-            industryMessage = `Rastreabilidade e segurança são críticas na indústria ${person.organization.industry}. Nosso sistema garante inviolabilidade 100% com evidência visível. Como gerenciam hoje os riscos de adulteração?`;
+        if (person.enrichment?.publicProblems?.length > 0) {
+            message += `Vi que a ${person.organization?.name} está enfrentando desafios logísticos. `;
+            message += `Ajudamos empresas similares a eliminar 100% das violações em trânsito.\n\n`;
+        } else if (person.enrichment?.buyingSignals?.length > 0) {
+            message += `Notei que vocês estão buscando novos fornecedores. `;
+            message += `Somos parceiros de Mercado Livre e Amazon em soluções de fechamento.\n\n`;
+        } else if (person.enrichment?.ergonomicProblems?.length > 0) {
+            message += `A saúde ocupacional é crítica. Nossa solução elimina movimentos repetitivos e reduz afastamentos.\n\n`;
+        } else {
+            message += `Ajudamos empresas como a ${person.organization?.name} a reduzir 64% dos custos de fechamento.\n\n`;
         }
         
-        content.innerHTML = `
-            <div class="space-y-4">
-                <!-- Informações do Prospecto -->
-                <div class="bg-gradient-to-r from-blue-50 to-green-50 p-4 rounded">
-                    <h4 class="font-bold text-lg">${person.name}</h4>
-                    <p class="text-gray-600">${person.title}</p>
-                    <p class="text-blue-600 font-semibold">${person.organization?.name || 'Empresa não especificada'}</p>
-                    <div class="mt-2 flex gap-4 text-sm">
-                        ${person.email ? `<span><i class="fas fa-envelope mr-1"></i>${person.email}</span>` : ''}
-                        ${person.phone_numbers?.[0]?.sanitized_number ? `<span><i class="fas fa-phone mr-1"></i>${person.phone_numbers[0].sanitized_number}</span>` : ''}
-                    </div>
-                </div>
-                
-                <!-- Score de Qualificação -->
-                <div class="bg-white border rounded p-4">
-                    <h5 class="font-semibold mb-3">Score de Qualificação Ventapel</h5>
-                    <div class="flex items-center justify-between mb-3">
-                        <div class="text-3xl font-bold text-${person.ventapelScore >= 70 ? 'green' : person.ventapelScore >= 50 ? 'yellow' : 'red'}-600">
-                            ${person.ventapelScore}/100
-                        </div>
-                        <div class="text-right">
-                            <div class="text-lg font-semibold text-${person.tier === 'A' ? 'orange' : person.tier === 'B' ? 'yellow' : 'gray'}-600">
-                                TIER ${person.tier}
-                            </div>
-                            <div class="text-sm text-gray-500">
-                                ${person.tier === 'A' ? 'Contatar em 24h' : person.tier === 'B' ? 'Contatar em 72h' : 'Nutrir com conteúdo'}
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="space-y-2">
-                        <div class="flex justify-between">
-                            <span class="text-sm text-gray-600">Dor Potencial (40 max):</span>
-                            <span class="font-semibold">${person.scoreDetails.dolor}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-sm text-gray-600">Poder de Decisão (30 max):</span>
-                            <span class="font-semibold">${person.scoreDetails.poder}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-sm text-gray-600">Sinais de Compra (30 max):</span>
-                            <span class="font-semibold">${person.scoreDetails.sinais}</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Análise PPVVC -->
-                ${person.ppvvc ? `
-                    <div class="bg-white border rounded p-4">
-                        <h5 class="font-semibold mb-3">Análise PPVVC (Metodologia Ventapel)</h5>
-                        <div class="grid grid-cols-3 gap-3">
-                            <div class="text-center p-2 bg-blue-50 rounded">
-                                <div class="text-xs text-gray-600">Pain</div>
-                                <div class="text-xl font-bold">${person.ppvvc.scores?.pain || 0}/10</div>
-                            </div>
-                            <div class="text-center p-2 bg-blue-50 rounded">
-                                <div class="text-xs text-gray-600">Power</div>
-                                <div class="text-xl font-bold">${person.ppvvc.scores?.power || 0}/10</div>
-                            </div>
-                            <div class="text-center p-2 bg-blue-50 rounded">
-                                <div class="text-xs text-gray-600">Vision</div>
-                                <div class="text-xl font-bold">${person.ppvvc.scores?.vision || 0}/10</div>
-                            </div>
-                            <div class="text-center p-2 bg-green-50 rounded">
-                                <div class="text-xs text-gray-600">Value</div>
-                                <div class="text-xl font-bold">${person.ppvvc.scores?.value || 0}/10</div>
-                            </div>
-                            <div class="text-center p-2 bg-green-50 rounded">
-                                <div class="text-xs text-gray-600">Control</div>
-                                <div class="text-xl font-bold">${person.ppvvc.scores?.control || 0}/10</div>
-                            </div>
-                            <div class="text-center p-2 bg-green-50 rounded">
-                                <div class="text-xs text-gray-600">Compras</div>
-                                <div class="text-xl font-bold">${person.ppvvc.scores?.compras || 0}/10</div>
-                            </div>
-                        </div>
-                        
-                        ${person.ppvvc.reasoning ? `
-                            <div class="mt-3 p-3 bg-gray-50 rounded">
-                                <p class="text-sm font-semibold mb-1">Análise:</p>
-                                <p class="text-sm text-gray-600">${person.ppvvc.reasoning}</p>
-                            </div>
-                        ` : ''}
-                        
-                        ${person.ppvvc.recommended_approach ? `
-                            <div class="mt-3 p-3 bg-yellow-50 rounded">
-                                <p class="text-sm font-semibold mb-1">Abordagem Recomendada:</p>
-                                <p class="text-sm text-gray-600">${person.ppvvc.recommended_approach}</p>
-                            </div>
-                        ` : ''}
-                    </div>
-                ` : ''}
-                
-                <!-- Mensagem Personalizada -->
-                ${industryMessage ? `
-                    <div class="bg-blue-50 border-l-4 border-blue-500 p-4">
-                        <p class="text-sm font-semibold mb-2">Mensagem Personalizada para ${person.organization?.industry || 'Indústria'}:</p>
-                        <p class="text-sm text-gray-700 italic">"${industryMessage}"</p>
-                    </div>
-                ` : ''}
-                
-                <!-- Próximos Passos -->
-                <div class="bg-gray-50 p-4 rounded">
-                    <h5 class="font-semibold mb-2">Próximos Passos Recomendados:</h5>
-                    <ol class="list-decimal list-inside space-y-1 text-sm">
-                        ${person.tier === 'A' ? `
-                            <li>Contato via LinkedIn hoje mesmo</li>
-                            <li>Mencionar caso de sucesso similar na indústria</li>
-                            <li>Propor reunião de 15 minutos esta semana</li>
-                            <li>Preparar demo personalizada com ROI estimado</li>
-                        ` : person.tier === 'B' ? `
-                            <li>Adicionar no LinkedIn e enviar mensagem em 48h</li>
-                            <li>Compartilhar case study relevante</li>
-                            <li>Agendar follow-up para próxima semana</li>
-                        ` : `
-                            <li>Adicionar à lista de email marketing</li>
-                            <li>Enviar conteúdo educativo mensal</li>
-                            <li>Monitorar sinais de compra</li>
-                        `}
-                    </ol>
-                </div>
-                
-                <!-- Ações -->
-                <div class="flex gap-2 pt-4 border-t">
-                    <button onclick="exportProspect(${JSON.stringify(person).replace(/'/g, "&apos;")})" 
-                            class="flex-1 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
-                        <i class="fas fa-download mr-2"></i>Exportar Dados
-                    </button>
-                    <button onclick="saveToSuCRM(${JSON.stringify(person).replace(/'/g, "&apos;")})" 
-                            class="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-                        <i class="fas fa-save mr-2"></i>Salvar no CRM
-                    </button>
-                    <button onclick="closeModal()" 
-                            class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">
-                        Fechar
-                    </button>
-                </div>
-            </div>
-        `;
-    }
-
-    function generateLinkedInMessage(person) {
-        let message = '';
+        message += `Podemos agendar 15 minutos esta semana?\n\n`;
+        message += `Abraços,\n[Seu Nome]\nVentapel Brasil`;
         
-        if (person.tier === 'A') {
-            message = `Olá ${person.name.split(' ')[0]},\n\n`;
-            message += `Vi que você é ${person.title} na ${person.organization?.name}. `;
-            
-            if (person.organization?.industry?.toLowerCase().includes('commerce')) {
-                message += `Em operações de e-commerce similares, conseguimos reduzir 40% do retrabalho por violação de caixas.\n\n`;
-                message += `Seria interessante compartilhar como o Mercado Livre e outros grandes players resolveram esse desafio?\n\n`;
-            } else {
-                message += `Ajudamos empresas como a sua a reduzir até 64% dos custos com sistema de fechamento de caixas.\n\n`;
-                message += `Teria 15 minutos esta semana para uma conversa rápida sobre como eliminar perdas por violação em trânsito?\n\n`;
-            }
-            
-            message += `Abraços,\n[Seu Nome]\nVentapel Brasil`;
-        }
-        
-        alert('Mensagem LinkedIn copiada:\n\n' + message);
         navigator.clipboard.writeText(message);
+        alert('Mensagem copiada para área de transferência!');
     }
 
-// 🔴 REEMPLAZAR TODA LA FUNCIÓN exportResults CON ESTA:
-function exportResults(format) {
-    // Usar analyzedResults si existe, sino currentResults
-    const dataToExport = analyzedResults.length > 0 ? analyzedResults : currentResults;
-    
-    if (dataToExport.length === 0) {
-        alert('Nenhum resultado para exportar');
-        return;
-    }
-    
-    if (format === 'csv') {
-        // Crear CSV con BOM para Excel en portugués
-        const BOM = '\uFEFF';
-        let csvContent = BOM + "Nome,Cargo,Empresa,Email,Telefone,LinkedIn,Score Ventapel,Tier,Dor,Poder,Sinais,Indústria,Funcionários,Cidade,Estado,Enriquecimento,Próxima Ação\n";
+    function saveProspect(person) {
+        // Aqui você pode implementar o salvamento real
+        console.log('Salvando:', person);
         
-        dataToExport.forEach(person => {
-            const row = [
-                person.name || '',
-                person.title || '',
-                person.organization?.name || '',
-                person.email || '',
-                person.phone_numbers?.[0]?.sanitized_number || '',
-                person.linkedin_url || '',
-                person.ventapelScore || person.enrichmentScore || '0',
-                person.tier || 'N/A',
-                person.scoreDetails?.dolor || '0',
-                person.scoreDetails?.poder || '0',
-                person.scoreDetails?.sinais || '0',
-                person.organization?.industry || '',
-                person.organization?.estimated_num_employees || '',
-                person.organization?.city || '',
-                person.organization?.state || '',
-                person.enrichmentSummary || '',
-                person.tier === 'A' ? 'Contatar em 24h' : 
-                person.tier === 'B' ? 'Contatar em 72h' : 'Nutrir'
-            ].map(field => {
-                // Escapar campos con comas o quotes
-                const fieldStr = String(field);
-                if (fieldStr.includes(',') || fieldStr.includes('"') || fieldStr.includes('\n')) {
-                    return `"${fieldStr.replace(/"/g, '""')}"`;
-                }
-                return fieldStr;
-            }).join(',');
-            
-            csvContent += row + "\n";
+        // Simular salvamento
+        const savedProspects = JSON.parse(localStorage.getItem('ventapelProspects') || '[]');
+        savedProspects.push({
+            ...person,
+            savedAt: new Date().toISOString()
         });
+        localStorage.setItem('ventapelProspects', JSON.stringify(savedProspects));
         
-        // Crear blob y descargar
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement("a");
-        const url = URL.createObjectURL(blob);
-        const fileName = `ventapel_prospectos_${new Date().toISOString().split('T')[0]}.csv`;
-        
-        link.setAttribute("href", url);
-        link.setAttribute("download", fileName);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        // Mostrar mensaje de éxito
-        const successDiv = document.createElement('div');
-        successDiv.className = 'fixed top-4 right-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded z-50';
-        successDiv.innerHTML = `
-            <span class="block sm:inline">✅ Exportado ${dataToExport.length} prospectos para ${fileName}</span>
-        `;
-        document.body.appendChild(successDiv);
-        setTimeout(() => successDiv.remove(), 3000);
-        
-    } else if (format === 'excel') {
-        // Para Excel, usar el mismo CSV pero con extensión .xls
-        alert('Para Excel, use a opção CSV e abra no Excel. O arquivo está formatado corretamente.');
-        exportResults('csv');
+        alert('✅ Prospecto salvo localmente!');
     }
-}
 
-    async function saveToSuCRM(person) {
-        try {
-            const response = await fetch('/api/save-prospect', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    // Dados da empresa
-                    company_name: person.organization?.name || 'Sem empresa',
-                    company_domain: person.organization?.domain,
-                    company_industry: person.organization?.industry,
-                    company_size: person.organization?.estimated_num_employees?.toString(),
-                    company_location: `${person.organization?.city || ''}, ${person.organization?.state || ''}, Brazil`,
-                    
-                    // Dados do contato
-                    contact_name: person.name,
-                    contact_title: person.title,
-                    contact_email: person.email,
-                    contact_phone: person.phone_numbers?.[0]?.sanitized_number,
-                    contact_linkedin: person.linkedin_url,
-                    
-                    // Scores
-                    pain_score: person.ppvvc?.scores?.pain || 0,
-                    power_score: person.ppvvc?.scores?.power || 0,
-                    vision_score: person.ppvvc?.scores?.vision || 0,
-                    value_score: person.ppvvc?.scores?.value || 0,
-                    control_score: person.ppvvc?.scores?.control || 0,
-                    compras_score: person.ppvvc?.scores?.compras || 0,
-                    total_score: person.ppvvc?.total_score || 0,
-                    
-                    // Análise Ventapel
-                    ventapel_score: person.ventapelScore,
-                    tier: person.tier,
-                    priority: person.priority,
-                    score_details: JSON.stringify(person.scoreDetails),
-                    
-                    // Análise e recomendações
-                    reasoning: person.ppvvc?.reasoning,
-                    recommended_approach: person.ppvvc?.recommended_approach,
-                    
-                    // Status
-                    status: person.tier === 'A' ? 'hot' : person.tier === 'B' ? 'qualified' : 'new',
-                    assigned_to: person.tier === 'A' ? 'vendedor_senior' : 'sdr'
-                })
+    function exportResults(format) {
+        // Usar analyzedResults si existe (con enriquecimiento), sino currentResults
+        const dataToExport = analyzedResults.length > 0 ? analyzedResults : currentResults;
+        
+        if (dataToExport.length === 0) {
+            alert('Nenhum resultado para exportar');
+            return;
+        }
+        
+        if (format === 'csv' || format === 'excel') {
+            // Crear CSV con BOM para Excel en portugués
+            const BOM = '\uFEFF';
+            let csvContent = BOM + "Nome,Cargo,Empresa,Email,Telefone,LinkedIn,Score,Indústria,Funcionários,Cidade,Estado,Problemas Detectados,Sinais de Compra,Notícias,Próxima Ação\n";
+            
+            dataToExport.forEach(person => {
+                // Preparar datos de enriquecimiento
+                const problems = person.enrichment?.publicProblems?.map(p => p.issue).join('; ') || '';
+                const buyingSignals = person.enrichment?.buyingSignals?.length > 0 ? 'SIM' : 'NÃO';
+                const news = person.enrichment?.news?.[0]?.title || '';
+                const nextAction = person.enrichmentScore > 20 ? 'Contatar em 24h' : 
+                                  person.enrichmentScore > 10 ? 'Contatar em 72h' : 'Nutrir';
+                
+                const row = [
+                    person.name || '',
+                    person.title || '',
+                    person.organization?.name || '',
+                    person.email || '',
+                    person.phone_numbers?.[0]?.sanitized_number || '',
+                    person.linkedin_url || '',
+                    person.enrichmentScore || '0',
+                    person.organization?.industry || '',
+                    person.organization?.estimated_num_employees || '',
+                    person.organization?.city || '',
+                    person.organization?.state || '',
+                    problems,
+                    buyingSignals,
+                    news,
+                    nextAction
+                ].map(field => {
+                    // Escapar campos con comas o quotes
+                    const fieldStr = String(field);
+                    if (fieldStr.includes(',') || fieldStr.includes('"') || fieldStr.includes('\n')) {
+                        return `"${fieldStr.replace(/"/g, '""')}"`;
+                    }
+                    return fieldStr;
+                }).join(',');
+                
+                csvContent += row + "\n";
             });
             
-            if (response.ok) {
-                alert('✅ Prospecto salvo com sucesso no CRM!');
-            } else {
-                throw new Error('Erro ao salvar');
-            }
-        } catch (error) {
-            console.error('Erro:', error);
-            alert('❌ Erro ao salvar prospecto');
+            // Crear blob y descargar
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            const fileName = `ventapel_prospectos_${new Date().toISOString().split('T')[0]}.csv`;
+            
+            link.setAttribute("href", url);
+            link.setAttribute("download", fileName);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            // Mostrar mensaje de éxito
+            const successDiv = document.createElement('div');
+            successDiv.className = 'fixed top-4 right-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded z-50';
+            successDiv.innerHTML = `
+                <span class="block sm:inline">✅ Exportado ${dataToExport.length} prospectos para ${fileName}</span>
+            `;
+            document.body.appendChild(successDiv);
+            setTimeout(() => successDiv.remove(), 3000);
         }
     }
 
@@ -1219,17 +708,22 @@ function exportResults(format) {
     }
 
     function sortResults(by) {
+        const sorted = [...analyzedResults];
         if (by === 'score') {
-            analyzedResults.sort((a, b) => b.ventapelScore - a.ventapelScore);
+            sorted.sort((a, b) => (b.enrichmentScore || 0) - (a.enrichmentScore || 0));
         } else if (by === 'company') {
-            analyzedResults.sort((a, b) => (a.organization?.name || '').localeCompare(b.organization?.name || ''));
+            sorted.sort((a, b) => (a.organization?.name || '').localeCompare(b.organization?.name || ''));
         }
-        displayResults(analyzedResults);
+        displayEnrichedResults(sorted);
     }
 
     function filterTier(tier) {
-        const filtered = analyzedResults.filter(r => r.tier === tier);
-        displayResults(filtered);
+        const filtered = analyzedResults.filter(r => {
+            if (tier === 'A') return r.enrichmentScore > 20;
+            if (tier === 'B') return r.enrichmentScore >= 10 && r.enrichmentScore <= 20;
+            return r.enrichmentScore < 10;
+        });
+        displayEnrichedResults(filtered);
     }
 
     // Busca por nome de empresa específica
@@ -1259,7 +753,8 @@ function exportResults(format) {
             const data = await response.json();
             currentResults = data.people || [];
             
-            await analyzeAndScoreProspects(currentResults);
+            // Enriquecer y mostrar
+            await searchProspects(); // Reutilizar la lógica de enriquecimiento
             
         } catch (error) {
             console.error('Erro:', error);
