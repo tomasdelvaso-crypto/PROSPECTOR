@@ -452,13 +452,71 @@ async function performDeepAnalysis(index) {
         // Actualizar display si encontramos nuevos datos
         updateContactDisplay(index, enrichedPerson);
         
-        // Paso 3: Continuar con Serper...
+        // Paso 3: Buscar inteligencia de mercado con Serper
         document.getElementById(`progress-${index}`).innerHTML = '🔍 Passo 3/5: Buscando inteligência de mercado...';
         
-        // ... resto del código igual ...
+        const enrichResponse = await fetch('/api/enrich-prospect', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                company: { 
+                    name: enrichedPerson.organization?.name || '',
+                    employees: enrichedPerson.organization?.estimated_num_employees
+                },
+                contact: enrichedPerson
+            })
+        });
+        
+        const enrichData = await enrichResponse.json();
+        
+        // Paso 4: Análisis PPVVC con Claude
+        document.getElementById(`progress-${index}`).innerHTML = '🧠 Passo 4/5: Analisando com IA (PPVVC)...';
+        
+        const analysisResponse = await fetch('/api/claude-analyze', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                company: {
+                    name: enrichedPerson.organization?.name,
+                    industry: enrichedPerson.organization?.industry,
+                    estimated_num_employees: enrichedPerson.organization?.estimated_num_employees,
+                    headquarters_location: enrichedPerson.organization?.headquarters_location
+                },
+                contact: {
+                    name: enrichedPerson.name,
+                    title: enrichedPerson.title,
+                    email: enrichedPerson.email,
+                    phone: enrichedPerson.mobile_phone || enrichedPerson.direct_phone || enrichedPerson.phone_numbers?.[0]?.sanitized_number
+                },
+                enrichment: enrichData
+            })
+        });
+        
+        const analysis = await analysisResponse.json();
+        
+        // Paso 5: Mostrar resultado completo
+        document.getElementById(`progress-${index}`).innerHTML = '✅ Passo 5/5: Compilando resultados...';
+        
+        displayCompleteAnalysis(index, enrichedPerson, enrichData, analysis);
+        
+        // Actualizar estadísticas
+        analyzedCount++;
+        document.getElementById('analyzed').textContent = analyzedCount;
+        
+        // Actualizar hot leads si el score es alto
+        if (analysis.total_score >= 7) {
+            const hotLeadsCount = parseInt(document.getElementById('hotLeads').textContent) + 1;
+            document.getElementById('hotLeads').textContent = hotLeadsCount;
+        }
         
     } catch (error) {
-        console.error('Error en análisis:', error);
+        console.error('Erro na análise:', error);
+        analysisDiv.innerHTML = `
+            <div class="p-3 bg-red-50 rounded border border-red-200">
+                <p class="text-red-600 text-sm font-semibold">❌ Erro na análise</p>
+                <p class="text-xs text-gray-600 mt-1">${error.message}</p>
+            </div>
+        `;
     }
 }
             
