@@ -432,23 +432,30 @@
                         })
                     });
                     
-                    const lushaData = await lushaResponse.json();
-                    
-                    if (lushaData.enriched && lushaData.contact) {
-                        if (!enrichedPerson.email && lushaData.contact.email) {
-                            enrichedPerson.email = lushaData.contact.email;
-                        }
-                        if (lushaData.contact.phone) {
-                            enrichedPerson.phone_numbers = [{
-                                sanitized_number: lushaData.contact.phone,
-                                source: 'Lusha'
-                            }];
-                        }
-                    }
-                } catch (lushaError) {
-                    console.log('Lusha falló:', lushaError);
-                }
-            }
+// En la función performDeepAnalysis, después de la llamada a Lusha:
+const lushaData = await lushaResponse.json();
+console.log('Lusha response in frontend:', lushaData); // <-- Agregar esto
+
+if (lushaData.enriched && lushaData.contact) {
+    console.log('Lusha contact data:', lushaData.contact); // <-- Y esto
+    
+    if (!enrichedPerson.email && lushaData.contact.email) {
+        enrichedPerson.email = lushaData.contact.email;
+    }
+    
+    // Verificar diferentes posibles estructuras
+    const phone = lushaData.contact.phone || 
+                  lushaData.contact.rawData?.phoneNumbers?.[0]?.internationalNumber ||
+                  lushaData.contact.rawData?.phoneNumbers?.[0]?.number;
+    
+    if (phone) {
+        enrichedPerson.phone_numbers = [{
+            sanitized_number: phone,
+            source: 'Lusha'
+        }];
+        console.log('Phone found:', phone); // <-- Debug
+    }
+}
             
             // Actualizar display si encontramos nuevos datos
             updateContactDisplay(index, enrichedPerson);
