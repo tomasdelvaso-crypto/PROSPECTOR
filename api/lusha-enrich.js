@@ -22,27 +22,20 @@ module.exports = async (req, res) => {
       });
     }
     
-    // Construir los parámetros según la documentación
     const params = {};
     
-    // Priorizar LinkedIn URL si está disponible
-    if (linkedinUrl) {
-      params.linkedinUrl = linkedinUrl;
-    }
-    
-    // Siempre incluir nombre y empresa para mejor matching
+    if (linkedinUrl) params.linkedinUrl = linkedinUrl;
     if (firstName) params.firstName = firstName;
     if (lastName) params.lastName = lastName;
     if (company) params.companyName = company;
     if (domain) params.companyDomain = domain;
     
-    // IMPORTANTE: Activar revelación de datos (consume créditos)
-    params.revealPhones = true;  // Gasta 5 créditos
-    params.revealEmails = true;  // Gasta 1 crédito
+    // Activar revelación de datos
+    params.revealPhones = true;
+    params.revealEmails = true;
     
-    console.log('Lusha params con reveal activado:', params);
+    console.log('Lusha params:', params);
     
-    // Hacer la llamada a Lusha
     const response = await axios({
       method: 'GET',
       url: 'https://api.lusha.com/v2/person',
@@ -53,101 +46,100 @@ module.exports = async (req, res) => {
       params: params
     });
     
-    console.log('Lusha response status:', response.status);
-    console.log('Lusha response headers:', response.headers);
+    console.log('Lusha full response structure:', Object.keys(response.data));
     console.log('Lusha raw response:', JSON.stringify(response.data, null, 2));
     
-    // Verificar si hay datos en la respuesta
+    // CAMBIO IMPORTANTE: Los datos pueden estar en diferentes lugares
+    let personData = null;
+    
+    // Opción 1: response.data.data (estructura esperada v2)
     if (response.data && response.data.data) {
-      const personData = response.data.data;
-      
+      personData = response.data.data;
+      console.log('Found data in response.data.data');
+    }
+    // Opción 2: response.data.contact (estructura alternativa)
+    else if (response.data && response.data.contact) {
+      personData = response.data.contact;
+      console.log('Found data in response.data.contact');
+    }
+    // Opción 3: response.data directamente
+    else if (response.data && (response.data.phoneNumbers || response.data.emailAddresses || response.data.email)) {
+      personData = response.data;
+      console.log('Found data in response.data root');
+    }
+    
+    if (personData) {
       // Procesar teléfonos
       const phones = [];
       
-      // Buscar en phoneNumbers array
-      if (personData.phoneNumbers && Array.isArray(personData.phoneNumbers)) {
-        console.log('Found phoneNumbers array:', personData.phoneNumbers);
-        personData.phoneNumbers.forEach(phone => {
-          if (phone) {
-            const phoneNumber = phone.internationalNumber || 
+      // Buscar en todos los campos posibles
+      const phoneFields = ['phoneNumbers', 'phone_numbers', 'phones', 'phone', 'mobilePhone', 'mobile_phone', 'directPhone', 'direct_phone'];
+      
+      for (const field of phoneFields) {
+        if (personData[field]) {
+          console.log(`Found phone field "${field}":`, personData[field]);
+          
+          if (Array.isArray(personData[field])) {
+            personData[field].forEach(phone => {
+              if (phone) {
+                const number = phone.internationalNumber || 
                               phone.localNumber || 
                               phone.number || 
                               phone;
-            if (phoneNumber) {
-              phones.push({
-                number: phoneNumber,
-                type: phone.type || phone.phoneType || 'unknown',
-                source: 'Lusha'
-              });
-            }
+                if (number && typeof number === 'string') {
+                  phones.push({
+                    number: number,
+                    type: phone.type || phone.phoneType || field,
+                    source: 'Lusha'
+                  });
+                }
+              }
+            });
+          } else if (typeof personData[field] === 'string') {
+            phones.push({
+              number: personData[field],
+              type: field,
+              source: 'Lusha'
+            });
           }
-        });
-      }
-      
-      // También buscar campos directos de teléfono
-      if (personData.phone) {
-        phones.push({
-          number: personData.phone,
-          type: 'direct',
-          source: 'Lusha'
-        });
-      }
-      
-      if (personData.mobilePhone) {
-        phones.push({
-          number: personData.mobilePhone,
-          type: 'mobile',
-          source: 'Lusha'
-        });
-      }
-      
-      if (personData.directPhone) {
-        phones.push({
-          number: personData.directPhone,
-          type: 'direct',
-          source: 'Lusha'
-        });
+        }
       }
       
       // Procesar emails
       const emails = [];
       
-      // Buscar en emailAddresses array
-      if (personData.emailAddresses && Array.isArray(personData.emailAddresses)) {
-        console.log('Found emailAddresses array:', personData.emailAddresses);
-        personData.emailAddresses.forEach(email => {
-          if (email) {
-            const emailAddress = typeof email === 'string' ? email : 
-                               email.email || 
-                               email.address || 
-                               email;
-            if (emailAddress) {
-              emails.push(emailAddress);
-            }
+      const emailFields = ['emailAddresses', 'email_addresses', 'emails', 'email'];
+      
+      for (const field of emailFields) {
+        if (personData[field]) {
+          console.log(`Found email field "${field}":`, personData[field]);
+          
+          if (Array.isArray(personData[field])) {
+            personData[field].forEach(email => {
+              if (email) {
+                const address = typeof email === 'string' ? email : 
+                               email.email || email.address || email;
+                if (address && typeof address === 'string' && !emails.includes(address)) {
+                  emails.push(address);
+                }
+              }
+            });
+          } else if (typeof personData[field] === 'string' && !emails.includes(personData[field])) {
+            emails.push(personData[field]);
           }
-        });
+        }
       }
       
-      // También buscar campo directo de email
-      if (personData.email && !emails.includes(personData.email)) {
-        emails.push(personData.email);
-      }
+      console.log('📱 Final phones found:', phones);
+      console.log('📧 Final emails found:', emails);
       
-      console.log('📱 Phones found:', phones);
-      console.log('📧 Emails found:', emails);
-      console.log('💳 Credits consumed: ~6 (5 for phone, 1 for email)');
-      
-      // Devolver respuesta estructurada
       return res.status(200).json({
         enriched: true,
         source: 'lusha',
-        creditsUsed: phones.length > 0 ? 6 : 1, // Estimado de créditos usados
+        creditsUsed: phones.length > 0 ? 6 : (emails.length > 0 ? 1 : 0),
         contact: {
-          // Emails
           email: emails[0] || null,
           emails: emails,
-          
-          // Teléfonos
           phone: phones[0]?.number || null,
           phones: phones,
           phone_numbers: phones.map(p => ({
@@ -155,63 +147,31 @@ module.exports = async (req, res) => {
             type: p.type,
             source: 'Lusha'
           })),
-          
-          // Información adicional
-          fullName: personData.fullName || `${firstName} ${lastName}`,
-          firstName: personData.firstName || firstName,
-          lastName: personData.lastName || lastName,
-          title: personData.title || personData.jobTitle,
-          company: personData.company || company,
-          seniority: personData.seniority,
-          departments: personData.departments,
-          
-          // LinkedIn
-          linkedinUrl: personData.linkedinUrl || linkedinUrl,
-          
-          // Raw data para debug
+          fullName: personData.fullName || personData.full_name || `${firstName} ${lastName}`,
+          firstName: personData.firstName || personData.first_name || firstName,
+          lastName: personData.lastName || personData.last_name || lastName,
+          title: personData.title || personData.jobTitle || personData.job_title,
+          company: personData.company || personData.companyName || company,
           rawData: personData
         }
       });
     }
     
-    // Si no hay data.data, buscar directamente en response.data
-    if (response.data) {
-      console.log('No data.data found, checking root level');
-      return res.status(200).json({
-        enriched: false,
-        message: 'Lusha responded but no contact data found',
-        rawResponse: response.data,
-        headers: response.headers
-      });
-    }
-    
-    // No hay datos en absoluto
+    // No se encontraron datos
     return res.status(200).json({
       enriched: false,
-      message: 'No data found in Lusha'
+      message: 'No contact data found in Lusha response',
+      rawResponse: response.data,
+      structure: {
+        hasData: !!response.data,
+        hasDataData: !!(response.data?.data),
+        hasContact: !!(response.data?.contact),
+        keys: Object.keys(response.data || {})
+      }
     });
     
   } catch (error) {
     console.error('❌ Lusha error:', error.message);
-    console.error('Error status:', error.response?.status);
-    console.error('Error data:', error.response?.data);
-    
-    // Manejar errores específicos
-    if (error.response?.status === 403) {
-      return res.status(200).json({ 
-        enriched: false,
-        error: 'Plan restriction - your Lusha plan may not support revealPhones/revealEmails',
-        details: error.response?.data
-      });
-    }
-    
-    if (error.response?.status === 429) {
-      return res.status(200).json({ 
-        enriched: false,
-        error: 'Rate limit or credit limit exceeded',
-        details: error.response?.data
-      });
-    }
     
     return res.status(200).json({ 
       enriched: false,
