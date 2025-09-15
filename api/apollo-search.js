@@ -31,7 +31,7 @@ module.exports = async (req, res) => {
     // PAYLOAD CORREGIDO PARA APOLLO v1
     const apolloPayload = {
       q_keywords: query || '',  // Cambio: usar q_keywords en lugar de q_organization_name
-      per_page: 10,
+      per_page: 25,
       page: 1,
       
       // Ubicaciones - formato correcto
