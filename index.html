@@ -432,30 +432,39 @@
                         })
                     });
                     
-// En la función performDeepAnalysis, después de la llamada a Lusha:
-const lushaData = await lushaResponse.json();
-console.log('Lusha response in frontend:', lushaData); // <-- Agregar esto
-
-if (lushaData.enriched && lushaData.contact) {
-    console.log('Lusha contact data:', lushaData.contact); // <-- Y esto
-    
-    if (!enrichedPerson.email && lushaData.contact.email) {
-        enrichedPerson.email = lushaData.contact.email;
-    }
-    
-    // Verificar diferentes posibles estructuras
-    const phone = lushaData.contact.phone || 
-                  lushaData.contact.rawData?.phoneNumbers?.[0]?.internationalNumber ||
-                  lushaData.contact.rawData?.phoneNumbers?.[0]?.number;
-    
-    if (phone) {
-        enrichedPerson.phone_numbers = [{
-            sanitized_number: phone,
-            source: 'Lusha'
-        }];
-        console.log('Phone found:', phone); // <-- Debug
-    }
-}
+                    const lushaData = await lushaResponse.json();
+                    console.log('Lusha response in frontend:', lushaData);
+                    
+                    if (lushaData.enriched && lushaData.contact) {
+                        console.log('Lusha contact data:', lushaData.contact);
+                        
+                        // Email
+                        if (!enrichedPerson.email && lushaData.contact.email) {
+                            enrichedPerson.email = lushaData.contact.email;
+                        }
+                        
+                        // Teléfonos - múltiples paths posibles
+                        if (lushaData.contact.phones && lushaData.contact.phones.length > 0) {
+                            enrichedPerson.phone_numbers = lushaData.contact.phones.map(p => ({
+                                sanitized_number: p.number,
+                                type: p.type,
+                                source: 'Lusha'
+                            }));
+                        } else if (lushaData.contact.phone_numbers && lushaData.contact.phone_numbers.length > 0) {
+                            enrichedPerson.phone_numbers = lushaData.contact.phone_numbers;
+                        } else if (lushaData.contact.phone) {
+                            enrichedPerson.phone_numbers = [{
+                                sanitized_number: lushaData.contact.phone,
+                                source: 'Lusha'
+                            }];
+                        }
+                        
+                        console.log('Enriched phone numbers:', enrichedPerson.phone_numbers);
+                    }
+                } catch (lushaError) {
+                    console.log('Lusha error:', lushaError);
+                }
+            }
             
             // Actualizar display si encontramos nuevos datos
             updateContactDisplay(index, enrichedPerson);
@@ -494,7 +503,7 @@ if (lushaData.enriched && lushaData.contact) {
                         name: enrichedPerson.name,
                         title: enrichedPerson.title,
                         email: enrichedPerson.email,
-                        phone: enrichedPerson.mobile_phone || enrichedPerson.direct_phone || enrichedPerson.phone_numbers?.[0]?.sanitized_number
+                        phone: enrichedPerson.phone_numbers?.[0]?.sanitized_number
                     },
                     enrichment: enrichData
                 })
@@ -558,9 +567,8 @@ if (lushaData.enriched && lushaData.contact) {
         }
         
         // Teléfono revelado
-        const phone = enrichedPerson.mobile_phone || 
-                      enrichedPerson.direct_phone || 
-                      enrichedPerson.phone_numbers?.[0]?.sanitized_number;
+        const phone = enrichedPerson.phone_numbers?.[0]?.sanitized_number || 
+                      enrichedPerson.phone_numbers?.[0]?.number;
         
         if (phone) {
             updatedHTML += `
