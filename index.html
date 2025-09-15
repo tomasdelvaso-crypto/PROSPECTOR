@@ -45,44 +45,96 @@
                 <i class="fas fa-search mr-2"></i>Busca de Prospectos B2B
             </h2>
             
-<!-- Filtros Principais -->
-<div class="grid grid-cols-4 gap-4 mb-4">
-    <div>
-        <label class="block text-sm font-medium mb-1">Cargo do Decisor</label>
-        <select id="titleFilter" class="w-full p-2 border rounded">
-            <option value="">Todos</option>
-            <option value="operations">Operations/Operações</option>
-            <option value="logistics">Logistics/Logística</option>
-            <option value="quality">Quality/Qualidade</option>
-            <option value="production">Production/Produção</option>
-            <option value="supply">Supply Chain</option>
-            <option value="director">Director Level</option>
-            <option value="ceo">C-Level/CEO</option>
-        </select>
-    </div>
-    
-    <div>
-        <label class="block text-sm font-medium mb-1">Indústria Prioritária</label>
-        <select id="industryFilter" class="w-full p-2 border rounded">
-            <option value="">Todas</option>
-            <option value="ecommerce">E-commerce/Retail</option>
-            <option value="logistics">Logística/3PL/Fulfillment</option>
-            <option value="manufacturing">Manufactura/Indústria</option>
-            <option value="food">Alimentos e Bebidas</option>
-            <option value="pharma">Farmacêutica/Cosmética</option>
-            <option value="automotive">Automotiva/Autopeças</option>
-        </select>
-    </div>
-    
-    <div>
-        <label class="block text-sm font-medium mb-1">Região</label>
-        <select id="locationFilter" class="w-full p-2 border rounded">
-            <option value="Brazil">Brasil (Todos)</option>
-            <option value="São Paulo, Brazil">São Paulo - SP</option>
-            <option value="Rio de Janeiro, Brazil">Rio de Janeiro - RJ</option>
-            <option value="Minas Gerais, Brazil">Minas Gerais - MG</option>
-            <option value="Santa Catarina, Brazil">Santa Catarina - SC</option>
-            <option value="Paraná, Brazil">Paraná
+            <!-- Primera fila de filtros -->
+            <div class="grid grid-cols-4 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Cargo do Decisor</label>
+                    <select id="titleFilter" class="w-full p-2 border rounded">
+                        <option value="">Todos</option>
+                        <option value="operations">Operations/Operações</option>
+                        <option value="logistics">Logistics/Logística</option>
+                        <option value="quality">Quality/Qualidade</option>
+                        <option value="production">Production/Produção</option>
+                        <option value="supply">Supply Chain</option>
+                        <option value="director">Director Level</option>
+                        <option value="ceo">C-Level/CEO</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium mb-1">Indústria Prioritária</label>
+                    <select id="industryFilter" class="w-full p-2 border rounded">
+                        <option value="">Todas</option>
+                        <option value="ecommerce">🛒 E-commerce/Retail (Alta Prioridade)</option>
+                        <option value="logistics">📦 Logística/3PL/Fulfillment (Alta)</option>
+                        <option value="manufacturing">🏭 Manufactura/Indústria (Média)</option>
+                        <option value="food">🍔 Alimentos e Bebidas (Média)</option>
+                        <option value="pharma">💊 Farmacêutica/Cosmética (Média)</option>
+                        <option value="automotive">🚗 Automotiva/Autopeças (Baixa)</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium mb-1">Região</label>
+                    <select id="locationFilter" class="w-full p-2 border rounded">
+                        <option value="Brazil">Brasil (Todos)</option>
+                        <option value="São Paulo, Brazil">São Paulo - SP</option>
+                        <option value="Rio de Janeiro, Brazil">Rio de Janeiro - RJ</option>
+                        <option value="Minas Gerais, Brazil">Minas Gerais - MG</option>
+                        <option value="Santa Catarina, Brazil">Santa Catarina - SC</option>
+                        <option value="Paraná, Brazil">Paraná - PR</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium mb-1">Porte da Empresa</label>
+                    <select id="sizeFilter" class="w-full p-2 border rounded">
+                        <option value="501,1000">501-1000 funcionários</option>
+                        <option value="201,500">201-500</option>
+                        <option value="1001,5000">1001-5000 (Ideal)</option>
+                        <option value="5001,10000">5001+ (Enterprise)</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Segunda fila - Búsqueda por empresa -->
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Empresa Específica (opcional)</label>
+                    <input type="text" 
+                           id="companyFilter" 
+                           placeholder="Ex: Mercado Livre, Natura, Magazine Luiza"
+                           class="w-full p-2 border rounded text-sm">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium mb-1">Palavras-chave (opcional)</label>
+                    <input type="text" 
+                           id="keywordsFilter" 
+                           placeholder="Ex: embalagem, packaging, fulfillment"
+                           class="w-full p-2 border rounded text-sm">
+                </div>
+            </div>
+            
+            <div class="flex justify-between items-center">
+                <button onclick="searchProspects()" 
+                        class="px-6 py-3 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
+                    <i class="fas fa-search mr-2"></i>Buscar Prospectos
+                </button>
+                
+                <div class="flex gap-2">
+                    <button onclick="exportResults()" 
+                            class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm">
+                        <i class="fas fa-download mr-2"></i>Exportar CSV
+                    </button>
+                    <button onclick="clearFilters()" 
+                            class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm">
+                        <i class="fas fa-redo mr-2"></i>Limpar Filtros
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- Métricas -->
         <div class="grid grid-cols-5 gap-4 mb-6">
             <div class="bg-white rounded-lg shadow p-4">
@@ -99,7 +151,7 @@
             </div>
             <div class="bg-white rounded-lg shadow p-4">
                 <div class="text-2xl font-bold text-orange-600" id="hotLeads">0</div>
-                <div class="text-xs text-gray-600">Hot Leads</div>
+                <div class="text-xs text-gray-600">Hot Leads (7+)</div>
             </div>
             <div class="bg-white rounded-lg shadow p-4">
                 <div class="text-2xl font-bold text-indigo-600" id="avgScore">0</div>
@@ -111,7 +163,15 @@
         <div class="bg-white rounded-lg shadow p-6">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="font-semibold">Resultados</h3>
-                <div id="resultsCount" class="text-sm text-gray-600"></div>
+                <div class="flex items-center gap-4">
+                    <select id="sortBy" onchange="sortResults()" class="p-2 border rounded text-sm">
+                        <option value="relevance">Ordenar por Relevância</option>
+                        <option value="company_size">Tamanho da Empresa</option>
+                        <option value="title">Cargo</option>
+                        <option value="name">Nome</option>
+                    </select>
+                    <div id="resultsCount" class="text-sm text-gray-600"></div>
+                </div>
             </div>
             <div id="results">
                 <p class="text-gray-500">Nenhuma busca realizada</p>
@@ -144,7 +204,7 @@
             'Logistics Director',
             'Head of Logistics',
             'VP Supply Chain',
-            'Logistics Coordinator'
+            'Warehouse Manager'
         ],
         'quality': [
             'Quality Manager', 
@@ -165,7 +225,8 @@
             'Head of Supply Chain',
             'Procurement Manager',
             'Sourcing Manager',
-            'VP Supply Chain'
+            'VP Supply Chain',
+            'Purchasing Manager'
         ],
         'director': [
             'Operations Director', 
@@ -183,6 +244,26 @@
         ]
     };
 
+    // Mapeamento de indústrias para Apollo
+    const INDUSTRY_MAPPING = {
+        'ecommerce': ['E-Commerce', 'Retail', 'Internet', 'Online Marketplace', 'Consumer Internet'],
+        'logistics': ['Logistics', 'Transportation', 'Warehousing', 'Supply Chain', 'Freight', '3PL'],
+        'manufacturing': ['Manufacturing', 'Industrial', 'Production', 'Factory Automation'],
+        'food': ['Food & Beverages', 'Food Production', 'Consumer Goods', 'FMCG'],
+        'pharma': ['Pharmaceuticals', 'Biotechnology', 'Medical', 'Cosmetics', 'Healthcare'],
+        'automotive': ['Automotive', 'Auto Parts', 'Transportation Equipment', 'Vehicles']
+    };
+
+    // Prioridades por indústria (para scoring)
+    const INDUSTRY_PRIORITY = {
+        'ecommerce': 3,     // Alta prioridade
+        'logistics': 3,      // Alta prioridade
+        'manufacturing': 2,  // Média prioridade
+        'food': 2,          // Média prioridade
+        'pharma': 2,        // Média prioridade
+        'automotive': 1     // Baixa prioridade
+    };
+
     // Variables globales para paginación
     let currentResults = [];
     let analyzedCount = 0;
@@ -196,11 +277,17 @@
         currentPage = 1;
         allResults = [];
         hasMoreResults = true;
+        analyzedCount = 0;
+        document.getElementById('analyzed').textContent = '0';
+        document.getElementById('hotLeads').textContent = '0';
+        document.getElementById('avgScore').textContent = '0';
         
         const titleType = document.getElementById('titleFilter').value;
         const location = document.getElementById('locationFilter').value;
         const size = document.getElementById('sizeFilter').value;
         const company = document.getElementById('companyFilter').value;
+        const industryType = document.getElementById('industryFilter').value;
+        const keywords = document.getElementById('keywordsFilter').value;
         
         const resultsDiv = document.getElementById('results');
         resultsDiv.innerHTML = '<p class="text-blue-600"><i class="fas fa-spinner fa-spin mr-2"></i>Buscando prospectos...</p>';
@@ -212,7 +299,7 @@
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    query: '',
+                    query: keywords || '',
                     filters: {
                         titles: titleType ? TITLE_MAPPING[titleType] : [
                             'Manager',
@@ -225,6 +312,7 @@
                         location: location || 'Brazil',
                         size: size || '501,1000',
                         company_names: company ? [company] : null,
+                        industries: industryType ? INDUSTRY_MAPPING[industryType] : null,
                         seniority_levels: [
                             'manager',
                             'director', 
@@ -240,7 +328,8 @@
                             'procurement',
                             'quality',
                             'manufacturing',
-                            'production'
+                            'production',
+                            'warehouse'
                         ],
                         excluded_titles: [
                             'Assistant',
@@ -251,7 +340,8 @@
                             'Student',
                             'Coordinator',
                             'Specialist',
-                            'Advisor'
+                            'Advisor',
+                            'Consultant'
                         ],
                         must_have_verified_email: true
                     },
@@ -266,6 +356,9 @@
             
             const data = await response.json();
             currentResults = data.people || [];
+            
+            // Ordenar por relevância/prioridade
+            currentResults = prioritizeResults(currentResults, industryType);
             allResults = currentResults;
             
             if (currentResults.length === 0) {
@@ -296,6 +389,59 @@
         }
     }
 
+    function prioritizeResults(results, selectedIndustry) {
+        // Adicionar score de prioridade para cada resultado
+        return results.map(person => {
+            let priorityScore = calculatePriorityScore(person, selectedIndustry);
+            return { ...person, priorityScore };
+        }).sort((a, b) => b.priorityScore - a.priorityScore);
+    }
+
+    function calculatePriorityScore(person, selectedIndustry) {
+        let score = 0;
+        
+        // Score por cargo
+        const title = (person.title || '').toLowerCase();
+        if (title.includes('ceo') || title.includes('president') || title.includes('chief')) {
+            score += 40;
+        } else if (title.includes('director') || title.includes('head')) {
+            score += 30;
+        } else if (title.includes('manager')) {
+            score += 20;
+        }
+        
+        // Score por tamanho da empresa
+        const employees = person.organization?.estimated_num_employees || 0;
+        if (employees > 5000) {
+            score += 40;
+        } else if (employees > 1000) {
+            score += 30;
+        } else if (employees > 500) {
+            score += 20;
+        } else if (employees > 200) {
+            score += 10;
+        }
+        
+        // Score por indústria
+        const companyIndustry = (person.organization?.industry || '').toLowerCase();
+        if (companyIndustry.includes('e-commerce') || companyIndustry.includes('retail')) {
+            score += 30;
+        } else if (companyIndustry.includes('logistics') || companyIndustry.includes('3pl')) {
+            score += 30;
+        } else if (companyIndustry.includes('manufacturing') || companyIndustry.includes('food')) {
+            score += 20;
+        } else if (companyIndustry.includes('pharma') || companyIndustry.includes('cosmetic')) {
+            score += 20;
+        }
+        
+        // Score por dados disponíveis
+        if (person.email && person.email !== 'email_not_unlocked@domain.com') score += 10;
+        if (person.linkedin_url) score += 10;
+        if (person.phone_numbers?.length > 0) score += 15;
+        
+        return score;
+    }
+
     async function loadMoreProspects() {
         currentPage++;
         const btn = event.target;
@@ -306,13 +452,15 @@
         const location = document.getElementById('locationFilter').value;
         const size = document.getElementById('sizeFilter').value;
         const company = document.getElementById('companyFilter').value;
+        const industryType = document.getElementById('industryFilter').value;
+        const keywords = document.getElementById('keywordsFilter').value;
         
         try {
             const response = await fetch('/api/apollo-search', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    query: '',
+                    query: keywords || '',
                     filters: {
                         titles: titleType ? TITLE_MAPPING[titleType] : [
                             'Manager',
@@ -325,6 +473,7 @@
                         location: location || 'Brazil',
                         size: size || '501,1000',
                         company_names: company ? [company] : null,
+                        industries: industryType ? INDUSTRY_MAPPING[industryType] : null,
                         seniority_levels: [
                             'manager',
                             'director', 
@@ -361,9 +510,10 @@
             });
             
             const data = await response.json();
-            const newResults = data.people || [];
+            let newResults = data.people || [];
             
             if (newResults.length > 0) {
+                newResults = prioritizeResults(newResults, industryType);
                 allResults = [...allResults, ...newResults];
                 currentResults = allResults;
                 displayResults(allResults);
@@ -396,20 +546,25 @@
             const hasPhone = person.phone_numbers?.length > 0;
             const hasLinkedIn = person.linkedin_url;
             
-            const basicScore = calculateBasicScore(person);
-            const isPromising = basicScore.score >= 50;
+            const isHighPriority = person.priorityScore >= 70;
+            const isMediumPriority = person.priorityScore >= 50;
+            
+            // Badge de prioridade
+            let priorityBadge = '';
+            if (isHighPriority) {
+                priorityBadge = '<span class="px-2 py-1 bg-red-500 text-white text-xs rounded ml-2">🔥 Alta Prioridade</span>';
+            } else if (isMediumPriority) {
+                priorityBadge = '<span class="px-2 py-1 bg-orange-500 text-white text-xs rounded ml-2">⭐ Média Prioridade</span>';
+            }
             
             html += `
-                <div id="prospect-${index}" class="border ${isPromising ? 'border-orange-300 bg-orange-50' : 'border-gray-200'} rounded-lg p-4 hover:shadow-md transition-all">
+                <div id="prospect-${index}" class="border ${isHighPriority ? 'border-red-300 bg-red-50' : isMediumPriority ? 'border-orange-300 bg-orange-50' : 'border-gray-200'} rounded-lg p-4 hover:shadow-md transition-all">
                     <div class="flex justify-between">
                         <div class="flex-1">
                             <div class="flex items-center gap-2 mb-2">
                                 <h4 class="font-semibold text-lg">${person.name || 'Nome não disponível'}</h4>
-                                ${isPromising ? `
-                                    <span class="px-2 py-1 bg-orange-500 text-white text-xs rounded">
-                                        ⭐ ${basicScore.score} pts - ${basicScore.reason}
-                                    </span>
-                                ` : ''}
+                                ${priorityBadge}
+                                <span class="text-xs text-gray-500">(Score: ${person.priorityScore})</span>
                             </div>
                             
                             <p class="text-gray-600">${person.title || 'Cargo não especificado'}</p>
@@ -487,40 +642,32 @@
         document.getElementById('resultsCount').textContent = `${prospects.length} resultados`;
     }
 
-    function calculateBasicScore(person) {
-        let score = 0;
-        let reasons = [];
+    function sortResults() {
+        const sortBy = document.getElementById('sortBy').value;
         
-        const title = (person.title || '').toLowerCase();
-        if (title.includes('ceo') || title.includes('president') || title.includes('chief')) {
-            score += 30;
-            reasons.push('C-Level');
-        } else if (title.includes('director') || title.includes('head')) {
-            score += 25;
-            reasons.push('Director');
-        } else if (title.includes('manager')) {
-            score += 20;
-            reasons.push('Manager');
+        if (sortBy === 'relevance') {
+            currentResults.sort((a, b) => b.priorityScore - a.priorityScore);
+        } else if (sortBy === 'company_size') {
+            currentResults.sort((a, b) => (b.organization?.estimated_num_employees || 0) - (a.organization?.estimated_num_employees || 0));
+        } else if (sortBy === 'title') {
+            currentResults.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+        } else if (sortBy === 'name') {
+            currentResults.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
         }
         
-        const employees = person.organization?.estimated_num_employees || 0;
-        if (employees > 1000) {
-            score += 30;
-            reasons.push(`${employees}+ func`);
-        } else if (employees > 500) {
-            score += 20;
-            reasons.push(`${employees} func`);
-        }
-        
-        if (person.email && person.email !== 'email_not_unlocked@domain.com') score += 10;
-        if (person.linkedin_url) score += 10;
-        
-        return {
-            score,
-            reason: reasons.join(' + ')
-        };
+        displayResults(currentResults);
     }
 
+    function clearFilters() {
+        document.getElementById('titleFilter').value = '';
+        document.getElementById('industryFilter').value = '';
+        document.getElementById('locationFilter').value = 'Brazil';
+        document.getElementById('sizeFilter').value = '501,1000';
+        document.getElementById('companyFilter').value = '';
+        document.getElementById('keywordsFilter').value = '';
+    }
+
+    // Funciones de análisis profundo (sin cambios)
     async function performDeepAnalysis(index) {
         const person = currentResults[index];
         const analysisDiv = document.getElementById(`analysis-${index}`);
@@ -720,6 +867,11 @@
                 analysis: analysis,
                 score: analysis.total_score
             });
+            
+            // Actualizar score promedio
+            const totalScore = analyzedProspects.reduce((sum, p) => sum + (p.score || 0), 0);
+            const avgScore = Math.round(totalScore / analyzedProspects.length);
+            document.getElementById('avgScore').textContent = avgScore;
             
         } catch (error) {
             console.error('Erro na análise:', error);
@@ -947,10 +1099,9 @@
         }
         
         const BOM = '\uFEFF';
-        let csvContent = BOM + "Nome,Cargo,Empresa,Email,Telefone,LinkedIn,Funcionários,Indústria,Score\n";
+        let csvContent = BOM + "Nome,Cargo,Empresa,Email,Telefone,LinkedIn,Funcionários,Indústria,Prioridade,Score\n";
         
         currentResults.forEach(person => {
-            const basicScore = calculateBasicScore(person);
             const row = [
                 person.name || '',
                 person.title || '',
@@ -960,7 +1111,8 @@
                 person.linkedin_url || '',
                 person.organization?.estimated_num_employees || '',
                 person.organization?.industry || '',
-                basicScore.score
+                person.priorityScore >= 70 ? 'Alta' : person.priorityScore >= 50 ? 'Média' : 'Baixa',
+                person.priorityScore || 0
             ].map(field => {
                 const fieldStr = String(field);
                 if (fieldStr.includes(',') || fieldStr.includes('"')) {
