@@ -363,86 +363,104 @@
         };
     }
 
-    async function performDeepAnalysis(index) {
-        const person = currentResults[index];
-        const analysisDiv = document.getElementById(`analysis-${index}`);
-        
-        analysisDiv.innerHTML = `
-            <div class="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-indigo-200">
-                <div class="flex items-center">
-                    <i class="fas fa-spinner fa-spin text-indigo-600 mr-2"></i>
-                    <span class="text-sm font-semibold">Iniciando análise profunda...</span>
-                </div>
-                <div class="mt-2 text-xs text-gray-600">
-                    <div id="progress-${index}">
-                        📍 Passo 1/4: Preparando dados...
-                    </div>
+async function performDeepAnalysis(index) {
+    const person = currentResults[index];
+    const analysisDiv = document.getElementById(`analysis-${index}`);
+    
+    analysisDiv.innerHTML = `
+        <div class="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-indigo-200">
+            <div class="flex items-center">
+                <i class="fas fa-spinner fa-spin text-indigo-600 mr-2"></i>
+                <span class="text-sm font-semibold">Iniciando análise profunda...</span>
+            </div>
+            <div class="mt-2 text-xs text-gray-600">
+                <div id="progress-${index}">
+                    📍 Passo 1/5: Preparando dados...
                 </div>
             </div>
-        `;
+        </div>
+    `;
+    
+    try {
+        let enrichedPerson = {...person};
+        
+        // Paso 1: Intentar con Apollo primero
+        document.getElementById(`progress-${index}`).innerHTML = '🔍 Passo 1/5: Buscando em Apollo...';
         
         try {
-            // Paso 1: Enriquecer contacto con Apollo para revelar email/teléfono
-            document.getElementById(`progress-${index}`).innerHTML = '👤 Passo 1/4: Revelando dados de contato...';
-            
-            let enrichedPerson = {...person}; // Copia del objeto original
-            
-            try {
-                const apolloEnrichResponse = await fetch('/api/apollo-enrich', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contactId: person.id,
-                        contactData: {
-                            first_name: person.first_name,
-                            last_name: person.last_name,
-                            organization_name: person.organization?.name
-                        }
-                    })
-                });
-                
-                const apolloData = await apolloEnrichResponse.json();
-                
-                if (apolloData.enriched && apolloData.contact) {
-                    // Actualizar datos con información revelada
-                    if (apolloData.contact.email && apolloData.contact.email !== 'email_not_unlocked@domain.com') {
-                        enrichedPerson.email = apolloData.contact.email;
-                    }
-                    
-                    if (apolloData.contact.phone_numbers && apolloData.contact.phone_numbers.length > 0) {
-                        enrichedPerson.phone_numbers = apolloData.contact.phone_numbers;
-                    }
-                    
-                    if (apolloData.contact.mobile_phone) {
-                        enrichedPerson.mobile_phone = apolloData.contact.mobile_phone;
-                    }
-                    
-                    if (apolloData.contact.direct_phone) {
-                        enrichedPerson.direct_phone = apolloData.contact.direct_phone;
-                    }
-                    
-                    // Actualizar la visualización del contacto
-                    updateContactDisplay(index, enrichedPerson);
-                }
-            } catch (apolloError) {
-                console.log('Apollo enrich error:', apolloError);
-                // Continuar con el análisis aunque falle el enriquecimiento
-            }
-            
-            // Paso 2: Buscar inteligencia de mercado con Serper
-            document.getElementById(`progress-${index}`).innerHTML = '🔍 Passo 2/4: Buscando inteligência de mercado...';
-            
-            const enrichResponse = await fetch('/api/enrich-prospect', {
+            const apolloResponse = await fetch('/api/apollo-enrich', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    company: { 
-                        name: enrichedPerson.organization?.name || '',
-                        employees: enrichedPerson.organization?.estimated_num_employees
-                    },
-                    contact: enrichedPerson
+                    contactId: person.id,
+                    contactData: {
+                        first_name: person.first_name,
+                        last_name: person.last_name,
+                        organization_name: person.organization?.name
+                    }
                 })
             });
+            
+            const apolloData = await apolloResponse.json();
+            
+            if (apolloData.enriched && apolloData.contact) {
+                if (apolloData.contact.email && apolloData.contact.email !== 'email_not_unlocked@domain.com') {
+                    enrichedPerson.email = apolloData.contact.email;
+                }
+                if (apolloData.contact.phone_numbers?.length > 0) {
+                    enrichedPerson.phone_numbers = apolloData.contact.phone_numbers;
+                }
+            }
+        } catch (apolloError) {
+            console.log('Apollo falló:', apolloError);
+        }
+        
+        // Paso 2: Si no tenemos teléfono, intentar con Lusha
+        if (!enrichedPerson.phone_numbers || enrichedPerson.phone_numbers.length === 0) {
+            document.getElementById(`progress-${index}`).innerHTML = '📱 Passo 2/5: Buscando telefone em Lusha...';
+            
+            try {
+                const lushaResponse = await fetch('/api/lusha-enrich', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        firstName: person.first_name,
+                        lastName: person.last_name,
+                        company: person.organization?.name,
+                        domain: person.organization?.primary_domain || person.email?.split('@')[1]
+                    })
+                });
+                
+                const lushaData = await lushaResponse.json();
+                
+                if (lushaData.enriched && lushaData.contact) {
+                    if (!enrichedPerson.email && lushaData.contact.email) {
+                        enrichedPerson.email = lushaData.contact.email;
+                    }
+                    if (lushaData.contact.phone) {
+                        enrichedPerson.phone_numbers = [{
+                            sanitized_number: lushaData.contact.phone,
+                            source: 'Lusha'
+                        }];
+                    }
+                }
+            } catch (lushaError) {
+                console.log('Lusha falló:', lushaError);
+            }
+        }
+        
+        // Actualizar display si encontramos nuevos datos
+        updateContactDisplay(index, enrichedPerson);
+        
+        // Paso 3: Continuar con Serper...
+        document.getElementById(`progress-${index}`).innerHTML = '🔍 Passo 3/5: Buscando inteligência de mercado...';
+        
+        // ... resto del código igual ...
+        
+    } catch (error) {
+        console.error('Error en análisis:', error);
+    }
+}
             
             const enrichData = await enrichResponse.json();
             
