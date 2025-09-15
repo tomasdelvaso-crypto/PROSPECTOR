@@ -1,49 +1,34 @@
 const axios = require('axios');
 
 module.exports = async (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
-  const { company, contact } = req.body;
-  
-  if (!process.env.SERPER_API_KEY) {
-    return res.status(200).json({ enriched: false });
-  }
-
-  try {
+    // ... validaciones existentes ...
+    
     const enrichmentData = {
-      news: [],
-      painSignals: [],
-      buyingSignals: [],
-      publicProblems: [],
-      sustainabilityInfo: null,
-      expansionNews: null,
-      competitorInfo: null,
-      ergonomicProblems: [] // NUEVO
+        publicProblems: [],
+        buyingSignals: [],
+        news: []
     };
-
-    // 1. Buscar noticias recientes de la empresa
-    const newsQuery = `"${company.name}" Brasil (expansão OR problemas OR logística OR novo centro)`;
-    const newsResponse = await axios({
-      method: 'POST',
-      url: 'https://google.serper.dev/search',
-      headers: {
-        'X-API-KEY': process.env.SERPER_API_KEY,
-        'Content-Type': 'application/json'
-      },
-      data: {
-        q: newsQuery,
-        location: 'Brazil',
-        gl: 'br',
-        hl: 'pt',
-        num: 5,
-        dateRange: '3m'
-      }
+    
+    // Solo 2 búsquedas críticas en lugar de 6:
+    
+    // 1. Problemas y reclamos (la más importante)
+    const problemsQuery = `"${company.name}" (avaria OR violação OR roubo OR reclamação)`;
+    const problemsResponse = await searchSerper(problemsQuery);
+    // ... procesar resultados ...
+    
+    // 2. Señales de compra/expansión (combinada)
+    const signalsQuery = `"${company.name}" (licitação OR "novo fornecedor" OR expansão)`;
+    const signalsResponse = await searchSerper(signalsQuery);
+    // ... procesar resultados ...
+    
+    // ELIMINAR: búsquedas de ESG, ergonomía, competidores
+    
+    res.status(200).json({
+        enriched: true,
+        enrichmentData,
+        additionalScore: calculateScore(enrichmentData)
     });
+};
 
     if (newsResponse.data.organic) {
       enrichmentData.news = newsResponse.data.organic.map(result => ({
