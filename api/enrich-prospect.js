@@ -22,7 +22,8 @@ module.exports = async (req, res) => {
       publicProblems: [],
       sustainabilityInfo: null,
       expansionNews: null,
-      competitorInfo: null
+      competitorInfo: null,
+      ergonomicProblems: [] // NUEVO
     };
 
     // 1. Buscar noticias recientes de la empresa
@@ -40,7 +41,7 @@ module.exports = async (req, res) => {
         gl: 'br',
         hl: 'pt',
         num: 5,
-        dateRange: '3m' // Últimos 3 meses
+        dateRange: '3m'
       }
     });
 
@@ -126,23 +127,52 @@ module.exports = async (req, res) => {
       };
     }
 
-    // 5. Calcular score adicional basado en señales
+    // 5. NUEVO: Búsqueda de problemas ergonómicos (no prioritario pero incluido)
+    const ergonomicQuery = `"${company.name}" ("acidente trabalho" OR "afastamento" OR "LER" OR "DORT" OR "túnel carpo" OR "tendinite")`;
+    const ergonomicResponse = await axios({
+      method: 'POST',
+      url: 'https://google.serper.dev/search',
+      headers: {
+        'X-API-KEY': process.env.SERPER_API_KEY
+      },
+      data: {
+        q: ergonomicQuery,
+        location: 'Brazil',
+        num: 2
+      }
+    }).catch(() => null); // No fallar si no encuentra nada
+
+    if (ergonomicResponse?.data?.organic) {
+      enrichmentData.ergonomicProblems = ergonomicResponse.data.organic
+        .filter(r => r.snippet.toLowerCase().includes('acidente') || 
+                     r.snippet.toLowerCase().includes('afastamento'))
+        .map(r => ({
+          issue: r.title,
+          details: r.snippet
+        }));
+    }
+
+    // 6. Calcular score adicional basado en señales
     let additionalScore = 0;
     
     if (enrichmentData.publicProblems.length > 0) {
-      additionalScore += 15; // Dolor confirmado
+      additionalScore += 15;
     }
     
     if (enrichmentData.buyingSignals.length > 0) {
-      additionalScore += 20; // Señal de compra activa
+      additionalScore += 20;
     }
     
-    if (enrichmentData.news.some(n => n.snippet.includes('expansão') || n.snippet.includes('crescimento'))) {
-      additionalScore += 10; // Empresa en crecimiento
+    if (enrichmentData.news.some(n => n.snippet?.includes('expansão') || n.snippet?.includes('crescimento'))) {
+      additionalScore += 10;
     }
     
     if (enrichmentData.sustainabilityInfo?.hasESGFocus) {
-      additionalScore += 5; // Alineado con sustentabilidad Ventapel
+      additionalScore += 5;
+    }
+
+    if (enrichmentData.ergonomicProblems?.length > 0) {
+      additionalScore += 5; // Bonus menor por no ser prioridad
     }
 
     res.status(200).json({
@@ -162,11 +192,11 @@ function generateEnrichmentSummary(data, company) {
   let summary = [];
   
   if (data.publicProblems && data.publicProblems.length > 0) {
-    summary.push(`⚠️ Problemas detectados: ${data.publicProblems.length}`);
+    summary.push(`⚠️ ${data.publicProblems.length} problemas detectados`);
   }
   
   if (data.buyingSignals && data.buyingSignals.length > 0) {
-    summary.push(`🛒 Señales de compra activas`);
+    summary.push(`🛒 Buscando fornecedores ativamente`);
   }
   
   if (data.news && data.news.length > 0) {
@@ -174,14 +204,18 @@ function generateEnrichmentSummary(data, company) {
       n.snippet?.toLowerCase().includes('expansão') || 
       n.snippet?.toLowerCase().includes('crescimento')
     );
-    if (expansion) summary.push(`📈 Empresa en expansión`);
+    if (expansion) summary.push(`📈 Empresa em expansão`);
   }
   
   if (data.sustainabilityInfo?.hasESGFocus) {
-    summary.push(`🌱 Foco en sustentabilidad`);
+    summary.push(`🌱 Foco em sustentabilidade`);
+  }
+
+  if (data.ergonomicProblems && data.ergonomicProblems.length > 0) {
+    summary.push(`👷 Problemas ergonômicos reportados`);
   }
   
   return summary.length > 0 ? 
     summary.join(' | ') : 
-    `Empresa ${company.name} sin señales públicas relevantes`;
+    `${company.name || 'Empresa'} sem sinais públicos relevantes detectados`;
 }
