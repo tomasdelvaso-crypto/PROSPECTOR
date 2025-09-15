@@ -428,7 +428,7 @@ async function performDeepAnalysis(index) {
                         firstName: person.first_name,
                         lastName: person.last_name,
                         company: person.organization?.name,
-                        domain: person.organization?.primary_domain || person.email?.split('@')[1]
+                        domain: person.organization?.primary_domain || person.email?.split('@')[1],
                         linkedinUrl: person.linkedin_url
                     })
                 });
