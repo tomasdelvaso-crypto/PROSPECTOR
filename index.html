@@ -364,179 +364,252 @@
         };
     }
 
-    async function performDeepAnalysis(index) {
-        const person = currentResults[index];
-        const analysisDiv = document.getElementById(`analysis-${index}`);
-        
-        analysisDiv.innerHTML = `
-            <div class="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-indigo-200">
-                <div class="flex items-center">
-                    <i class="fas fa-spinner fa-spin text-indigo-600 mr-2"></i>
-                    <span class="text-sm font-semibold">Iniciando análise profunda...</span>
-                </div>
-                <div class="mt-2 text-xs text-gray-600">
-                    <div id="progress-${index}">
-                        📍 Passo 1/5: Preparando dados...
-                    </div>
+async function performDeepAnalysis(index) {
+    const person = currentResults[index];
+    const analysisDiv = document.getElementById(`analysis-${index}`);
+    
+    analysisDiv.innerHTML = `
+        <div class="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-indigo-200">
+            <div class="flex items-center">
+                <i class="fas fa-spinner fa-spin text-indigo-600 mr-2"></i>
+                <span class="text-sm font-semibold">Iniciando análise profunda...</span>
+            </div>
+            <div class="mt-2 text-xs text-gray-600">
+                <div id="progress-${index}">
+                    📍 Passo 1/5: Preparando dados...
                 </div>
             </div>
-        `;
+        </div>
+    `;
+    
+    try {
+        let enrichedPerson = {...person};
+        
+        // Paso 1: Intentar con Apollo primero
+        document.getElementById(`progress-${index}`).innerHTML = '🔍 Passo 1/5: Buscando em Apollo...';
         
         try {
-            let enrichedPerson = {...person};
+            const apolloResponse = await fetch('/api/apollo-enrich', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contactId: person.id,
+                    contactData: {
+                        first_name: person.first_name,
+                        last_name: person.last_name,
+                        organization_name: person.organization?.name
+                    }
+                })
+            });
             
-            // Paso 1: Intentar con Apollo primero
-            document.getElementById(`progress-${index}`).innerHTML = '🔍 Passo 1/5: Buscando em Apollo...';
+            const apolloData = await apolloResponse.json();
+            
+            if (apolloData.enriched && apolloData.contact) {
+                if (apolloData.contact.email && apolloData.contact.email !== 'email_not_unlocked@domain.com') {
+                    enrichedPerson.email = apolloData.contact.email;
+                }
+                if (apolloData.contact.phone_numbers?.length > 0) {
+                    enrichedPerson.phone_numbers = apolloData.contact.phone_numbers;
+                }
+            }
+        } catch (apolloError) {
+            console.log('Apollo falló:', apolloError);
+        }
+        
+        // Paso 2: Si no tenemos teléfono, intentar con Lusha
+        if (!enrichedPerson.phone_numbers || enrichedPerson.phone_numbers.length === 0) {
+            document.getElementById(`progress-${index}`).innerHTML = '📱 Passo 2/5: Buscando telefone em Lusha...';
             
             try {
-                const apolloResponse = await fetch('/api/apollo-enrich', {
+                const lushaResponse = await fetch('/api/lusha-enrich', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        contactId: person.id,
-                        contactData: {
-                            first_name: person.first_name,
-                            last_name: person.last_name,
-                            organization_name: person.organization?.name
-                        }
+                        firstName: person.first_name,
+                        lastName: person.last_name,
+                        company: person.organization?.name,
+                        domain: person.organization?.primary_domain || person.email?.split('@')[1]
                     })
                 });
                 
-                const apolloData = await apolloResponse.json();
+                const lushaData = await lushaResponse.json();
                 
-                if (apolloData.enriched && apolloData.contact) {
-                    if (apolloData.contact.email && apolloData.contact.email !== 'email_not_unlocked@domain.com') {
-                        enrichedPerson.email = apolloData.contact.email;
-                    }
-                    if (apolloData.contact.phone_numbers?.length > 0) {
-                        enrichedPerson.phone_numbers = apolloData.contact.phone_numbers;
-                    }
+                // DEBUG COMPLETO DE LUSHA
+                console.log('=== LUSHA DEBUG START ===');
+                console.log('1. Full Lusha response:', lushaData);
+                
+                if (lushaData.contact?.rawData) {
+                    console.log('2. Lusha rawData structure:', JSON.stringify(lushaData.contact.rawData, null, 2));
                 }
-            } catch (apolloError) {
-                console.log('Apollo falló:', apolloError);
-            }
-            
-            // Paso 2: Si no tenemos teléfono, intentar con Lusha
-            if (!enrichedPerson.phone_numbers || enrichedPerson.phone_numbers.length === 0) {
-                document.getElementById(`progress-${index}`).innerHTML = '📱 Passo 2/5: Buscando telefone em Lusha...';
                 
-                try {
-                    const lushaResponse = await fetch('/api/lusha-enrich', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            firstName: person.first_name,
-                            lastName: person.last_name,
-                            company: person.organization?.name,
-                            domain: person.organization?.primary_domain || person.email?.split('@')[1]
-                        })
-                    });
+                if (lushaData.contact?.debug) {
+                    console.log('3. Lusha debug info:', lushaData.contact.debug);
+                }
+                
+                console.log('4. Full Lusha contact object:', JSON.stringify(lushaData.contact, null, 2));
+                
+                // Buscar teléfonos en TODOS los campos posibles
+                const phoneSearchPaths = [
+                    lushaData.contact?.phones,
+                    lushaData.contact?.phone_numbers,
+                    lushaData.contact?.phone,
+                    lushaData.contact?.rawData?.phoneNumbers,
+                    lushaData.contact?.rawData?.phone,
+                    lushaData.contact?.rawData?.mobilePhone,
+                    lushaData.contact?.rawData?.directPhone,
+                    lushaData.contact?.rawData?.data?.phoneNumbers,
+                    lushaData.contact?.rawData?.data?.phone
+                ];
+                
+                console.log('5. Phone search paths results:', phoneSearchPaths.map((path, i) => ({
+                    index: i,
+                    found: !!path,
+                    value: path
+                })));
+                
+                console.log('=== LUSHA DEBUG END ===');
+                
+                if (lushaData.enriched && lushaData.contact) {
+                    // Email
+                    if (!enrichedPerson.email && lushaData.contact.email) {
+                        enrichedPerson.email = lushaData.contact.email;
+                        console.log('✅ Email found from Lusha:', lushaData.contact.email);
+                    }
                     
-                    const lushaData = await lushaResponse.json();
-                    console.log('Lusha response in frontend:', lushaData);
+                    // Teléfonos - chequear todos los paths posibles
+                    let phonesFound = false;
                     
-                    if (lushaData.enriched && lushaData.contact) {
-                        console.log('Lusha contact data:', lushaData.contact);
+                    // Path 1: phones array
+                    if (lushaData.contact.phones && Array.isArray(lushaData.contact.phones) && lushaData.contact.phones.length > 0) {
+                        enrichedPerson.phone_numbers = lushaData.contact.phones.map(p => ({
+                            sanitized_number: p.number || p,
+                            type: p.type || 'unknown',
+                            source: 'Lusha'
+                        }));
+                        phonesFound = true;
+                        console.log('✅ Phones found in contact.phones:', enrichedPerson.phone_numbers);
+                    }
+                    
+                    // Path 2: phone_numbers array
+                    else if (lushaData.contact.phone_numbers && Array.isArray(lushaData.contact.phone_numbers) && lushaData.contact.phone_numbers.length > 0) {
+                        enrichedPerson.phone_numbers = lushaData.contact.phone_numbers;
+                        phonesFound = true;
+                        console.log('✅ Phones found in contact.phone_numbers:', enrichedPerson.phone_numbers);
+                    }
+                    
+                    // Path 3: single phone field
+                    else if (lushaData.contact.phone) {
+                        enrichedPerson.phone_numbers = [{
+                            sanitized_number: lushaData.contact.phone,
+                            source: 'Lusha'
+                        }];
+                        phonesFound = true;
+                        console.log('✅ Phone found in contact.phone:', lushaData.contact.phone);
+                    }
+                    
+                    // Path 4: check rawData
+                    else if (lushaData.contact.rawData) {
+                        const raw = lushaData.contact.rawData;
                         
-                        // Email
-                        if (!enrichedPerson.email && lushaData.contact.email) {
-                            enrichedPerson.email = lushaData.contact.email;
-                        }
-                        
-                        // Teléfonos - múltiples paths posibles
-                        if (lushaData.contact.phones && lushaData.contact.phones.length > 0) {
-                            enrichedPerson.phone_numbers = lushaData.contact.phones.map(p => ({
-                                sanitized_number: p.number,
-                                type: p.type,
+                        if (raw.phoneNumbers && Array.isArray(raw.phoneNumbers) && raw.phoneNumbers.length > 0) {
+                            enrichedPerson.phone_numbers = raw.phoneNumbers.map(p => ({
+                                sanitized_number: p.internationalNumber || p.localNumber || p.number || p,
+                                type: p.type || 'unknown',
                                 source: 'Lusha'
                             }));
-                        } else if (lushaData.contact.phone_numbers && lushaData.contact.phone_numbers.length > 0) {
-                            enrichedPerson.phone_numbers = lushaData.contact.phone_numbers;
-                        } else if (lushaData.contact.phone) {
+                            phonesFound = true;
+                            console.log('✅ Phones found in rawData.phoneNumbers:', enrichedPerson.phone_numbers);
+                        } else if (raw.mobilePhone || raw.directPhone || raw.phone) {
+                            const phoneNumber = raw.mobilePhone || raw.directPhone || raw.phone;
                             enrichedPerson.phone_numbers = [{
-                                sanitized_number: lushaData.contact.phone,
+                                sanitized_number: phoneNumber,
+                                type: raw.mobilePhone ? 'mobile' : raw.directPhone ? 'direct' : 'unknown',
                                 source: 'Lusha'
                             }];
+                            phonesFound = true;
+                            console.log('✅ Phone found in rawData fields:', phoneNumber);
                         }
-                        
-                        console.log('Enriched phone numbers:', enrichedPerson.phone_numbers);
                     }
-                } catch (lushaError) {
-                    console.log('Lusha error:', lushaError);
+                    
+                    if (!phonesFound) {
+                        console.log('❌ No phones found in any Lusha path');
+                    }
                 }
+            } catch (lushaError) {
+                console.error('❌ Lusha error:', lushaError);
             }
-            
-            // Actualizar display si encontramos nuevos datos
-            updateContactDisplay(index, enrichedPerson);
-            
-            // Paso 3: Buscar inteligencia de mercado con Serper
-            document.getElementById(`progress-${index}`).innerHTML = '🔍 Passo 3/5: Buscando inteligência de mercado...';
-            
-            const enrichResponse = await fetch('/api/enrich-prospect', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    company: { 
-                        name: enrichedPerson.organization?.name || '',
-                        employees: enrichedPerson.organization?.estimated_num_employees
-                    },
-                    contact: enrichedPerson
-                })
-            });
-            
-            const enrichData = await enrichResponse.json();
-            
-            // Paso 4: Análisis PPVVC con Claude
-            document.getElementById(`progress-${index}`).innerHTML = '🧠 Passo 4/5: Analisando com IA (PPVVC)...';
-            
-            const analysisResponse = await fetch('/api/claude-analyze', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    company: {
-                        name: enrichedPerson.organization?.name,
-                        industry: enrichedPerson.organization?.industry,
-                        estimated_num_employees: enrichedPerson.organization?.estimated_num_employees,
-                        headquarters_location: enrichedPerson.organization?.headquarters_location
-                    },
-                    contact: {
-                        name: enrichedPerson.name,
-                        title: enrichedPerson.title,
-                        email: enrichedPerson.email,
-                        phone: enrichedPerson.phone_numbers?.[0]?.sanitized_number
-                    },
-                    enrichment: enrichData
-                })
-            });
-            
-            const analysis = await analysisResponse.json();
-            
-            // Paso 5: Mostrar resultado completo
-            document.getElementById(`progress-${index}`).innerHTML = '✅ Passo 5/5: Compilando resultados...';
-            
-            displayCompleteAnalysis(index, enrichedPerson, enrichData, analysis);
-            
-            // Actualizar estadísticas
-            analyzedCount++;
-            document.getElementById('analyzed').textContent = analyzedCount;
-            
-            // Actualizar hot leads si el score es alto
-            if (analysis.total_score >= 7) {
-                const hotLeadsCount = parseInt(document.getElementById('hotLeads').textContent) + 1;
-                document.getElementById('hotLeads').textContent = hotLeadsCount;
-            }
-            
-        } catch (error) {
-            console.error('Erro na análise:', error);
-            analysisDiv.innerHTML = `
-                <div class="p-3 bg-red-50 rounded border border-red-200">
-                    <p class="text-red-600 text-sm font-semibold">❌ Erro na análise</p>
-                    <p class="text-xs text-gray-600 mt-1">${error.message}</p>
-                </div>
-            `;
         }
+        
+        // Actualizar display si encontramos nuevos datos
+        updateContactDisplay(index, enrichedPerson);
+        
+        // Paso 3: Buscar inteligencia de mercado con Serper
+        document.getElementById(`progress-${index}`).innerHTML = '🔍 Passo 3/5: Buscando inteligência de mercado...';
+        
+        const enrichResponse = await fetch('/api/enrich-prospect', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                company: { 
+                    name: enrichedPerson.organization?.name || '',
+                    employees: enrichedPerson.organization?.estimated_num_employees
+                },
+                contact: enrichedPerson
+            })
+        });
+        
+        const enrichData = await enrichResponse.json();
+        
+        // Paso 4: Análisis PPVVC con Claude
+        document.getElementById(`progress-${index}`).innerHTML = '🧠 Passo 4/5: Analisando com IA (PPVVC)...';
+        
+        const analysisResponse = await fetch('/api/claude-analyze', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                company: {
+                    name: enrichedPerson.organization?.name,
+                    industry: enrichedPerson.organization?.industry,
+                    estimated_num_employees: enrichedPerson.organization?.estimated_num_employees,
+                    headquarters_location: enrichedPerson.organization?.headquarters_location
+                },
+                contact: {
+                    name: enrichedPerson.name,
+                    title: enrichedPerson.title,
+                    email: enrichedPerson.email,
+                    phone: enrichedPerson.phone_numbers?.[0]?.sanitized_number
+                },
+                enrichment: enrichData
+            })
+        });
+        
+        const analysis = await analysisResponse.json();
+        
+        // Paso 5: Mostrar resultado completo
+        document.getElementById(`progress-${index}`).innerHTML = '✅ Passo 5/5: Compilando resultados...';
+        
+        displayCompleteAnalysis(index, enrichedPerson, enrichData, analysis);
+        
+        // Actualizar estadísticas
+        analyzedCount++;
+        document.getElementById('analyzed').textContent = analyzedCount;
+        
+        // Actualizar hot leads si el score es alto
+        if (analysis.total_score >= 7) {
+            const hotLeadsCount = parseInt(document.getElementById('hotLeads').textContent) + 1;
+            document.getElementById('hotLeads').textContent = hotLeadsCount;
+        }
+        
+    } catch (error) {
+        console.error('Erro na análise:', error);
+        analysisDiv.innerHTML = `
+            <div class="p-3 bg-red-50 rounded border border-red-200">
+                <p class="text-red-600 text-sm font-semibold">❌ Erro na análise</p>
+                <p class="text-xs text-gray-600 mt-1">${error.message}</p>
+            </div>
+        `;
     }
-
+}
     function updateContactDisplay(index, enrichedPerson) {
         const contactDiv = document.getElementById(`contact-info-${index}`);
         const actionButtonsDiv = document.getElementById(`action-buttons-${index}`);
