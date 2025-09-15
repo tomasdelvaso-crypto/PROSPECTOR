@@ -161,4 +161,27 @@ module.exports = async (req, res) => {
 function generateEnrichmentSummary(data, company) {
   let summary = [];
   
-  if (data.publicPr
+  if (data.publicProblems && data.publicProblems.length > 0) {
+    summary.push(`⚠️ Problemas detectados: ${data.publicProblems.length}`);
+  }
+  
+  if (data.buyingSignals && data.buyingSignals.length > 0) {
+    summary.push(`🛒 Señales de compra activas`);
+  }
+  
+  if (data.news && data.news.length > 0) {
+    const expansion = data.news.some(n => 
+      n.snippet?.toLowerCase().includes('expansão') || 
+      n.snippet?.toLowerCase().includes('crescimento')
+    );
+    if (expansion) summary.push(`📈 Empresa en expansión`);
+  }
+  
+  if (data.sustainabilityInfo?.hasESGFocus) {
+    summary.push(`🌱 Foco en sustentabilidad`);
+  }
+  
+  return summary.length > 0 ? 
+    summary.join(' | ') : 
+    `Empresa ${company.name} sin señales públicas relevantes`;
+}
