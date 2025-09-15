@@ -442,19 +442,21 @@ async function performDeepAnalysis(index) {
                 // Buscar los datos en la estructura anidada
                 if (lushaData.contact?.rawData?.contact?.data) {
                     actualData = lushaData.contact.rawData.contact.data;
-                    console.log('✅ Found Lusha data in rawData.contact.data:', actualData);
+                    console.log('✅ Found Lusha data in rawData.contact.data');
                 } else if (lushaData.contact?.rawData?.data) {
                     actualData = lushaData.contact.rawData.data;
-                    console.log('✅ Found Lusha data in rawData.data:', actualData);
+                    console.log('✅ Found Lusha data in rawData.data');
                 } else if (lushaData.contact?.rawData) {
-                    // Intentar directamente con rawData si tiene phoneNumbers
                     if (lushaData.contact.rawData.phoneNumbers) {
                         actualData = lushaData.contact.rawData;
-                        console.log('✅ Found Lusha data in rawData directly:', actualData);
+                        console.log('✅ Found Lusha data in rawData directly');
                     }
                 }
                 
                 if (actualData) {
+                    // GUARDAR TODOS LOS DATOS DE LUSHA (ya los pagamos!)
+                    enrichedPerson.lushaFullData = actualData;
+                    
                     // Procesar teléfonos
                     if (actualData.phoneNumbers && Array.isArray(actualData.phoneNumbers)) {
                         enrichedPerson.phone_numbers = actualData.phoneNumbers.map(p => ({
@@ -475,7 +477,7 @@ async function performDeepAnalysis(index) {
                         }
                     }
                     
-                    // Guardar información adicional de Lusha
+                    // Guardar información adicional de Lusha para el análisis
                     if (actualData.jobTitle) {
                         enrichedPerson.lushaTitle = actualData.jobTitle.title;
                         enrichedPerson.seniority = actualData.jobTitle.seniority;
@@ -487,7 +489,13 @@ async function performDeepAnalysis(index) {
                         enrichedPerson.location = actualData.location;
                     }
                     
+                    // Guardar datos críticos para análisis PPVVC
+                    enrichedPerson.jobStartDate = actualData.jobStartDate;
+                    enrichedPerson.previousJob = actualData.previousJob;
+                    enrichedPerson.companyDetails = actualData.company;
+                    
                     console.log('✅ Lusha enrichment complete. Credits charged:', lushaData.contact?.rawData?.contact?.isCreditCharged);
+                    console.log('📊 Full Lusha data saved for PPVVC analysis');
                 } else {
                     console.log('❌ Could not find Lusha data in expected structure');
                 }
@@ -517,7 +525,7 @@ async function performDeepAnalysis(index) {
         
         const enrichData = await enrichResponse.json();
         
-        // Paso 4: Análisis PPVVC con Claude
+        // Paso 4: Análisis PPVVC con Claude - CON TODOS LOS DATOS
         document.getElementById(`progress-${index}`).innerHTML = '🧠 Passo 4/5: Analisando com IA (PPVVC)...';
         
         const analysisResponse = await fetch('/api/claude-analyze', {
@@ -528,7 +536,9 @@ async function performDeepAnalysis(index) {
                     name: enrichedPerson.organization?.name,
                     industry: enrichedPerson.organization?.industry,
                     estimated_num_employees: enrichedPerson.organization?.estimated_num_employees,
-                    headquarters_location: enrichedPerson.organization?.headquarters_location
+                    headquarters_location: enrichedPerson.organization?.headquarters_location,
+                    // DATOS ADICIONALES DE LUSHA
+                    lushaCompanyData: enrichedPerson.lushaFullData?.company || null
                 },
                 contact: {
                     name: enrichedPerson.name,
@@ -536,7 +546,12 @@ async function performDeepAnalysis(index) {
                     email: enrichedPerson.email,
                     phone: enrichedPerson.phone_numbers?.[0]?.sanitized_number,
                     seniority: enrichedPerson.seniority,
-                    departments: enrichedPerson.departments
+                    departments: enrichedPerson.departments,
+                    // DATOS COMPLETOS DE LUSHA
+                    jobStartDate: enrichedPerson.lushaFullData?.jobStartDate,
+                    previousJob: enrichedPerson.lushaFullData?.previousJob,
+                    location: enrichedPerson.lushaFullData?.location,
+                    lushaFullProfile: enrichedPerson.lushaFullData
                 },
                 enrichment: enrichData
             })
