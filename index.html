@@ -687,6 +687,22 @@ async function performDeepAnalysis(index) {
 function displayCompleteAnalysis(index, person, enrichData, analysis) {
     const analysisDiv = document.getElementById(`analysis-${index}`);
     
+    if (!analysisDiv) {
+        console.error('Analysis div not found for index:', index);
+        return;
+    }
+    
+    // Si no hay análisis, mostrar error
+    if (!analysis) {
+        analysisDiv.innerHTML = `
+            <div class="p-3 bg-red-50 rounded border border-red-200">
+                <p class="text-red-600 text-sm font-semibold">❌ Erro na análise</p>
+                <p class="text-xs text-gray-600 mt-1">Não foi possível completar a análise</p>
+            </div>
+        `;
+        return;
+    }
+    
     let html = `
         <div class="p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg border border-indigo-300">
             <!-- Header -->
@@ -697,134 +713,77 @@ function displayCompleteAnalysis(index, person, enrichData, analysis) {
                 </span>
             </div>
             
-            <!-- Inteligência de Mercado (Serper) - MEJORADO -->
+            <!-- Inteligência de Mercado (Serper) -->
             ${enrichData.enriched ? `
-                <div class="bg-white p-4 rounded mb-4 border border-gray-200">
-                    <h5 class="font-semibold text-base mb-3 flex items-center">
-                        <i class="fas fa-chart-line mr-2 text-blue-600"></i>
-                        Inteligência de Mercado
-                    </h5>
-                    
+                <div class="bg-white p-3 rounded mb-3">
+                    <h5 class="font-semibold text-sm mb-2">📊 Inteligência de Mercado</h5>
                     ${enrichData.enrichmentData?.publicProblems?.length > 0 ? `
-                        <div class="bg-red-50 p-3 rounded mb-3 border-l-4 border-red-500">
-                            <p class="text-red-800 font-semibold mb-2">
-                                ⚠️ Problemas detectados:
-                            </p>
-                            ${enrichData.enrichmentData.publicProblems.map(problem => `
-                                <div class="mb-2">
-                                    <p class="text-sm text-red-700">
-                                        <strong>${problem.issue || 'Problema identificado'}:</strong>
-                                    </p>
-                                    <p class="text-xs text-gray-700 mt-1">
-                                        ${problem.details || problem.snippet || 'Detalhes não disponíveis'}
-                                    </p>
-                                    ${problem.source ? `
-                                        <p class="text-xs text-gray-500 mt-1">
-                                            Fonte: ${problem.source}
-                                        </p>
-                                    ` : ''}
-                                </div>
-                            `).join('')}
+                        <div class="text-red-600 text-sm mb-2">
+                            ⚠️ <strong>Problemas detectados:</strong> ${enrichData.enrichmentData.publicProblems[0].issue || enrichData.enrichmentData.publicProblems[0].details}
                         </div>
                     ` : ''}
-                    
                     ${enrichData.enrichmentData?.buyingSignals?.length > 0 ? `
-                        <div class="bg-green-50 p-3 rounded mb-3 border-l-4 border-green-500">
-                            <p class="text-green-800 font-semibold mb-2">
-                                🛒 Sinais de compra ativos:
-                            </p>
-                            ${enrichData.enrichmentData.buyingSignals.map(signal => `
-                                <div class="mb-2">
-                                    <p class="text-sm text-green-700">
-                                        ${signal.signal || signal.title || 'Buscando fornecedores'}
-                                    </p>
-                                    ${signal.details ? `
-                                        <p class="text-xs text-gray-700 mt-1">${signal.details}</p>
-                                    ` : ''}
-                                </div>
-                            `).join('')}
+                        <div class="text-green-600 text-sm mb-2">
+                            🛒 <strong>Buscando fornecedores ativamente!</strong>
                         </div>
                     ` : ''}
-                    
                     ${enrichData.enrichmentData?.news?.length > 0 ? `
-                        <div class="bg-blue-50 p-3 rounded border-l-4 border-blue-500">
-                            <p class="text-blue-800 font-semibold mb-2">
-                                📰 Notícias recentes:
-                            </p>
-                            ${enrichData.enrichmentData.news.slice(0, 3).map(item => `
-                                <div class="mb-2">
-                                    <p class="text-sm text-blue-700">
-                                        ${item.title || item.snippet || 'Notícia'}
-                                    </p>
-                                    ${item.date ? `
-                                        <p class="text-xs text-gray-500 mt-1">Data: ${item.date}</p>
-                                    ` : ''}
-                                </div>
-                            `).join('')}
+                        <div class="text-blue-600 text-sm">
+                            📰 ${enrichData.enrichmentData.news[0].title || enrichData.enrichmentData.news[0].snippet}
                         </div>
                     ` : ''}
-                    
-                    ${!enrichData.enrichmentData?.publicProblems?.length && 
-                      !enrichData.enrichmentData?.buyingSignals?.length && 
-                      !enrichData.enrichmentData?.news?.length ? `
-                        <p class="text-gray-500 text-sm">
-                            <i class="fas fa-info-circle mr-1"></i>
-                            Sem sinais públicos relevantes detectados no momento
-                        </p>
+                    ${!enrichData.enrichmentData?.publicProblems?.length && !enrichData.enrichmentData?.buyingSignals?.length && !enrichData.enrichmentData?.news?.length ? `
+                        <p class="text-gray-500 text-sm">Sem sinais públicos relevantes detectados</p>
                     ` : ''}
                 </div>
             ` : ''}
             
             <!-- Análise PPVVC -->
-            <div class="bg-white p-4 rounded mb-4 border border-gray-200">
-                <h5 class="font-semibold text-base mb-3 flex items-center">
-                    <i class="fas fa-chart-bar mr-2 text-purple-600"></i>
-                    Análise PPVVC
-                </h5>
-                <div class="grid grid-cols-3 gap-3">
-                    ${Object.entries(analysis.scores || {}).map(([key, value]) => `
+            <div class="bg-white p-3 rounded mb-3">
+                <h5 class="font-semibold text-sm mb-3">📈 Análise PPVVC</h5>
+                <div class="grid grid-cols-3 gap-2">
+                    ${analysis.scores ? Object.entries(analysis.scores).map(([key, value]) => `
                         <div class="text-center">
-                            <div class="text-xs font-semibold uppercase text-gray-600 mb-1">${key}</div>
-                            <div class="h-2 bg-gray-200 rounded-full">
-                                <div class="h-2 ${value >= 7 ? 'bg-green-500' : value >= 5 ? 'bg-yellow-500' : 'bg-red-400'} rounded-full transition-all duration-500" style="width: ${value * 10}%"></div>
+                            <div class="text-xs font-semibold uppercase text-gray-600">${key}</div>
+                            <div class="mt-1">
+                                <div class="h-2 bg-gray-200 rounded-full">
+                                    <div class="h-2 ${value >= 7 ? 'bg-green-500' : value >= 5 ? 'bg-yellow-500' : 'bg-red-400'} rounded-full" style="width: ${value * 10}%"></div>
+                                </div>
+                                <div class="text-sm font-bold mt-1">${value}/10</div>
                             </div>
-                            <div class="text-sm font-bold mt-1">${value}/10</div>
                         </div>
-                    `).join('')}
+                    `).join('') : '<p class="text-gray-500 text-sm">Scores não disponíveis</p>'}
                 </div>
             </div>
             
-            <!-- Justificación de Scores - MEJORADO -->
+            <!-- Justificación de Scores -->
             ${analysis.explanations ? `
-                <div class="bg-gray-50 p-4 rounded mb-4 border border-gray-200">
-                    <h5 class="font-semibold text-base mb-3 flex items-center">
-                        <i class="fas fa-clipboard-check mr-2 text-indigo-600"></i>
-                        Justificación de Scores
-                    </h5>
-                    <div class="space-y-3">
-                        <div class="border-l-3 border-indigo-500 pl-3">
-                            <span class="font-bold text-indigo-700">PAIN:</span>
-                            <p class="text-sm text-gray-700 mt-1">${analysis.explanations.pain || 'Sin explicación disponible'}</p>
+                <div class="bg-gray-50 p-3 rounded mb-3 border border-gray-200">
+                    <h5 class="font-semibold text-sm mb-2">📝 Justificación de Scores</h5>
+                    <div class="space-y-2 text-xs">
+                        <div class="flex items-start">
+                            <span class="font-bold w-24 text-indigo-700">PAIN:</span>
+                            <span class="text-gray-600 flex-1">${analysis.explanations.pain || 'Sin explicación'}</span>
                         </div>
-                        <div class="border-l-3 border-purple-500 pl-3">
-                            <span class="font-bold text-purple-700">POWER:</span>
-                            <p class="text-sm text-gray-700 mt-1">${analysis.explanations.power || 'Sin explicación disponible'}</p>
+                        <div class="flex items-start">
+                            <span class="font-bold w-24 text-purple-700">POWER:</span>
+                            <span class="text-gray-600 flex-1">${analysis.explanations.power || 'Sin explicación'}</span>
                         </div>
-                        <div class="border-l-3 border-blue-500 pl-3">
-                            <span class="font-bold text-blue-700">VISION:</span>
-                            <p class="text-sm text-gray-700 mt-1">${analysis.explanations.vision || 'Sin explicación disponible'}</p>
+                        <div class="flex items-start">
+                            <span class="font-bold w-24 text-blue-700">VISION:</span>
+                            <span class="text-gray-600 flex-1">${analysis.explanations.vision || 'Sin explicación'}</span>
                         </div>
-                        <div class="border-l-3 border-green-500 pl-3">
-                            <span class="font-bold text-green-700">VALUE:</span>
-                            <p class="text-sm text-gray-700 mt-1">${analysis.explanations.value || 'Sin explicación disponible'}</p>
+                        <div class="flex items-start">
+                            <span class="font-bold w-24 text-green-700">VALUE:</span>
+                            <span class="text-gray-600 flex-1">${analysis.explanations.value || 'Sin explicación'}</span>
                         </div>
-                        <div class="border-l-3 border-orange-500 pl-3">
-                            <span class="font-bold text-orange-700">CONTROL:</span>
-                            <p class="text-sm text-gray-700 mt-1">${analysis.explanations.control || 'Sin explicación disponible'}</p>
+                        <div class="flex items-start">
+                            <span class="font-bold w-24 text-orange-700">CONTROL:</span>
+                            <span class="text-gray-600 flex-1">${analysis.explanations.control || 'Sin explicación'}</span>
                         </div>
-                        <div class="border-l-3 border-pink-500 pl-3">
-                            <span class="font-bold text-pink-700">COMPRAS:</span>
-                            <p class="text-sm text-gray-700 mt-1">${analysis.explanations.compras || 'Sin explicación disponible'}</p>
+                        <div class="flex items-start">
+                            <span class="font-bold w-24 text-pink-700">COMPRAS:</span>
+                            <span class="text-gray-600 flex-1">${analysis.explanations.compras || 'Sin explicación'}</span>
                         </div>
                     </div>
                 </div>
@@ -832,18 +791,15 @@ function displayCompleteAnalysis(index, person, enrichData, analysis) {
             
             <!-- Approach Recomendado -->
             ${analysis.recommended_approach ? `
-                <div class="bg-purple-100 p-4 rounded mb-4 border border-purple-300">
-                    <h5 class="font-semibold text-purple-900 mb-2">
-                        🎯 Estrategia Recomendada
-                    </h5>
-                    <p class="text-sm text-purple-800">
-                        ${analysis.recommended_approach}
+                <div class="bg-purple-100 p-3 rounded mb-3">
+                    <p class="text-sm font-semibold text-purple-900">
+                        🎯 ${analysis.recommended_approach}
                     </p>
                 </div>
             ` : ''}
             
             <!-- Bottom Info -->
-            <div class="flex justify-between items-center text-xs text-gray-600 pt-3 border-t">
+            <div class="flex justify-between items-center text-xs text-gray-600 pt-2 border-t">
                 <span><i class="fas fa-clock mr-1"></i>${analysis.decision_timeline || 'Timeline não definida'}</span>
                 <span><i class="fas fa-chart-line mr-1"></i>Potencial: ${analysis.estimated_potential || 'médio'}</span>
             </div>
