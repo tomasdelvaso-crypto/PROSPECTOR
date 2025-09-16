@@ -17,15 +17,14 @@ module.exports = async (req, res) => {
 
     const { filters = {}, page = 1 } = req.body;
     
-    // Construir payload MÍNIMO para Apollo
+    // Payload optimizado para Ventapel
     const apolloPayload = {
-      per_page: 100,  // Pedir muchos resultados
+      per_page: 100,
       page: page || 1
     };
 
-    // Solo agregar location si NO es Santa Catarina (muy específico)
-    if (filters.location && filters.location === 'Santa Catarina, Brazil') {
-      // Para Santa Catarina, buscar en todo Brasil
+    // Location - más flexible
+    if (filters.location && filters.location.includes('Santa Catarina')) {
       apolloPayload.person_locations = ['Brazil'];
     } else if (filters.location) {
       apolloPayload.person_locations = [filters.location];
@@ -33,20 +32,17 @@ module.exports = async (req, res) => {
       apolloPayload.person_locations = ['Brazil'];
     }
 
-    // NO agregar titles si es "Todos" o si está vacío
-    if (filters.titles && filters.titles.length > 0 && filters.titles[0] !== 'Todos') {
+    // Titles relevantes para Ventapel
+    if (filters.titles && filters.titles.length > 0) {
       apolloPayload.person_titles = filters.titles;
     }
 
-    // Size - ser más flexible
-    if (filters.size === '201,500') {
-      // No agregar filtro de size, o usar rango más amplio
-      // Apollo puede tener pocos resultados en este rango específico
-    } else if (filters.size) {
+    // Size flexible
+    if (filters.size && filters.size !== '201,500') {
       apolloPayload.organization_num_employees_ranges = [filters.size];
     }
 
-    console.log('Apollo request (simplified):', JSON.stringify(apolloPayload, null, 2));
+    console.log('Apollo request:', JSON.stringify(apolloPayload, null, 2));
 
     const response = await axios({
       method: 'POST',
@@ -60,108 +56,144 @@ module.exports = async (req, res) => {
     });
 
     let people = response.data?.people || [];
-    console.log(`Apollo returned ${people.length} raw results`);
+    console.log(`Apollo returned ${people.length} results`);
 
-    // Si no hay resultados, intentar búsqueda más amplia
-    if (people.length === 0) {
-      console.log('No results, trying broader search...');
-      
-      const broaderPayload = {
-        per_page: 100,
-        page: 1,
-        person_locations: ['Brazil']
-        // Sin más filtros
-      };
-      
-      const broaderResponse = await axios({
-        method: 'POST',
-        url: 'https://api.apollo.io/v1/mixed_people/search',
-        data: broaderPayload,
-        headers: { 
-          'X-Api-Key': apiKey, 
-          'Content-Type': 'application/json' 
-        }
-      });
-      
-      people = broaderResponse.data?.people || [];
-      console.log(`Broader search: ${people.length} results`);
-    }
+    // FILTROS RELEVANTES PARA VENTAPEL
+    const VENTAPEL_PRIORITY_INDUSTRIES = {
+      'ecommerce': ['e-commerce', 'ecommerce', 'retail', 'varejo', 'marketplace', 'online', 'store'],
+      'logistics': ['logistics', 'logística', '3pl', 'fulfillment', 'warehouse', 'shipping'],
+      'manufacturing': ['manufacturing', 'manufatura', 'industrial', 'factory', 'packaging'],
+      'food': ['food', 'alimento', 'beverage', 'bebida', 'fmcg'],
+      'pharma': ['pharmaceutical', 'farmacêutica', 'cosmetic'],
+      'automotive': ['automotive', 'automotiva', 'autopeças'],
+      'textile': ['textile', 'têxtil', 'fashion', 'moda', 'apparel', 'vestuário']
+    };
 
-    // Filtrado manual por industria si se especificó
+    // SIEMPRE EXCLUIR
+    const EXCLUDE = [
+      'bank', 'banco', 'insurance', 'seguro',
+      'consulting', 'consultoria', 'legal', 'advocacia',
+      'education', 'universidade', 'government', 'governo',
+      'real estate', 'imobiliária', 'hotel', 'turismo'
+    ];
+
+    // Filtrar industrias irrelevantes
+    people = people.filter(person => {
+      const industry = (person.organization?.industry || '').toLowerCase();
+      const company = (person.organization?.name || '').toLowerCase();
+      const combined = `${industry} ${company}`;
+      
+      // Excluir industrias no deseadas
+      const isExcluded = EXCLUDE.some(term => combined.includes(term));
+      if (isExcluded) return false;
+      
+      // Excluir empresas muy pequeñas
+      const employees = person.organization?.estimated_num_employees || 0;
+      if (employees > 0 && employees < 50) return false;
+      
+      return true;
+    });
+
+    // Si hay filtro de industria, priorizar
     if (filters.industryKeywords) {
-      const industryTerms = {
-        'automotive': ['automotive', 'automotiva', 'autopeças', 'auto', 'car', 'vehicle'],
-        'ecommerce': ['e-commerce', 'ecommerce', 'retail', 'varejo', 'marketplace', 'online'],
-        'logistics': ['logistics', 'logística', '3pl', 'fulfillment', 'warehouse'],
-        'manufacturing': ['manufacturing', 'manufatura', 'industrial', 'factory'],
-        'food': ['food', 'alimento', 'beverage', 'bebida'],
-        'pharma': ['pharmaceutical', 'farmacêutica', 'cosmetic'],
-        'textile': ['textile', 'têxtil', 'fashion', 'moda', 'apparel']
-      };
-
-      const terms = industryTerms[filters.industryKeywords] || [];
+      const terms = VENTAPEL_PRIORITY_INDUSTRIES[filters.industryKeywords] || [];
       
       if (terms.length > 0) {
-        const filtered = people.filter(person => {
+        // Separar matches y no-matches
+        const matches = [];
+        const others = [];
+        
+        people.forEach(person => {
           const industry = (person.organization?.industry || '').toLowerCase();
           const company = (person.organization?.name || '').toLowerCase();
-          const combined = `${industry} ${company}`;
           
-          return terms.some(term => combined.includes(term));
+          if (terms.some(term => industry.includes(term) || company.includes(term))) {
+            matches.push(person);
+          } else {
+            others.push(person);
+          }
         });
-
-        // Si el filtro es muy estricto, mantener algunos sin filtrar
-        if (filtered.length < 5) {
-          people = [...filtered, ...people.filter(p => !filtered.includes(p)).slice(0, 20)];
-        } else {
-          people = filtered;
-        }
+        
+        // Priorizar matches pero mantener algunos otros
+        people = [...matches, ...others.slice(0, 15)];
       }
     }
 
-    // Excluir solo las más irrelevantes
-    const EXCLUDE = ['bank', 'banco', 'insurance', 'seguro', 'consulting'];
-    people = people.filter(person => {
-      const industry = (person.organization?.industry || '').toLowerCase();
-      return !EXCLUDE.some(term => industry.includes(term));
-    });
-
-    // Filtrar junior titles
+    // Filtrar títulos irrelevantes
+    const EXCLUDE_TITLES = [
+      'intern', 'estagiário', 'trainee', 'student',
+      'analyst', 'analista', 'assistant', 'assistente',
+      'coordinator', 'coordenador', 'specialist', 'especialista'
+    ];
+    
     people = people.filter(person => {
       const title = (person.title || '').toLowerCase();
-      return !['intern', 'trainee', 'student'].some(term => title.includes(term));
+      return !EXCLUDE_TITLES.some(term => title.includes(term));
     });
 
-    // Scoring simple
+    // Scoring optimizado para Ventapel
     people = people.map(person => {
       let score = 0;
       
+      // Score por cargo
       const title = (person.title || '').toLowerCase();
-      if (title.includes('director')) score += 40;
-      else if (title.includes('manager')) score += 30;
-      else if (title.includes('ceo')) score += 50;
+      if (title.includes('ceo') || title.includes('president')) score += 50;
+      else if (title.includes('director') || title.includes('diretor')) score += 45;
+      else if (title.includes('vp') || title.includes('vice')) score += 40;
+      else if (title.includes('head')) score += 35;
+      else if (title.includes('manager') || title.includes('gerente')) score += 30;
+      else if (title.includes('supervisor')) score += 20;
       
-      if (person.email) score += 10;
-      if (person.phone_numbers?.length > 0) score += 10;
+      // Bonus por área relevante
+      if (title.includes('operations') || title.includes('operac')) score += 15;
+      if (title.includes('logistics') || title.includes('logist')) score += 15;
+      if (title.includes('supply')) score += 10;
+      if (title.includes('quality') || title.includes('qualidade')) score += 10;
+      if (title.includes('production') || title.includes('produc')) score += 10;
+      
+      // Score por tamaño de empresa
+      const employees = person.organization?.estimated_num_employees || 0;
+      if (employees >= 5000) score += 40;
+      else if (employees >= 1000) score += 35;
+      else if (employees >= 500) score += 25;
+      else if (employees >= 200) score += 15;
+      else if (employees >= 100) score += 10;
+      
+      // Score por industria relevante
+      const industry = (person.organization?.industry || '').toLowerCase();
+      const allPriorityTerms = Object.values(VENTAPEL_PRIORITY_INDUSTRIES).flat();
+      if (allPriorityTerms.some(term => industry.includes(term))) {
+        score += 20;
+      }
+      
+      // Score por datos disponibles
+      if (person.email && !person.email.includes('email_not_unlocked')) score += 15;
+      if (person.phone_numbers?.length > 0) score += 15;
+      if (person.linkedin_url) score += 5;
       
       return { ...person, priorityScore: score };
     });
 
+    // Ordenar y limitar
     people.sort((a, b) => b.priorityScore - a.priorityScore);
     people = people.slice(0, 25);
 
-    console.log(`Final: ${people.length} prospects sent`);
+    console.log(`Sending ${people.length} qualified prospects for Ventapel`);
 
     return res.status(200).json({
       success: true,
       people: people,
-      total: people.length
+      total: people.length,
+      pagination: {
+        page: page,
+        per_page: 25,
+        has_more: people.length === 25
+      }
     });
 
   } catch (error) {
     console.error('Apollo error:', error.message);
     
-    // Si hay error, devolver algunos resultados de prueba
     return res.status(200).json({
       success: true,
       people: [],
