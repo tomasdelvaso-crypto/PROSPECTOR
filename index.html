@@ -492,9 +492,23 @@ async function performDeepAnalysis(uniqueId) {
 }
 
 // Display analysis results
+// Display analysis results - CORREGIDO PARA MOSTRAR EMAIL
 function displayAnalysisResults(uniqueId, data) {
     const resultDiv = document.getElementById(`analysis-result-${uniqueId}`);
     const { contact, analysis } = data;
+    
+    // Buscar email en diferentes lugares posibles
+    const email = contact.email || 
+                  contact.email_status || 
+                  contact.personal_emails?.[0] || 
+                  contact.work_email ||
+                  'No encontrado';
+    
+    const phone = contact.phone || 
+                  contact.phone_numbers?.[0] || 
+                  contact.mobile_phone || 
+                  contact.work_phone || 
+                  null;
     
     const score = analysis.total_score || 0;
     const priority = analysis.priority || 'COLD';
@@ -506,8 +520,18 @@ function displayAnalysisResults(uniqueId, data) {
             <div class="bg-green-50 p-4 rounded-lg">
                 <h5 class="font-bold mb-2">📞 Informações de Contato</h5>
                 <div class="space-y-1">
-                    ${contact.email ? `<p class="text-sm"><i class="fas fa-envelope mr-2"></i>${contact.email}</p>` : ''}
-                    ${contact.phone ? `<p class="text-sm font-bold text-green-700"><i class="fas fa-phone mr-2"></i>${contact.phone}</p>` : '<p class="text-sm text-red-600"><i class="fas fa-times mr-2"></i>Telefone não encontrado</p>'}
+                    ${email !== 'No encontrado' ? 
+                        `<p class="text-sm"><i class="fas fa-envelope mr-2"></i>${email}</p>` : 
+                        '<p class="text-sm text-gray-500"><i class="fas fa-envelope mr-2"></i>Email não disponível</p>'
+                    }
+                    ${phone ? 
+                        `<p class="text-sm font-bold text-green-700"><i class="fas fa-phone mr-2"></i>${phone}</p>` : 
+                        '<p class="text-sm text-red-600"><i class="fas fa-times mr-2"></i>Telefone não encontrado</p>'
+                    }
+                    ${contact.linkedin_url ? 
+                        `<p class="text-sm"><i class="fab fa-linkedin mr-2"></i><a href="${contact.linkedin_url}" target="_blank" class="text-blue-600 hover:underline">Ver LinkedIn</a></p>` : 
+                        ''
+                    }
                 </div>
             </div>
             
