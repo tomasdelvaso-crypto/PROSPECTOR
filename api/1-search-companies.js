@@ -20,11 +20,11 @@ module.exports = async (req, res) => {
             });
         }
 
-        const { filters = {} } = req.body;
+        const { filters = {}, page = 1 } = req.body;
 
         // Build Apollo payload with smart defaults for Ventapel
         const apolloPayload = {
-            page: filters.page || 1,
+            page: page,
             per_page: filters.per_page || 25,
             organization_locations: [],
             organization_num_employees_ranges: [],
@@ -85,6 +85,7 @@ module.exports = async (req, res) => {
             organizations: organizations,
             total: response.data?.pagination?.total_entries || organizations.length,
             page: response.data?.pagination?.page || 1,
+            per_page: response.data?.pagination?.per_page || 25,
             total_pages: response.data?.pagination?.total_pages || 1
         });
 
