@@ -57,7 +57,7 @@
                 Buscar Empresas & Decisores
             </h2>
             
-            <div class="grid grid-cols-4 gap-4 mb-4">
+            <div class="grid grid-cols-3 gap-4 mb-4">
                 <div>
                     <label class="block text-sm font-semibold mb-1 text-gray-700">
                         🏭 Setor/Palavras-chave
@@ -79,6 +79,7 @@
                         <option value="São Paulo, Brazil">São Paulo</option>
                         <option value="Rio de Janeiro, Brazil">Rio de Janeiro</option>
                         <option value="Santa Catarina, Brazil" selected>Santa Catarina</option>
+                        <option value="Rio Grande do Sul, Brazil">Rio Grande do Sul</option>
                         <option value="Paraná, Brazil">Paraná</option>
                         <option value="Minas Gerais, Brazil">Minas Gerais</option>
                     </select>
@@ -95,19 +96,6 @@
                         <option value="501,1000" selected>501-1000</option>
                         <option value="1001,5000">1001-5000</option>
                         <option value="5001,10000">5001+</option>
-                    </select>
-                </div>
-                
-                <div>
-                    <label class="block text-sm font-semibold mb-1 text-gray-700">
-                        💼 Perfil de Decisor
-                    </label>
-                    <select id="titleProfile" 
-                            class="w-full p-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
-                        <option value="operations" selected>Operações/Logística</option>
-                        <option value="quality">Qualidade/Produção</option>
-                        <option value="directors">Diretoria</option>
-                        <option value="c_level">C-Level</option>
                     </select>
                 </div>
             </div>
@@ -283,7 +271,7 @@ function nextPage() {
     }
 }
 
-// Search Companies with Contacts
+// Search Companies with Contacts - Updated without titleProfile
 async function searchCompaniesWithContacts(page = 1) {
     const loadingDiv = document.getElementById('loading-companies');
     const companiesContainer = document.getElementById('companies-container');
@@ -299,15 +287,12 @@ async function searchCompaniesWithContacts(page = 1) {
         size: document.getElementById('sizeFilter').value
     };
     
-    const titleProfile = document.getElementById('titleProfile').value;
-    
     try {
         const response = await fetch('/api/1-search-companies-with-contacts', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
                 filters,
-                titleProfile,
                 page
             })
         });
@@ -358,6 +343,18 @@ function displayCompaniesWithContacts(companies) {
         const priority = boxesEstimate > 1000 ? 'HIGH' : boxesEstimate > 500 ? 'MEDIUM' : 'LOW';
         const priorityColor = priority === 'HIGH' ? 'green' : priority === 'MEDIUM' ? 'yellow' : 'gray';
         
+        // Group contacts by department
+        const contactsByDept = {};
+        if (company.contacts && company.contacts.length > 0) {
+            company.contacts.forEach(contact => {
+                const dept = categorizeContact(contact.title);
+                if (!contactsByDept[dept]) {
+                    contactsByDept[dept] = [];
+                }
+                contactsByDept[dept].push(contact);
+            });
+        }
+        
         html += `
             <div class="border rounded-lg p-4 hover:shadow-md transition-shadow" id="company-${idx}">
                 <div class="flex justify-between items-start">
@@ -380,35 +377,42 @@ function displayCompaniesWithContacts(companies) {
                     </div>
                 </div>
                 
-                <!-- Embedded Contacts -->
+                <!-- Embedded Contacts Grouped by Department -->
                 <div class="border-t pt-3">
                     <p class="font-semibold mb-2 text-sm text-gray-700">
                         <i class="fas fa-user-tie mr-1"></i>
                         Decisores Encontrados (${company.contacts?.length || 0}):
                     </p>
-                    ${company.contacts && company.contacts.length > 0 ? `
-                        <div class="grid grid-cols-2 lg:grid-cols-3 gap-2">
-                            ${company.contacts.map((contact, contactIdx) => `
-                                <div class="border rounded-lg p-2 bg-gray-50 hover:bg-gray-100 transition-colors">
-                                    <p class="font-semibold text-sm truncate">${contact.name}</p>
-                                    <p class="text-xs text-gray-600 truncate mb-2">${contact.title || 'Cargo não especificado'}</p>
-                                    
-                                    <div class="flex gap-1">
-                                        ${contact.linkedin_url ? `
-                                            <a href="${contact.linkedin_url}" target="_blank" 
-                                               class="flex-1 px-2 py-1 bg-blue-600 text-white rounded text-xs text-center hover:bg-blue-700">
-                                                <i class="fab fa-linkedin"></i>
-                                            </a>
-                                        ` : ''}
-                                        <button onclick="window.openAnalysisModal('${idx}-${contactIdx}')" 
-                                                class="flex-1 px-2 py-1 bg-purple-600 text-white rounded text-xs hover:bg-purple-700 font-semibold">
-                                            <i class="fas fa-microscope mr-1"></i>Analisar
-                                        </button>
-                                    </div>
+                    ${Object.keys(contactsByDept).length > 0 ? 
+                        Object.entries(contactsByDept).map(([dept, contacts]) => `
+                            <div class="mb-3">
+                                <p class="text-xs font-semibold text-gray-600 uppercase mb-1">${dept}</p>
+                                <div class="grid grid-cols-2 lg:grid-cols-3 gap-2">
+                                    ${contacts.map((contact, contactIdx) => {
+                                        const originalIdx = company.contacts.indexOf(contact);
+                                        return `
+                                        <div class="border rounded-lg p-2 bg-gray-50 hover:bg-gray-100 transition-colors">
+                                            <p class="font-semibold text-sm truncate">${contact.name}</p>
+                                            <p class="text-xs text-gray-600 truncate mb-2">${contact.title || 'Cargo não especificado'}</p>
+                                            
+                                            <div class="flex gap-1">
+                                                ${contact.linkedin_url ? `
+                                                    <a href="${contact.linkedin_url}" target="_blank" 
+                                                       class="flex-1 px-2 py-1 bg-blue-600 text-white rounded text-xs text-center hover:bg-blue-700">
+                                                        <i class="fab fa-linkedin"></i>
+                                                    </a>
+                                                ` : ''}
+                                                <button onclick="window.openAnalysisModal('${idx}-${originalIdx}')" 
+                                                        class="flex-1 px-2 py-1 bg-purple-600 text-white rounded text-xs hover:bg-purple-700 font-semibold">
+                                                    <i class="fas fa-microscope mr-1"></i>Analisar
+                                                </button>
+                                            </div>
+                                        </div>
+                                    `}).join('')}
                                 </div>
-                            `).join('')}
-                        </div>
-                    ` : '<p class="text-gray-500 text-sm">Nenhum decisor encontrado com este perfil</p>'}
+                            </div>
+                        `).join('')
+                    : '<p class="text-gray-500 text-sm">Nenhum decisor encontrado</p>'}
                 </div>
             </div>
         `;
@@ -417,6 +421,30 @@ function displayCompaniesWithContacts(companies) {
     listDiv.innerHTML = html;
     container.classList.remove('hidden');
     updateStepIndicator(1);
+}
+
+// Categorize contact by department
+function categorizeContact(title) {
+    if (!title) return 'Outros';
+    const titleLower = title.toLowerCase();
+    
+    if (titleLower.includes('operations') || titleLower.includes('operação') || titleLower.includes('operacional')) {
+        return 'Operações';
+    } else if (titleLower.includes('logistics') || titleLower.includes('logística') || titleLower.includes('supply chain')) {
+        return 'Logística/Supply Chain';
+    } else if (titleLower.includes('quality') || titleLower.includes('qualidade')) {
+        return 'Qualidade';
+    } else if (titleLower.includes('production') || titleLower.includes('produção') || titleLower.includes('plant') || titleLower.includes('planta')) {
+        return 'Produção/Planta';
+    } else if (titleLower.includes('procurement') || titleLower.includes('compras') || titleLower.includes('suprimentos') || titleLower.includes('purchasing')) {
+        return 'Compras/Procurement';
+    } else if (titleLower.includes('director') || titleLower.includes('diretor') || titleLower.includes('coo') || titleLower.includes('ceo')) {
+        return 'Diretoria/C-Level';
+    } else if (titleLower.includes('warehouse') || titleLower.includes('armazém') || titleLower.includes('almoxarifado')) {
+        return 'Armazém/Warehouse';
+    } else {
+        return 'Outros';
+    }
 }
 
 // Open modal for deep analysis
@@ -461,15 +489,11 @@ window.openAnalysisModal = function(uniqueId) {
     modal.classList.remove('hidden');
 }
 
-// Deep Analysis con DEBUG
+// Deep Analysis
 window.performDeepAnalysis = async function(uniqueId) {
     const [companyIdx, contactIdx] = uniqueId.split('-').map(Number);
     const company = currentCompanies[companyIdx];
     const contact = currentContacts[companyIdx][contactIdx];
-    
-    console.log('=== INICIANDO ANÁLISIS ===');
-    console.log('Company:', company);
-    console.log('Contact inicial:', contact);
     
     const resultDiv = document.getElementById(`analysis-result-${uniqueId}`);
     resultDiv.classList.remove('hidden');
@@ -495,7 +519,6 @@ window.performDeepAnalysis = async function(uniqueId) {
         
         // 1. Apollo Enrichment
         updateProgress('Enriquecendo com Apollo...', 25);
-        console.log('Chamando Apollo com:', { person: contact });
         
         const apolloRes = await fetch('/api/3-enrich-apollo', {
             method: 'POST',
@@ -503,10 +526,6 @@ window.performDeepAnalysis = async function(uniqueId) {
             body: JSON.stringify({ person: contact })
         });
         const apolloData = await apolloRes.json();
-        
-        console.log('=== RESPOSTA APOLLO ===');
-        console.log('Apollo response completa:', apolloData);
-        console.log('Apollo person data:', apolloData.person);
         
         // 2. Lusha Enrichment
         updateProgress('Buscando telefone com Lusha...', 50);
@@ -522,9 +541,6 @@ window.performDeepAnalysis = async function(uniqueId) {
         });
         const lushaData = await lushaRes.json();
         
-        console.log('=== RESPOSTA LUSHA ===');
-        console.log('Lusha response:', lushaData);
-        
         // 3. Serper Intel
         updateProgress('Coletando inteligência de mercado...', 75);
         
@@ -534,9 +550,6 @@ window.performDeepAnalysis = async function(uniqueId) {
             body: JSON.stringify({ company })
         });
         const serperData = await serperRes.json();
-        
-        console.log('=== RESPOSTA SERPER ===');
-        console.log('Serper intel:', serperData);
         
         // 4. Claude Analysis
         updateProgress('Analisando com IA...', 90);
@@ -554,9 +567,6 @@ window.performDeepAnalysis = async function(uniqueId) {
                    null
         };
         
-        console.log('=== CONTATO CONSOLIDADO ===');
-        console.log('Contato final:', consolidatedContact);
-        
         const claudeRes = await fetch('/api/4-analyze-claude', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -567,9 +577,6 @@ window.performDeepAnalysis = async function(uniqueId) {
             })
         });
         const analysis = await claudeRes.json();
-        
-        console.log('=== RESPOSTA CLAUDE ===');
-        console.log('Claude analysis:', analysis);
         
         // Store results
         analysisResults[uniqueId] = {
@@ -588,8 +595,7 @@ window.performDeepAnalysis = async function(uniqueId) {
         updateStepIndicator(2);
         
     } catch (error) {
-        console.error('=== ERRO NA ANÁLISE ===');
-        console.error('Erro:', error);
+        console.error('Erro na análise:', error);
         
         resultDiv.innerHTML = `
             <div class="mt-4 p-4 bg-red-50 rounded-lg text-red-700">
@@ -605,8 +611,6 @@ window.performDeepAnalysis = async function(uniqueId) {
 window.displayAnalysisResults = function(uniqueId, data) {
     const resultDiv = document.getElementById(`analysis-result-${uniqueId}`);
     const { contact, analysis } = data;
-    
-    console.log('Displaying results for contact:', contact);
     
     const email = contact.email || 'Não disponível';
     const phone = contact.phone || null;
