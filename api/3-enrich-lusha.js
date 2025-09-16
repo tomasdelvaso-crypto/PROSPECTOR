@@ -31,43 +31,45 @@ module.exports = async (req, res) => {
 
         // Construir parámetros para el endpoint GET /v2/person
         const params = {
-            revealPhones: "true",  // Crítico: debe ser string "true", no booleano
-            revealEmails: "true"   // Crítico: debe ser string "true", no booleano
+            revealPhones: "true",
+            revealEmails: "true"
         };
 
-        // Prioridad 1: Si tenemos LinkedIn URL
+        // Prioridad: LinkedIn > Email > Nombre+Empresa
         if (person.linkedin_url) {
-            params.linkedinUrl = person.linkedin_url;
-            console.log('Using LinkedIn URL for Lusha lookup:', person.linkedin_url);
-        } 
-        // Prioridad 2: Si tenemos email
-        else if (person.email) {
+            let linkedinUrl = person.linkedin_url.trim();
+            if (!linkedinUrl.startsWith('http')) {
+                linkedinUrl = 'https://' + linkedinUrl;
+            }
+            linkedinUrl = linkedinUrl.replace(/\/$/, '');
+            params.linkedinUrl = linkedinUrl;
+            console.log('Using LinkedIn URL for Lusha:', linkedinUrl);
+        } else if (person.email) {
             params.email = person.email;
-            console.log('Using email for Lusha lookup:', person.email);
-        } 
-        // Prioridad 3: Buscar por nombre + empresa
-        else if (person.first_name && person.last_name) {
+            console.log('Using email for Lusha:', person.email);
+        } else if (person.first_name && person.last_name) {
             params.firstName = person.first_name;
             params.lastName = person.last_name;
             
-            // Intentar con domain primero, luego con nombre de empresa
             if (person.organization?.primary_domain) {
-                params.companyDomain = person.organization.primary_domain.replace(/^https?:\/\//, '').split('/')[0];
-                console.log('Using name + domain for Lusha lookup:', params.firstName, params.lastName, params.companyDomain);
+                params.companyDomain = person.organization.primary_domain
+                    .replace(/^https?:\/\//, '')
+                    .replace(/^www\./, '')
+                    .split('/')[0];
+                console.log('Using name + domain:', params.firstName, params.lastName, params.companyDomain);
             } else if (person.organization?.name || company) {
                 params.companyName = person.organization?.name || company;
-                console.log('Using name + company for Lusha lookup:', params.firstName, params.lastName, params.companyName);
+                console.log('Using name + company:', params.firstName, params.lastName, params.companyName);
             }
         } else {
             return res.status(200).json({ 
                 success: false,
                 enriched: false,
-                message: 'Insufficient data for Lusha lookup (need LinkedIn URL, email, or full name)' 
+                message: 'Insufficient data for Lusha lookup' 
             });
         }
 
-        // Hacer la petición GET a Lusha Person Enrichment API
-        console.log('Calling Lusha API with params:', params);
+        console.log('Calling Lusha API with params:', JSON.stringify(params));
         
         const response = await axios.get(
             'https://api.lusha.com/v2/person',
@@ -81,50 +83,82 @@ module.exports = async (req, res) => {
             }
         );
 
-        // La respuesta viene en response.data.data
-        const lushaData = response.data?.data;
+        console.log('Lusha API Response Status:', response.status);
+        
+        // IMPORTANTE: La estructura real de la respuesta es diferente
+        // Los datos vienen en response.data.data O response.data.rawData.data
+        let lushaData = null;
+        
+        // Intentar múltiples paths para encontrar los datos
+        if (response.data?.data) {
+            lushaData = response.data.data;
+            console.log('Found data in response.data.data');
+        } else if (response.data?.rawData?.data) {
+            lushaData = response.data.rawData.data;
+            console.log('Found data in response.data.rawData.data');
+        } else if (response.data) {
+            // A veces viene directamente en response.data
+            lushaData = response.data;
+            console.log('Using response.data directly');
+        }
         
         if (!lushaData) {
-            console.log('No data returned from Lusha');
+            console.log('No data found in Lusha response');
+            console.log('Full response structure:', JSON.stringify(response.data, null, 2));
             return res.status(200).json({ 
                 success: false,
                 enriched: false,
-                message: 'No data found in Lusha',
-                tried: Object.keys(params).filter(k => k !== 'revealPhones' && k !== 'revealEmails')
+                message: 'No data found in Lusha response',
+                debug_response: response.data
             });
         }
 
-        console.log('Lusha returned data. Processing phone numbers...');
-        
         // Extraer teléfonos
         const phoneNumbers = lushaData.phoneNumbers || [];
+        console.log(`Found ${phoneNumbers.length} phone numbers`);
         
-        // Priorizar: móvil > directo > otros
         let bestPhone = null;
         let phoneType = null;
         
         if (phoneNumbers.length > 0) {
+            // Loguear todos los teléfonos encontrados
+            phoneNumbers.forEach((phone, idx) => {
+                console.log(`Phone ${idx + 1}: ${phone.number} (${phone.phoneType})`);
+            });
+            
+            // Priorizar: móvil > directo > cualquier otro
             const mobilePhone = phoneNumbers.find(p => p.phoneType === 'mobile');
             const directPhone = phoneNumbers.find(p => p.phoneType === 'direct');
             const anyPhone = phoneNumbers[0];
             
             if (mobilePhone) {
-                bestPhone = mobilePhone.internationalNumber || mobilePhone.number;
+                bestPhone = mobilePhone.number;
                 phoneType = 'mobile';
             } else if (directPhone) {
-                bestPhone = directPhone.internationalNumber || directPhone.number;
+                bestPhone = directPhone.number;
                 phoneType = 'direct';
             } else if (anyPhone) {
-                bestPhone = anyPhone.internationalNumber || anyPhone.number;
+                bestPhone = anyPhone.number;
                 phoneType = anyPhone.phoneType || 'unknown';
             }
             
-            console.log(`Found ${phoneNumbers.length} phone(s). Best phone: ${bestPhone} (${phoneType})`);
+            console.log(`Best phone selected: ${bestPhone} (${phoneType})`);
         }
 
-        // Extraer email
-        const emails = lushaData.emailAddresses || [];
-        const bestEmail = emails.length > 0 ? emails[0] : (lushaData.email || null);
+        // Extraer emails
+        const emailAddresses = lushaData.emailAddresses || [];
+        const bestEmail = emailAddresses.length > 0 
+            ? (emailAddresses[0].email || emailAddresses[0]) 
+            : null;
+        
+        if (bestEmail) {
+            console.log(`Email found: ${bestEmail}`);
+        }
+
+        // Verificar si se cobró crédito
+        const creditCharged = response.data?.isCreditCharged || 
+                            response.data?.rawData?.isCreditCharged || 
+                            false;
 
         // Construir respuesta limpia
         const result = {
@@ -134,31 +168,44 @@ module.exports = async (req, res) => {
             phone: bestPhone,
             phone_type: phoneType,
             email: bestEmail,
-            full_name: lushaData.fullName || `${person.first_name || ''} ${person.last_name || ''}`.trim(),
+            full_name: lushaData.fullName || lushaData.firstName && lushaData.lastName 
+                ? `${lushaData.firstName} ${lushaData.lastName}` 
+                : `${person.first_name || ''} ${person.last_name || ''}`.trim(),
             all_phones: phoneNumbers.map(p => ({
-                number: p.internationalNumber || p.number,
+                number: p.number,
                 type: p.phoneType,
-                country: p.countryCode
-            }))
+                doNotCall: p.doNotCall || false,
+                updateDate: p.updateDate
+            })),
+            credit_charged: creditCharged,
+            lusha_person_id: lushaData.personId || null
         };
 
-        console.log('Lusha enrichment successful. Returning result.');
+        console.log('Lusha enrichment successful');
+        console.log('Result:', JSON.stringify(result, null, 2));
+        
         res.status(200).json(result);
 
     } catch (error) {
         console.error('Lusha API error:', error.response?.data || error.message);
         
-        // Log específico si es un error 404 (persona no encontrada)
+        if (error.response?.status === 403) {
+            return res.status(200).json({ 
+                success: false,
+                enriched: false,
+                error: 'Plan restriction',
+                message: 'Your Lusha plan may not support revealing phones/emails via API'
+            });
+        }
+
         if (error.response?.status === 404) {
             return res.status(200).json({ 
                 success: false,
                 enriched: false,
-                message: 'Person not found in Lusha database',
-                tried: req.body.person?.linkedin_url || req.body.person?.email || 'name search'
+                message: 'Person not found in Lusha database'
             });
         }
 
-        // Log específico si es un error de límite de rate
         if (error.response?.status === 429) {
             return res.status(200).json({ 
                 success: false,
@@ -168,13 +215,11 @@ module.exports = async (req, res) => {
             });
         }
 
-        // Error genérico
         return res.status(200).json({
             success: false,
             enriched: false,
             error: 'Lusha enrichment failed',
-            details: error.response?.data || error.message,
-            status: error.response?.status
+            details: error.response?.data || error.message
         });
     }
 };
