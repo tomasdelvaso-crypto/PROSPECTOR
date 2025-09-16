@@ -411,8 +411,8 @@ function openAnalysisModal(uniqueId) {
 }
 
 // Deep Analysis (sin cambios)
+// Step 3: Deep Analysis - CORREGIDO
 async function performDeepAnalysis(uniqueId) {
-    // El código permanece igual que el original
     const [companyIdx, contactIdx] = uniqueId.split('-').map(Number);
     const company = currentCompanies[companyIdx];
     const contact = currentContacts[companyIdx][contactIdx];
@@ -439,8 +439,68 @@ async function performDeepAnalysis(uniqueId) {
             document.getElementById('analysis-progress').style.width = `${percent}%`;
         };
         
-        // Continue with the same analysis flow...
-        // (resto del código de análisis permanece igual)
+        // 1. Apollo Enrichment - CORREGIDO EL ENDPOINT
+        updateProgress('Enriquecendo com Apollo...', 25);
+        const apolloRes = await fetch('/api/3-enrich-apollo', {  // Sin la 'a'
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ person: contact })
+        });
+        const apolloData = await apolloRes.json();
+        
+        // 2. Lusha Enrichment - CORREGIDO EL ENDPOINT
+        updateProgress('Buscando telefone com Lusha...', 50);
+        const lushaRes = await fetch('/api/3-enrich-lusha', {  // Sin la 'b'
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                person: apolloData.person || contact,
+                company: company.name
+            })
+        });
+        const lushaData = await lushaRes.json();
+        
+        // 3. Serper Intel - CORREGIDO EL ENDPOINT
+        updateProgress('Coletando inteligência de mercado...', 75);
+        const serperRes = await fetch('/api/3-intel-serper', {  // Sin la 'c'
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ company })
+        });
+        const serperData = await serperRes.json();
+        
+        // 4. Claude Analysis - CORREGIDO EL ENDPOINT
+        updateProgress('Analisando com IA...', 90);
+        const claudeRes = await fetch('/api/4-analyze-claude', {  // Era '3d', ahora es '4'
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                company,
+                contact: {
+                    ...contact,
+                    ...apolloData.person,
+                    phone: lushaData.phone
+                },
+                intel: serperData
+            })
+        });
+        const analysis = await claudeRes.json();
+        
+        // Store results
+        analysisResults[uniqueId] = {
+            company,
+            contact: {...contact, ...apolloData.person, phone: lushaData.phone},
+            analysis,
+            intel: serperData
+        };
+        
+        // Update credits
+        creditsUsed += 3; // Apollo + Lusha + Claude
+        document.getElementById('credits-used').textContent = creditsUsed;
+        
+        // Display results
+        displayAnalysisResults(uniqueId, analysisResults[uniqueId]);
+        updateStepIndicator(2);  // Cambié a 2 porque ahora solo hay 2 pasos
         
     } catch (error) {
         console.error('Analysis error:', error);
@@ -451,26 +511,6 @@ async function performDeepAnalysis(uniqueId) {
             </div>
         `;
     }
-}
-
-// Display analysis results (sin cambios)
-function displayAnalysisResults(uniqueId, data) {
-    // El código permanece igual
-}
-
-// Utility functions
-function estimateBoxesPerDay(company) {
-    const employees = company.estimated_num_employees || 100;
-    const industry = (company.industry || '').toLowerCase();
-    
-    let multiplier = 1;
-    if (industry.includes('logistics') || industry.includes('fulfillment') || industry.includes('ecommerce')) {
-        multiplier = 3;
-    } else if (industry.includes('manufacturing') || industry.includes('food')) {
-        multiplier = 2;
-    }
-    
-    return Math.round((employees / 10) * multiplier);
 }
 
 function updateStepIndicator(step) {
