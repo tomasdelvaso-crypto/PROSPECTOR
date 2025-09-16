@@ -29,96 +29,145 @@ module.exports = async (req, res) => {
             });
         }
 
-        // Build Lusha query parameters - QUITAMOS 'property'
-        const params = {};
-
-        // Add name parameters
-        if (person.first_name) {
-            params.firstName = person.first_name;
-        } else if (person.name) {
-            const nameParts = person.name.split(' ');
-            params.firstName = nameParts[0];
-            params.lastName = nameParts.slice(1).join(' ');
-        }
-
-        if (person.last_name) {
-            params.lastName = person.last_name;
-        }
-
-        // Add company information
-        if (company) {
-            params.companyName = company;
-        } else if (person.organization?.name) {
-            params.companyName = person.organization.name;
-        } else if (person.company_name) {
-            params.companyName = person.company_name;
-        }
-
-        // Add LinkedIn URL if available
+        // Opción 1: Si tenemos LinkedIn URL, usar el endpoint de LinkedIn
         if (person.linkedin_url) {
-            // Clean the LinkedIn URL
-            const cleanLinkedIn = person.linkedin_url.replace('http://', 'https://');
-            params.linkedinUrl = cleanLinkedIn;
-        }
+            try {
+                console.log('Trying Lusha with LinkedIn URL:', person.linkedin_url);
+                
+                // Limpiar la URL de LinkedIn
+                let linkedinUrl = person.linkedin_url;
+                if (!linkedinUrl.startsWith('https://')) {
+                    linkedinUrl = linkedinUrl.replace('http://', 'https://');
+                }
+                
+                const linkedinResponse = await axios.get(
+                    'https://api.lusha.com/v2/linkedin',
+                    {
+                        headers: { 
+                            'api_key': apiKey,
+                            'Accept': 'application/json'
+                        },
+                        params: {
+                            url: linkedinUrl
+                        },
+                        timeout: 15000
+                    }
+                );
 
-        console.log('Lusha request params:', params);
+                if (linkedinResponse.data?.data) {
+                    const data = linkedinResponse.data.data;
+                    const phones = data.phoneNumbers || [];
+                    const bestPhone = phones.find(p => p.phoneType === 'mobile') || 
+                                     phones.find(p => p.phoneType === 'direct') || 
+                                     phones[0];
 
-        // Try v2 API first
-        const response = await axios.get(
-            'https://api.lusha.com/v2/company', // O usa 'person' endpoint según necesidad
-            {
-                headers: { 
-                    'api_key': apiKey,
-                    'Accept': 'application/json'
-                },
-                params: params,
-                timeout: 15000
+                    return res.status(200).json({
+                        success: true,
+                        enriched: true,
+                        source: 'lusha_linkedin',
+                        phone: bestPhone?.internationalNumber || bestPhone?.localizedNumber || null,
+                        phone_type: bestPhone?.phoneType || null,
+                        all_phones: phones,
+                        email: data.emailAddress || null,
+                        full_name: data.fullName
+                    });
+                }
+            } catch (linkedinError) {
+                console.log('LinkedIn lookup failed:', linkedinError.message);
             }
-        );
-
-        const lushaData = response.data?.data;
-
-        if (lushaData) {
-            // Extract phone numbers
-            const phoneNumbers = lushaData.phoneNumbers || [];
-            const directPhone = phoneNumbers.find(p => p.phoneType === 'direct');
-            const mobilePhone = phoneNumbers.find(p => p.phoneType === 'mobile');
-            const workPhone = phoneNumbers.find(p => p.phoneType === 'work');
-            
-            // Get the best available phone
-            const bestPhone = directPhone || mobilePhone || workPhone || phoneNumbers[0];
-
-            res.status(200).json({
-                success: true,
-                enriched: true,
-                source: 'lusha',
-                phone: bestPhone?.internationalNumber || null,
-                phone_type: bestPhone?.phoneType || null,
-                all_phones: phoneNumbers.map(p => ({
-                    number: p.internationalNumber,
-                    type: p.phoneType,
-                    countryCode: p.countryCode
-                })),
-                email: lushaData.emailAddress || null,
-                full_name: lushaData.fullName,
-                company: lushaData.company?.name
-            });
-        } else {
-            res.status(200).json({ 
-                success: false,
-                enriched: false,
-                message: 'No data found in Lusha' 
-            });
         }
+
+        // Opción 2: Buscar por empresa y nombre
+        if (company || person.organization?.name) {
+            try {
+                const companyName = company || person.organization?.name;
+                const companyDomain = person.organization?.primary_domain || 
+                                     person.organization?.website_url?.replace(/https?:\/\//, '').split('/')[0];
+
+                console.log('Trying Lusha company search:', { companyName, companyDomain });
+
+                // Primero buscar la empresa
+                const companySearchResponse = await axios.get(
+                    'https://api.lusha.com/v2/companies',
+                    {
+                        headers: { 
+                            'api_key': apiKey,
+                            'Accept': 'application/json'
+                        },
+                        params: companyDomain ? { domain: companyDomain } : { company: companyName },
+                        timeout: 15000
+                    }
+                );
+
+                if (companySearchResponse.data?.data) {
+                    const companyData = Array.isArray(companySearchResponse.data.data) 
+                        ? companySearchResponse.data.data[0] 
+                        : companySearchResponse.data.data;
+                    
+                    const companyId = companyData.companyId || companyData.id;
+
+                    if (companyId) {
+                        // Buscar contactos en esa empresa
+                        const contactsResponse = await axios.get(
+                            'https://api.lusha.com/v2/contacts',
+                            {
+                                headers: { 
+                                    'api_key': apiKey,
+                                    'Accept': 'application/json'
+                                },
+                                params: {
+                                    companyId: companyId,
+                                    firstName: person.first_name,
+                                    lastName: person.last_name
+                                },
+                                timeout: 15000
+                            }
+                        );
+
+                        if (contactsResponse.data?.data) {
+                            const contactData = Array.isArray(contactsResponse.data.data) 
+                                ? contactsResponse.data.data[0] 
+                                : contactsResponse.data.data;
+                            
+                            const phones = contactData.phoneNumbers || [];
+                            const bestPhone = phones.find(p => p.phoneType === 'mobile') || 
+                                             phones.find(p => p.phoneType === 'direct') || 
+                                             phones[0];
+
+                            return res.status(200).json({
+                                success: true,
+                                enriched: true,
+                                source: 'lusha_company',
+                                phone: bestPhone?.internationalNumber || bestPhone?.localizedNumber || null,
+                                phone_type: bestPhone?.phoneType || null,
+                                all_phones: phones,
+                                email: contactData.emailAddress || null,
+                                full_name: contactData.fullName
+                            });
+                        }
+                    }
+                }
+            } catch (companyError) {
+                console.log('Company search failed:', companyError.message);
+            }
+        }
+
+        // Si ninguna opción funcionó
+        return res.status(200).json({ 
+            success: false,
+            enriched: false,
+            message: 'No data found in Lusha',
+            tried: ['linkedin', 'company']
+        });
 
     } catch (error) {
         console.error('Lusha error:', error.response?.data || error.message);
         
-        res.status(200).json({
+        return res.status(200).json({
             success: false,
             enriched: false,
             error: 'Lusha enrichment failed',
-            details: error.response?.data?.message || error.message
+            details: error.response?.data || error.message
         });
     }
 };
