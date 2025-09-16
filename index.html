@@ -60,13 +60,18 @@
             <div class="grid grid-cols-3 gap-4 mb-4">
                 <div>
                     <label class="block text-sm font-semibold mb-1 text-gray-700">
-                        🏭 Setor/Palavras-chave
+                        🏭 Indústria Vertical
                     </label>
-                    <input type="text" 
-                           id="keywordsFilter" 
-                           class="w-full p-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none"
-                           placeholder="logistica, ecommerce, manufactura"
-                           value="logistica, fulfillment, warehouse">
+                    <select id="industryFilter" 
+                            class="w-full p-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
+                        <option value="logistica" selected>Logística e Transporte</option>
+                        <option value="ecommerce">E-commerce e Varejo</option>
+                        <option value="manufactura">Manufactura e Indústria</option>
+                        <option value="alimentos">Alimentos e Bebidas</option>
+                        <option value="automotriz">Automotriz e Autopartes</option>
+                        <option value="farma_cosmetica">Farmacêutica e Cosmética</option>
+                        <option value="textil">Têxtil e Vestuário</option>
+                    </select>
                 </div>
                 
                 <div>
@@ -175,6 +180,17 @@
     </div>
 
 <script>
+// Mapeo de industrias a palabras clave para Apollo
+const INDUSTRY_MAPPING = {
+    logistica: ["logistics", "transportation", "freight", "supply chain", "warehouse", "fulfillment", "distribution"],
+    ecommerce: ["ecommerce", "retail", "marketplace", "online retail"],
+    manufactura: ["manufacturing", "industrial", "machinery", "plastics"],
+    alimentos: ["food & beverages", "food production", "agribusiness"],
+    automotriz: ["automotive", "auto parts", "motor vehicle manufacturing"],
+    farma_cosmetica: ["pharmaceuticals", "cosmetics", "biotechnology"],
+    textil: ["textiles", "apparel & fashion", "footwear"]
+};
+
 // Global state
 let currentCompanies = [];
 let currentContacts = {};
@@ -271,7 +287,7 @@ function nextPage() {
     }
 }
 
-// Search Companies with Contacts - Updated without titleProfile
+// Search Companies with Contacts - Updated to use industry mapping
 async function searchCompaniesWithContacts(page = 1) {
     const loadingDiv = document.getElementById('loading-companies');
     const companiesContainer = document.getElementById('companies-container');
@@ -281,11 +297,18 @@ async function searchCompaniesWithContacts(page = 1) {
     
     currentPageNum = page;
     
+    // Get selected industry and map to keywords
+    const selectedIndustry = document.getElementById('industryFilter').value;
+    const keywords = INDUSTRY_MAPPING[selectedIndustry] || [];
+    
     const filters = {
-        keywords: document.getElementById('keywordsFilter').value.split(',').map(k => k.trim()).filter(Boolean),
+        keywords: keywords,
         location: document.getElementById('locationFilter').value,
         size: document.getElementById('sizeFilter').value
     };
+    
+    console.log('Searching with industry:', selectedIndustry);
+    console.log('Keywords being sent:', keywords);
     
     try {
         const response = await fetch('/api/1-search-companies-with-contacts', {
