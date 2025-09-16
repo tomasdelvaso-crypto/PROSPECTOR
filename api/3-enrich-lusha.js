@@ -9,10 +9,14 @@ module.exports = async (req, res) => {
         return res.status(200).end();
     }
 
+    console.log('========== LUSHA ENRICH DEBUG START ==========');
+    console.log('1. REQUEST BODY:', JSON.stringify(req.body, null, 2));
+
     try {
-        // El frontend envía un objeto 'person' y opcionalmente 'company'
         const { person, company } = req.body;
         const apiKey = process.env.LUSHA_API_KEY;
+        
+        console.log('2. API KEY EXISTS:', !!apiKey);
         
         if (!apiKey) {
             return res.status(200).json({ 
@@ -22,29 +26,39 @@ module.exports = async (req, res) => {
             });
         }
         
-        // Extraer los campos necesarios del objeto person
-        const firstName = person?.first_name || person?.firstName;
-        const lastName = person?.last_name || person?.lastName;
-        const companyName = company || person?.organization?.name;
-        const domain = person?.organization?.primary_domain;
-        const linkedinUrl = person?.linkedin_url;
+        // Extraer campos con múltiples fallbacks
+        const firstName = person?.first_name || person?.firstName || null;
+        const lastName = person?.last_name || person?.lastName || null;
+        const companyName = company || person?.organization?.name || person?.company || null;
+        const domain = person?.organization?.primary_domain || person?.organization?.website_url || null;
+        const linkedinUrl = person?.linkedin_url || person?.linkedinUrl || null;
         
-        console.log('Lusha request:', { firstName, lastName, companyName, domain, linkedinUrl });
+        console.log('3. EXTRACTED FIELDS:', {
+            firstName,
+            lastName,
+            companyName,
+            domain,
+            linkedinUrl
+        });
         
-        // Construir parámetros para Lusha
+        // Construir parámetros
         const params = {};
         
         if (linkedinUrl) params.linkedinUrl = linkedinUrl;
         if (firstName) params.firstName = firstName;
         if (lastName) params.lastName = lastName;
         if (companyName) params.companyName = companyName;
-        if (domain) params.companyDomain = domain;
+        if (domain) {
+            // Limpiar el domain
+            params.companyDomain = domain.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0];
+        }
         
-        // CRÍTICO: Deben ser strings "true", no booleanos
-        params.revealPhones = "true";
+        // Probar con ambos: string y booleano
+        params.revealPhones = "true";  // Intentar primero como string
         params.revealEmails = "true";
         
-        console.log('Lusha API params:', params);
+        console.log('4. API PARAMS:', params);
+        console.log('5. CALLING LUSHA API...');
         
         const response = await axios({
             method: 'GET',
@@ -56,42 +70,120 @@ module.exports = async (req, res) => {
             params: params
         });
         
-        console.log('Lusha response status:', response.status);
-        console.log('Credit charged:', response.data?.isCreditCharged);
+        console.log('6. RESPONSE STATUS:', response.status);
+        console.log('7. RESPONSE HEADERS:', response.headers);
+        console.log('8. FULL RESPONSE DATA:', JSON.stringify(response.data, null, 2));
         
-        // ESTRUCTURA CORRECTA: Los datos vienen en response.data.data
-        if (response.data && response.data.data) {
-            const personData = response.data.data;
+        // Buscar datos en múltiples paths posibles
+        let personData = null;
+        const paths = [
+            'data.data',
+            'data',
+            'rawData.data',
+            'contact.rawData.data',
+            'contact.rawData.contact.data',
+            'person'
+        ];
+        
+        console.log('9. SEARCHING FOR DATA IN PATHS...');
+        for (const path of paths) {
+            const parts = path.split('.');
+            let current = response.data;
+            
+            for (const part of parts) {
+                if (current && current[part]) {
+                    current = current[part];
+                } else {
+                    current = null;
+                    break;
+                }
+            }
+            
+            if (current) {
+                console.log(`   ✓ Found data at path: ${path}`);
+                personData = current;
+                break;
+            } else {
+                console.log(`   ✗ No data at path: ${path}`);
+            }
+        }
+        
+        if (!personData) {
+            // Último intento: usar response.data directamente
+            if (response.data && (response.data.phoneNumbers || response.data.emailAddresses)) {
+                console.log('   ✓ Using response.data directly');
+                personData = response.data;
+            }
+        }
+        
+        console.log('10. PERSON DATA FOUND:', !!personData);
+        
+        if (personData) {
+            console.log('11. PERSON DATA STRUCTURE:', Object.keys(personData));
             
             // Procesar teléfonos
             const phones = [];
-            if (personData.phoneNumbers && Array.isArray(personData.phoneNumbers)) {
-                personData.phoneNumbers.forEach(phone => {
-                    if (phone && phone.number) {
+            const phoneFields = ['phoneNumbers', 'phone_numbers', 'phones'];
+            let phoneArray = null;
+            
+            for (const field of phoneFields) {
+                if (personData[field] && Array.isArray(personData[field])) {
+                    phoneArray = personData[field];
+                    console.log(`12. PHONE ARRAY FOUND AT: ${field}`);
+                    break;
+                }
+            }
+            
+            if (phoneArray) {
+                console.log(`13. PROCESSING ${phoneArray.length} PHONES...`);
+                phoneArray.forEach((phone, idx) => {
+                    console.log(`    Phone ${idx + 1}:`, phone);
+                    if (phone && (phone.number || phone.phoneNumber || phone.phone)) {
                         phones.push({
-                            number: phone.number,
-                            type: phone.phoneType || 'unknown',
+                            number: phone.number || phone.phoneNumber || phone.phone,
+                            type: phone.phoneType || phone.type || 'unknown',
                             doNotCall: phone.doNotCall || false,
-                            updateDate: phone.updateDate,
                             source: 'Lusha'
                         });
                     }
                 });
-                console.log(`✅ Found ${phones.length} phone(s)`);
             }
             
             // Procesar emails
             const emails = [];
-            if (personData.emailAddresses && Array.isArray(personData.emailAddresses)) {
-                personData.emailAddresses.forEach(email => {
-                    if (email && email.email) {
-                        emails.push(email.email);
-                    }
-                });
-                console.log(`✅ Found ${emails.length} email(s)`);
+            const emailFields = ['emailAddresses', 'email_addresses', 'emails'];
+            let emailArray = null;
+            
+            for (const field of emailFields) {
+                if (personData[field] && Array.isArray(personData[field])) {
+                    emailArray = personData[field];
+                    console.log(`14. EMAIL ARRAY FOUND AT: ${field}`);
+                    break;
+                }
             }
             
-            // Seleccionar el mejor teléfono (prioridad: mobile > direct > work > cualquier otro)
+            if (emailArray) {
+                console.log(`15. PROCESSING ${emailArray.length} EMAILS...`);
+                emailArray.forEach((email, idx) => {
+                    console.log(`    Email ${idx + 1}:`, email);
+                    if (typeof email === 'string') {
+                        emails.push(email);
+                    } else if (email && (email.email || email.emailAddress)) {
+                        emails.push(email.email || email.emailAddress);
+                    }
+                });
+            }
+            
+            // Buscar email directo también
+            if (personData.email) {
+                emails.push(personData.email);
+            }
+            
+            console.log('16. FINAL RESULTS:');
+            console.log(`    - Phones found: ${phones.length}`);
+            console.log(`    - Emails found: ${emails.length}`);
+            
+            // Seleccionar mejor teléfono
             let bestPhone = null;
             let bestPhoneType = null;
             
@@ -114,11 +206,10 @@ module.exports = async (req, res) => {
                     bestPhoneType = phones[0].type;
                 }
                 
-                console.log(`📱 Best phone: ${bestPhone} (${bestPhoneType})`);
+                console.log(`17. BEST PHONE: ${bestPhone} (${bestPhoneType})`);
             }
             
-            // Devolver respuesta limpia y consistente
-            return res.status(200).json({
+            const result = {
                 success: true,
                 enriched: true,
                 source: 'lusha',
@@ -126,57 +217,37 @@ module.exports = async (req, res) => {
                 phone_type: bestPhoneType,
                 email: emails[0] || null,
                 all_phones: phones,
-                full_name: personData.fullName || `${firstName} ${lastName}`.trim(),
-                credit_charged: response.data.isCreditCharged || false,
-                // Datos adicionales útiles
-                location: personData.location || null,
-                title: personData.jobTitle?.title || null,
-                company_name: personData.company?.name || companyName
-            });
+                full_name: personData.fullName || personData.full_name || `${firstName} ${lastName}`.trim(),
+                credit_charged: response.data.isCreditCharged || response.data.creditCharged || false
+            };
+            
+            console.log('18. FINAL RESPONSE:', result);
+            console.log('========== LUSHA ENRICH DEBUG END ==========');
+            
+            return res.status(200).json(result);
         }
         
-        // Si no hay datos en la estructura esperada
-        console.log('❌ No data found in expected structure');
-        console.log('Response structure:', JSON.stringify(response.data, null, 2));
+        // No se encontraron datos
+        console.log('ERROR: No person data found in any expected structure');
+        console.log('========== LUSHA ENRICH DEBUG END ==========');
         
         return res.status(200).json({
             success: false,
             enriched: false,
             message: 'No data found in Lusha response',
-            debug_response: response.data
+            debug: {
+                responseKeys: Object.keys(response.data),
+                hasData: !!response.data.data,
+                hasRawData: !!response.data.rawData,
+                fullResponse: response.data
+            }
         });
         
     } catch (error) {
-        console.error('❌ Lusha API error:', error.message);
+        console.log('ERROR OCCURRED:', error.message);
+        console.log('ERROR DETAILS:', error.response?.data);
+        console.log('========== LUSHA ENRICH DEBUG END ==========');
         
-        // Manejo específico de errores
-        if (error.response?.status === 404) {
-            return res.status(200).json({ 
-                success: false,
-                enriched: false,
-                message: 'Person not found in Lusha database'
-            });
-        }
-        
-        if (error.response?.status === 403) {
-            return res.status(200).json({ 
-                success: false,
-                enriched: false,
-                error: 'Plan restriction',
-                message: 'Your Lusha plan may not support revealing phones/emails via API'
-            });
-        }
-        
-        if (error.response?.status === 429) {
-            return res.status(200).json({ 
-                success: false,
-                enriched: false,
-                error: 'Rate limit exceeded',
-                retry_after: error.response?.headers?.['retry-after'] || '60 seconds'
-            });
-        }
-        
-        // Error genérico
         return res.status(200).json({ 
             success: false,
             enriched: false,
