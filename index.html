@@ -45,7 +45,6 @@
                 <i class="fas fa-search mr-2"></i>Busca de Prospectos B2B
             </h2>
             
-            <!-- Primera fila de filtros -->
             <div class="grid grid-cols-4 gap-4 mb-4">
                 <div>
                     <label class="block text-sm font-medium mb-1">Cargo do Decisor</label>
@@ -62,16 +61,16 @@
                 </div>
                 
                 <div>
-                    <label class="block text-sm font-medium mb-1">Indústria Prioritária</label>
+                    <label class="block text-sm font-medium mb-1">Indústria</label>
                     <select id="industryFilter" class="w-full p-2 border rounded">
                         <option value="">Todas</option>
-                        <option value="ecommerce">🛒 E-commerce/Retail</option>
-                        <option value="logistics">📦 Logística/3PL/Fulfillment</option>
-                        <option value="manufacturing">🏭 Manufactura/Indústria</option>
-                        <option value="food">🍔 Alimentos e Bebidas</option>
-                        <option value="pharma">💊 Farmacêutica/Cosmética</option>
-                        <option value="automotive">🚗 Automotiva/Autopeças</option>
-                        <option value="textile">👕 Têxtil/Moda/Vestuário</option>
+                        <option value="ecommerce">E-commerce/Marketplace</option>
+                        <option value="logistics">3PL/Logística/Fulfillment</option>
+                        <option value="manufacturing">Manufactura/Indústria</option>
+                        <option value="food">Alimentos e Bebidas</option>
+                        <option value="pharma">Farmacêutica/Cosmética</option>
+                        <option value="automotive">Automotiva/Autopeças</option>
+                        <option value="retail">Varejo/Têxtil</option>
                     </select>
                 </div>
                 
@@ -88,10 +87,10 @@
                 </div>
                 
                 <div>
-                    <label class="block text-sm font-medium mb-1">Porte da Empresa</label>
+                    <label class="block text-sm font-medium mb-1">Porte</label>
                     <select id="sizeFilter" class="w-full p-2 border rounded">
                         <option value="">Todos</option>
-                        <option value="101,500">101-500 funcionários</option>
+                        <option value="201,500">201-500</option>
                         <option value="501,1000">501-1000</option>
                         <option value="1001,5000">1001-5000</option>
                         <option value="5001,10000">5001+</option>
@@ -99,41 +98,16 @@
                 </div>
             </div>
             
-            <!-- Segunda fila -->
-            <div class="grid grid-cols-2 gap-4 mb-4">
-                <div>
-                    <label class="block text-sm font-medium mb-1">Empresa Específica (opcional)</label>
-                    <input type="text" 
-                           id="companyFilter" 
-                           placeholder="Ex: Mercado Livre, Natura, Magazine Luiza"
-                           class="w-full p-2 border rounded text-sm">
-                </div>
-                
-                <div>
-                    <label class="block text-sm font-medium mb-1">Palavras-chave (opcional)</label>
-                    <input type="text" 
-                           id="keywordsFilter" 
-                           placeholder="Ex: embalagem, packaging, fulfillment"
-                           class="w-full p-2 border rounded text-sm">
-                </div>
-            </div>
-            
-            <div class="flex justify-between items-center">
+            <div class="flex gap-2">
                 <button onclick="searchProspects()" 
-                        class="px-6 py-3 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
+                        class="px-6 py-3 bg-blue-600 text-white rounded hover:bg-blue-700">
                     <i class="fas fa-search mr-2"></i>Buscar Prospectos
                 </button>
                 
-                <div class="flex gap-2">
-                    <button onclick="exportResults()" 
-                            class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm">
-                        <i class="fas fa-download mr-2"></i>Exportar CSV
-                    </button>
-                    <button onclick="clearFilters()" 
-                            class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm">
-                        <i class="fas fa-redo mr-2"></i>Limpar Filtros
-                    </button>
-                </div>
+                <button onclick="exportResults()" 
+                        class="px-4 py-3 bg-green-600 text-white rounded hover:bg-green-700">
+                    <i class="fas fa-download mr-2"></i>Exportar CSV
+                </button>
             </div>
         </div>
 
@@ -165,24 +139,16 @@
         <div class="bg-white rounded-lg shadow p-6">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="font-semibold">Resultados</h3>
-                <div class="flex items-center gap-4">
-                    <select id="sortBy" onchange="sortResults()" class="p-2 border rounded text-sm">
-                        <option value="relevance">Ordenar por Relevância</option>
-                        <option value="company_size">Tamanho da Empresa</option>
-                        <option value="title">Cargo</option>
-                        <option value="name">Nome</option>
-                    </select>
-                    <div id="resultsCount" class="text-sm text-gray-600"></div>
-                </div>
+                <div id="resultsCount" class="text-sm text-gray-600"></div>
             </div>
             <div id="results">
                 <p class="text-gray-500">Nenhuma busca realizada</p>
             </div>
             
-            <!-- Botão Carregar Mais -->
+            <!-- Botón Carregar Mais -->
             <div id="loadMoreContainer" class="mt-4 text-center hidden">
                 <button onclick="loadMoreProspects()" 
-                        class="px-6 py-3 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
+                        class="px-6 py-3 bg-blue-600 text-white rounded hover:bg-blue-700">
                     <i class="fas fa-plus-circle mr-2"></i>Carregar mais 25 prospectos
                 </button>
             </div>
@@ -192,120 +158,63 @@
     <script>
     // Configuração
     const TITLE_MAPPING = {
-        'operations': ['Operations Manager', 'Operations Director', 'COO', 'VP Operations', 'Head of Operations'],
-        'logistics': ['Logistics Manager', 'Supply Chain Manager', 'Logistics Director', 'Head of Logistics'],
-        'quality': ['Quality Manager', 'Quality Director', 'QA Manager', 'Head of Quality'],
-        'production': ['Production Manager', 'Plant Manager', 'Manufacturing Manager', 'Production Director'],
-        'supply': ['Supply Chain Manager', 'Procurement Manager', 'Sourcing Manager', 'VP Supply Chain'],
-        'director': ['Director', 'Managing Director', 'Regional Director'],
-        'ceo': ['CEO', 'Chief Executive Officer', 'President', 'Founder', 'Owner']
+        'operations': ['Operations Manager', 'Operations Director', 'COO', 'VP Operations'],
+        'logistics': ['Logistics Manager', 'Supply Chain Manager', 'Logistics Director'],
+        'quality': ['Quality Manager', 'Quality Director', 'QA Manager'],
+        'production': ['Production Manager', 'Plant Manager', 'Manufacturing Manager'],
+        'supply': ['Supply Chain Manager', 'Head of Supply Chain', 'Procurement Manager'],
+        'director': ['Director', 'Operations Director', 'Industrial Director'],
+        'ceo': ['CEO', 'President', 'Chief Executive Officer', 'Owner']
     };
 
-    // Variables globales
     let currentResults = [];
     let analyzedCount = 0;
     let analyzedProspects = [];
     let currentPage = 1;
-    let hasMoreResults = true;
     let allResults = [];
 
     async function searchProspects() {
         currentPage = 1;
         allResults = [];
-        hasMoreResults = true;
         analyzedCount = 0;
         analyzedProspects = [];
         
-        document.getElementById('analyzed').textContent = '0';
-        document.getElementById('hotLeads').textContent = '0';
-        document.getElementById('avgScore').textContent = '0';
+        const filters = {
+            location: document.getElementById('locationFilter').value || 'Brazil',
+            size: document.getElementById('sizeFilter').value
+        };
         
         const titleType = document.getElementById('titleFilter').value;
-        const location = document.getElementById('locationFilter').value;
-        const size = document.getElementById('sizeFilter').value;
-        const company = document.getElementById('companyFilter').value;
-        const industryType = document.getElementById('industryFilter').value;
-        const keywords = document.getElementById('keywordsFilter').value;
+        if (titleType && TITLE_MAPPING[titleType]) {
+            filters.titles = TITLE_MAPPING[titleType];
+        }
         
         const resultsDiv = document.getElementById('results');
         resultsDiv.innerHTML = '<p class="text-blue-600"><i class="fas fa-spinner fa-spin mr-2"></i>Buscando prospectos...</p>';
         
         try {
-            const filters = {
-                location: location || 'Brazil'
-            };
-            
-            if (titleType && TITLE_MAPPING[titleType]) {
-                filters.titles = TITLE_MAPPING[titleType];
-            }
-            
-            if (size) {
-                filters.size = size;
-            }
-            
-            if (industryType) {
-                filters.industryKeywords = industryType;
-            }
-            
-            if (company && company.trim()) {
-                filters.company_names = [company.trim()];
-            }
-            
-            console.log('Sending search request with filters:', filters);
-            
             const response = await fetch('/api/apollo-search', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    filters: filters,
-                    page: currentPage
-                })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ filters, page: currentPage })
             });
             
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || `Error ${response.status}`);
-            }
-            
             const data = await response.json();
-            console.log(`Received ${data.people?.length || 0} prospects`);
-            
             currentResults = data.people || [];
-            
-            if (currentResults.length === 0) {
-                resultsDiv.innerHTML = `
-                    <div class="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded">
-                        <p class="font-bold">Nenhum prospecto encontrado</p>
-                        <p class="text-sm mt-1">Tente ajustar os filtros:</p>
-                        <ul class="text-sm mt-2 list-disc list-inside">
-                            <li>Remova o filtro de empresa específica</li>
-                            <li>Selecione uma região mais ampla</li>
-                            <li>Escolha um cargo menos específico</li>
-                        </ul>
-                    </div>
-                `;
-                document.getElementById('loadMoreContainer').classList.add('hidden');
-                return;
-            }
-            
             allResults = currentResults;
+            
             displayResults(currentResults);
             updateStats();
             
             if (currentResults.length >= 25) {
                 document.getElementById('loadMoreContainer').classList.remove('hidden');
-            } else {
-                document.getElementById('loadMoreContainer').classList.add('hidden');
             }
             
         } catch (error) {
-            console.error('Search error:', error);
+            console.error('Erro:', error);
             resultsDiv.innerHTML = `
                 <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-                    <p class="font-bold">Erro ao buscar prospectos</p>
-                    <p class="text-sm">${error.message}</p>
+                    <p>Erro ao buscar: ${error.message}</p>
                 </div>
             `;
         }
@@ -317,36 +226,25 @@
         btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Carregando...';
         btn.disabled = true;
         
-        const titleType = document.getElementById('titleFilter').value;
-        const location = document.getElementById('locationFilter').value;
-        const size = document.getElementById('sizeFilter').value;
-        const company = document.getElementById('companyFilter').value;
-        const industryType = document.getElementById('industryFilter').value;
-        
         try {
             const filters = {
-                location: location || 'Brazil'
+                location: document.getElementById('locationFilter').value || 'Brazil',
+                size: document.getElementById('sizeFilter').value
             };
             
+            const titleType = document.getElementById('titleFilter').value;
             if (titleType && TITLE_MAPPING[titleType]) {
                 filters.titles = TITLE_MAPPING[titleType];
             }
             
-            if (size) filters.size = size;
-            if (industryType) filters.industryKeywords = industryType;
-            if (company && company.trim()) filters.company_names = [company.trim()];
-            
             const response = await fetch('/api/apollo-search', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    filters: filters,
-                    page: currentPage
-                })
+                body: JSON.stringify({ filters, page: currentPage })
             });
             
             const data = await response.json();
-            let newResults = data.people || [];
+            const newResults = data.people || [];
             
             if (newResults.length > 0) {
                 allResults = [...allResults, ...newResults];
@@ -354,12 +252,8 @@
                 displayResults(allResults);
                 updateStats();
             } else {
-                hasMoreResults = false;
                 document.getElementById('loadMoreContainer').classList.add('hidden');
             }
-            
-        } catch (error) {
-            console.error('Error loading more:', error);
         } finally {
             btn.innerHTML = '<i class="fas fa-plus-circle mr-2"></i>Carregar mais 25 prospectos';
             btn.disabled = false;
@@ -377,9 +271,7 @@
                     <span class="text-sm font-semibold">Iniciando análise profunda...</span>
                 </div>
                 <div class="mt-2 text-xs text-gray-600">
-                    <div id="progress-${index}">
-                        📍 Passo 1/5: Preparando dados...
-                    </div>
+                    <div id="progress-${index}">📍 Passo 1/5: Preparando dados...</div>
                 </div>
             </div>
         `;
@@ -394,28 +286,20 @@
                 const apolloResponse = await fetch('/api/apollo-enrich', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contactId: person.id,
-                        contactData: {
-                            first_name: person.first_name,
-                            last_name: person.last_name,
-                            organization_name: person.organization?.name
-                        }
-                    })
+                    body: JSON.stringify({ person: person })
                 });
                 
                 const apolloData = await apolloResponse.json();
                 
-                if (apolloData.enriched && apolloData.contact) {
-                    if (apolloData.contact.email && apolloData.contact.email !== 'email_not_unlocked@domain.com') {
-                        enrichedPerson.email = apolloData.contact.email;
-                    }
-                    if (apolloData.contact.phone_numbers?.length > 0) {
-                        enrichedPerson.phone_numbers = apolloData.contact.phone_numbers;
-                    }
+                if (apolloData.success && apolloData.person) {
+                    enrichedPerson = {
+                        ...enrichedPerson,
+                        email: apolloData.person.email || enrichedPerson.email,
+                        phone_numbers: apolloData.person.phone_numbers || enrichedPerson.phone_numbers
+                    };
                 }
-            } catch (apolloError) {
-                console.log('Apollo falló:', apolloError);
+            } catch (error) {
+                console.log('Apollo enrich failed:', error);
             }
             
             // Paso 2: Lusha si no hay teléfono
@@ -430,24 +314,24 @@
                             firstName: person.first_name,
                             lastName: person.last_name,
                             company: person.organization?.name,
-                            domain: person.organization?.primary_domain || person.email?.split('@')[1],
                             linkedinUrl: person.linkedin_url
                         })
                     });
                     
                     const lushaData = await lushaResponse.json();
                     
-                    if (lushaData.contact?.phone_numbers) {
-                        enrichedPerson.phone_numbers = lushaData.contact.phone_numbers;
+                    if (lushaData.contact?.phones?.length > 0) {
+                        enrichedPerson.phone_numbers = lushaData.contact.phones;
                     }
                     if (!enrichedPerson.email && lushaData.contact?.email) {
                         enrichedPerson.email = lushaData.contact.email;
                     }
-                } catch (lushaError) {
-                    console.error('Lusha error:', lushaError);
+                } catch (error) {
+                    console.log('Lusha failed:', error);
                 }
             }
             
+            // Actualizar display del contacto
             updateContactDisplay(index, enrichedPerson);
             
             // Paso 3: Serper
@@ -457,10 +341,7 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    company: { 
-                        name: enrichedPerson.organization?.name || '',
-                        employees: enrichedPerson.organization?.estimated_num_employees
-                    },
+                    company: person.organization || {},
                     contact: enrichedPerson
                 })
             });
@@ -474,11 +355,7 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    company: {
-                        name: enrichedPerson.organization?.name,
-                        industry: enrichedPerson.organization?.industry,
-                        estimated_num_employees: enrichedPerson.organization?.estimated_num_employees
-                    },
+                    company: person.organization || {},
                     contact: {
                         name: enrichedPerson.name,
                         title: enrichedPerson.title,
@@ -518,21 +395,17 @@
             console.error('Erro na análise:', error);
             analysisDiv.innerHTML = `
                 <div class="p-3 bg-red-50 rounded border border-red-200">
-                    <p class="text-red-600 text-sm font-semibold">❌ Erro na análise</p>
-                    <p class="text-xs text-gray-600 mt-1">${error.message}</p>
+                    <p class="text-red-600 text-sm">❌ Erro na análise</p>
                 </div>
             `;
         }
     }
 
     function updateContactDisplay(index, enrichedPerson) {
-        const contactDiv = document.getElementById(`contact-info-${index}`);
-        const actionButtonsDiv = document.getElementById(`action-buttons-${index}`);
-        
+        const contactDiv = document.querySelector(`#prospect-${index} .text-sm.space-y-1`);
         if (!contactDiv) return;
         
         let updatedHTML = '';
-        let newButtons = '';
         
         if (enrichedPerson.email && enrichedPerson.email !== 'email_not_unlocked@domain.com') {
             updatedHTML += `
@@ -542,15 +415,8 @@
                     <span class="text-xs text-green-600 ml-1">(revelado)</span>
                 </div>
             `;
-            
-            newButtons += `
-                <button onclick="copyEmail('${enrichedPerson.email}')" 
-                        class="px-4 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 w-full">
-                    <i class="fas fa-copy mr-1"></i>Copiar Email
-                </button>
-            `;
         } else {
-            updatedHTML += '<div class="text-gray-400"><i class="fas fa-envelope mr-1"></i>Email não revelado</div>';
+            updatedHTML += '<div class="text-gray-400"><i class="fas fa-envelope mr-1"></i>Email não disponível</div>';
         }
         
         const phone = enrichedPerson.phone_numbers?.[0]?.sanitized_number || 
@@ -565,7 +431,7 @@
                 </div>
             `;
         } else {
-            updatedHTML += '<div class="text-gray-400"><i class="fas fa-phone mr-1"></i>Telefone não revelado</div>';
+            updatedHTML += '<div class="text-gray-400"><i class="fas fa-phone mr-1"></i>Telefone não disponível</div>';
         }
         
         if (enrichedPerson.linkedin_url) {
@@ -574,13 +440,6 @@
                     <i class="fab fa-linkedin mr-1 text-gray-400"></i>
                     <a href="${enrichedPerson.linkedin_url}" target="_blank" class="text-blue-500">LinkedIn</a>
                 </div>
-            `;
-            
-            newButtons += `
-                <button onclick="window.open('${enrichedPerson.linkedin_url}', '_blank')" 
-                        class="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 w-full">
-                    <i class="fab fa-linkedin mr-1"></i>Abrir LinkedIn
-                </button>
             `;
         }
         
@@ -603,15 +462,10 @@
         }
         
         contactDiv.innerHTML = updatedHTML;
-        if (newButtons && actionButtonsDiv) {
-            actionButtonsDiv.innerHTML = newButtons;
-        }
     }
 
     function displayCompleteAnalysis(index, person, enrichData, analysis) {
         const analysisDiv = document.getElementById(`analysis-${index}`);
-        
-        if (!analysisDiv || !analysis) return;
         
         let html = `
             <div class="p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg border border-indigo-300">
@@ -627,7 +481,7 @@
                         <h5 class="font-semibold text-sm mb-2">📊 Inteligência de Mercado</h5>
                         ${enrichData.enrichmentData?.publicProblems?.length > 0 ? `
                             <div class="text-red-600 text-sm mb-2">
-                                ⚠️ <strong>Problemas:</strong> ${enrichData.enrichmentData.publicProblems[0].issue || enrichData.enrichmentData.publicProblems[0].details}
+                                ⚠️ <strong>Problemas:</strong> ${enrichData.enrichmentData.publicProblems[0].issue}
                             </div>
                         ` : ''}
                         ${enrichData.enrichmentData?.buyingSignals?.length > 0 ? `
@@ -637,16 +491,16 @@
                         ` : ''}
                         ${enrichData.enrichmentData?.news?.length > 0 ? `
                             <div class="text-blue-600 text-sm">
-                                📰 ${enrichData.enrichmentData.news[0].title || enrichData.enrichmentData.news[0].snippet}
+                                📰 ${enrichData.enrichmentData.news[0].title}
                             </div>
-                        ` : ''}
+                        ` : '<p class="text-gray-500 text-sm">Sem sinais públicos detectados</p>'}
                     </div>
                 ` : ''}
                 
                 <div class="bg-white p-3 rounded mb-3">
                     <h5 class="font-semibold text-sm mb-3">📈 Análise PPVVC</h5>
                     <div class="grid grid-cols-3 gap-2">
-                        ${analysis.scores ? Object.entries(analysis.scores).map(([key, value]) => `
+                        ${Object.entries(analysis.scores || {}).map(([key, value]) => `
                             <div class="text-center">
                                 <div class="text-xs font-semibold uppercase text-gray-600">${key}</div>
                                 <div class="mt-1">
@@ -656,22 +510,17 @@
                                     <div class="text-sm font-bold mt-1">${value}/10</div>
                                 </div>
                             </div>
-                        `).join('') : ''}
+                        `).join('')}
                     </div>
                 </div>
                 
                 ${analysis.recommended_approach ? `
-                    <div class="bg-purple-100 p-3 rounded mb-3">
+                    <div class="bg-purple-100 p-3 rounded">
                         <p class="text-sm font-semibold text-purple-900">
                             🎯 ${analysis.recommended_approach}
                         </p>
                     </div>
                 ` : ''}
-                
-                <div class="flex justify-between items-center text-xs text-gray-600 pt-2 border-t">
-                    <span><i class="fas fa-clock mr-1"></i>${analysis.decision_timeline || 'Timeline não definida'}</span>
-                    <span><i class="fas fa-chart-line mr-1"></i>Potencial: ${analysis.estimated_potential || 'médio'}</span>
-                </div>
             </div>
         `;
         
@@ -691,31 +540,16 @@
         prospects.forEach((person, index) => {
             const hasEmail = person.email && person.email !== 'email_not_unlocked@domain.com';
             const hasPhone = person.phone_numbers?.length > 0;
-            const hasLinkedIn = person.linkedin_url;
-            
-            const isHighPriority = person.priorityScore >= 70;
-            const isMediumPriority = person.priorityScore >= 50;
-            
-            let priorityBadge = '';
-            if (isHighPriority) {
-                priorityBadge = '<span class="px-2 py-1 bg-red-500 text-white text-xs rounded ml-2">🔥 Alta Prioridade</span>';
-            } else if (isMediumPriority) {
-                priorityBadge = '<span class="px-2 py-1 bg-orange-500 text-white text-xs rounded ml-2">⭐ Média Prioridade</span>';
-            }
             
             html += `
-                <div id="prospect-${index}" class="border ${isHighPriority ? 'border-red-300 bg-red-50' : isMediumPriority ? 'border-orange-300 bg-orange-50' : 'border-gray-200'} rounded-lg p-4 hover:shadow-md transition-all">
+                <div id="prospect-${index}" class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-all">
                     <div class="flex justify-between">
                         <div class="flex-1">
-                            <div class="flex items-center gap-2 mb-2">
-                                <h4 class="font-semibold text-lg">${person.name || 'Nome não disponível'}</h4>
-                                ${priorityBadge}
-                            </div>
-                            
+                            <h4 class="font-semibold text-lg">${person.name || 'Nome não disponível'}</h4>
                             <p class="text-gray-600">${person.title || 'Cargo não especificado'}</p>
                             <p class="text-blue-600 font-medium">${person.organization?.name || 'Empresa não especificada'}</p>
                             
-                            <div id="contact-info-${index}" class="mt-2 text-sm space-y-1">
+                            <div class="mt-2 text-sm space-y-1">
                                 ${hasEmail ? `
                                     <div>
                                         <i class="fas fa-envelope mr-1 text-gray-400"></i>
@@ -730,7 +564,7 @@
                                     </div>
                                 ` : '<div class="text-gray-400"><i class="fas fa-phone mr-1"></i>Telefone não disponível</div>'}
                                 
-                                ${hasLinkedIn ? `
+                                ${person.linkedin_url ? `
                                     <div>
                                         <i class="fab fa-linkedin mr-1 text-gray-400"></i>
                                         <a href="${person.linkedin_url}" target="_blank" class="text-blue-500">LinkedIn</a>
@@ -758,24 +592,15 @@
                         <div class="ml-4 space-y-2">
                             <button onclick="performDeepAnalysis(${index})" 
                                     class="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded text-sm hover:from-indigo-700 hover:to-purple-700 w-full font-semibold">
-                                <i class="fas fa-microscope mr-1"></i>Análise PPVVC
+                                <i class="fas fa-microscope mr-1"></i>Análise Profunda
                             </button>
                             
-                            <div id="action-buttons-${index}">
-                                ${hasEmail ? `
-                                    <button onclick="copyEmail('${person.email}')" 
-                                            class="px-4 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 w-full">
-                                        <i class="fas fa-copy mr-1"></i>Copiar Email
-                                    </button>
-                                ` : ''}
-                                
-                                ${hasLinkedIn ? `
-                                    <button onclick="window.open('${person.linkedin_url}', '_blank')" 
-                                            class="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 w-full">
-                                        <i class="fab fa-linkedin mr-1"></i>Abrir LinkedIn
-                                    </button>
-                                ` : ''}
-                            </div>
+                            ${hasEmail ? `
+                                <button onclick="copyEmail('${person.email}')" 
+                                        class="px-4 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 w-full">
+                                    <i class="fas fa-copy mr-1"></i>Copiar Email
+                                </button>
+                            ` : ''}
                         </div>
                     </div>
                 </div>
@@ -785,22 +610,6 @@
         html += '</div>';
         resultsDiv.innerHTML = html;
         document.getElementById('resultsCount').textContent = `${prospects.length} resultados`;
-    }
-
-    function sortResults() {
-        const sortBy = document.getElementById('sortBy').value;
-        
-        if (sortBy === 'relevance') {
-            currentResults.sort((a, b) => b.priorityScore - a.priorityScore);
-        } else if (sortBy === 'company_size') {
-            currentResults.sort((a, b) => (b.organization?.estimated_num_employees || 0) - (a.organization?.estimated_num_employees || 0));
-        } else if (sortBy === 'title') {
-            currentResults.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
-        } else if (sortBy === 'name') {
-            currentResults.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-        }
-        
-        displayResults(currentResults);
     }
 
     function updateStats() {
@@ -814,27 +623,10 @@
 
     function copyEmail(email) {
         navigator.clipboard.writeText(email);
-        
-        const btn = event.target;
-        const originalText = btn.innerHTML;
-        btn.innerHTML = '<i class="fas fa-check mr-1"></i>Copiado!';
-        btn.classList.remove('bg-green-600');
-        btn.classList.add('bg-green-700');
-        
+        event.target.innerHTML = '<i class="fas fa-check mr-1"></i>Copiado!';
         setTimeout(() => {
-            btn.innerHTML = originalText;
-            btn.classList.remove('bg-green-700');
-            btn.classList.add('bg-green-600');
+            event.target.innerHTML = '<i class="fas fa-copy mr-1"></i>Copiar Email';
         }, 2000);
-    }
-
-    function clearFilters() {
-        document.getElementById('titleFilter').value = '';
-        document.getElementById('industryFilter').value = '';
-        document.getElementById('locationFilter').value = 'Brazil';
-        document.getElementById('sizeFilter').value = '';
-        document.getElementById('companyFilter').value = '';
-        document.getElementById('keywordsFilter').value = '';
     }
 
     function exportResults() {
@@ -844,7 +636,7 @@
         }
         
         const BOM = '\uFEFF';
-        let csvContent = BOM + "Nome,Cargo,Empresa,Email,Telefone,LinkedIn,Funcionários,Indústria,Prioridade,Score\n";
+        let csvContent = BOM + "Nome,Cargo,Empresa,Email,Telefone,LinkedIn,Funcionários,Indústria\n";
         
         currentResults.forEach(person => {
             const row = [
@@ -855,31 +647,17 @@
                 person.phone_numbers?.[0]?.sanitized_number || '',
                 person.linkedin_url || '',
                 person.organization?.estimated_num_employees || '',
-                person.organization?.industry || '',
-                person.priorityScore >= 70 ? 'Alta' : person.priorityScore >= 50 ? 'Média' : 'Baixa',
-                person.priorityScore || 0
-            ].map(field => {
-                const fieldStr = String(field);
-                if (fieldStr.includes(',') || fieldStr.includes('"')) {
-                    return `"${fieldStr.replace(/"/g, '""')}"`;
-                }
-                return fieldStr;
-            }).join(',');
+                person.organization?.industry || ''
+            ].map(field => `"${String(field).replace(/"/g, '""')}"`).join(',');
             
             csvContent += row + "\n";
         });
         
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
-        const url = URL.createObjectURL(blob);
-        const fileName = `ventapel_prospectos_${new Date().toISOString().split('T')[0]}.csv`;
-        
-        link.setAttribute("href", url);
-        link.setAttribute("download", fileName);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
+        link.href = URL.createObjectURL(blob);
+        link.download = `ventapel_prospectos_${new Date().toISOString().split('T')[0]}.csv`;
         link.click();
-        document.body.removeChild(link);
     }
     </script>
 </body>
