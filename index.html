@@ -196,7 +196,7 @@ let currentPageNum = 1;
 let totalPages = 1;
 let totalCompanies = 0;
 
-// Utility function - MOVED TO TOP
+// Utility functions
 function estimateBoxesPerDay(company) {
     const employees = company.estimated_num_employees || 100;
     const industry = (company.industry || '').toLowerCase();
@@ -209,6 +209,78 @@ function estimateBoxesPerDay(company) {
     }
     
     return Math.round((employees / 10) * multiplier);
+}
+
+function updateStepIndicator(step) {
+    for (let i = 1; i <= 2; i++) {
+        const indicator = document.getElementById(`step${i}-indicator`);
+        if (indicator && i <= step) {
+            indicator.classList.remove('opacity-50');
+            indicator.querySelector('div').classList.remove('bg-gray-300');
+            indicator.querySelector('div').classList.add('bg-blue-600');
+            indicator.querySelector('span').classList.remove('text-gray-500');
+        }
+    }
+}
+
+function closeModal() {
+    document.getElementById('contactModal').classList.add('hidden');
+}
+
+function clearAll() {
+    currentCompanies = [];
+    currentContacts = {};
+    analysisResults = {};
+    creditsUsed = 0;
+    currentPageNum = 1;
+    totalPages = 1;
+    totalCompanies = 0;
+    document.getElementById('companies-container').classList.add('hidden');
+    document.getElementById('credits-used').textContent = '0';
+    updateStepIndicator(1);
+}
+
+function exportResults() {
+    if (Object.keys(analysisResults).length === 0) {
+        alert('Nenhuma análise para exportar');
+        return;
+    }
+    
+    let csv = 'Empresa,Contato,Cargo,Email,Telefone,Score PPVVC,Prioridade,Abordagem\n';
+    
+    Object.values(analysisResults).forEach(result => {
+        csv += `"${result.company.name}","${result.contact.name}","${result.contact.title || ''}","${result.contact.email || ''}","${result.contact.phone || ''}","${result.analysis.total_score}","${result.analysis.priority}","${result.analysis.approach || ''}"\n`;
+    });
+    
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `ventapel_prospects_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+}
+
+// Pagination functions
+function updatePaginationControls() {
+    document.getElementById('current-page').textContent = currentPageNum;
+    document.getElementById('total-pages').textContent = totalPages;
+    
+    const prevBtn = document.getElementById('prev-btn');
+    const nextBtn = document.getElementById('next-btn');
+    
+    prevBtn.disabled = currentPageNum <= 1;
+    nextBtn.disabled = currentPageNum >= totalPages;
+}
+
+function previousPage() {
+    if (currentPageNum > 1) {
+        searchCompaniesWithContacts(currentPageNum - 1);
+    }
+}
+
+function nextPage() {
+    if (currentPageNum < totalPages) {
+        searchCompaniesWithContacts(currentPageNum + 1);
+    }
 }
 
 // Search Companies with Contacts
@@ -328,7 +400,7 @@ function displayCompaniesWithContacts(companies) {
                                                 <i class="fab fa-linkedin"></i>
                                             </a>
                                         ` : ''}
-                                        <button onclick="openAnalysisModal('${idx}-${contactIdx}')" 
+                                        <button onclick="window.openAnalysisModal('${idx}-${contactIdx}')" 
                                                 class="flex-1 px-2 py-1 bg-purple-600 text-white rounded text-xs hover:bg-purple-700 font-semibold">
                                             <i class="fas fa-microscope mr-1"></i>Analisar
                                         </button>
@@ -348,7 +420,7 @@ function displayCompaniesWithContacts(companies) {
 }
 
 // Open modal for deep analysis
-function openAnalysisModal(uniqueId) {
+window.openAnalysisModal = function(uniqueId) {
     const [companyIdx, contactIdx] = uniqueId.split('-').map(Number);
     const company = currentCompanies[companyIdx];
     const contact = currentContacts[companyIdx][contactIdx];
@@ -376,7 +448,7 @@ function openAnalysisModal(uniqueId) {
                 </a>
             </div>
             
-            <button onclick="performDeepAnalysis('${uniqueId}')" 
+            <button onclick="window.performDeepAnalysis('${uniqueId}')" 
                     class="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-red-600 text-white rounded-lg hover:from-purple-700 hover:to-red-700 font-bold text-lg">
                 <i class="fas fa-rocket mr-2"></i>
                 Executar Análise Profunda (Gasta Créditos)
@@ -389,15 +461,153 @@ function openAnalysisModal(uniqueId) {
     modal.classList.remove('hidden');
 }
 
-// Deep Analysis - FIXED ENDPOINTS
-// Display analysis results con mejor manejo de email
-function displayAnalysisResults(uniqueId, data) {
+// Deep Analysis con DEBUG
+window.performDeepAnalysis = async function(uniqueId) {
+    const [companyIdx, contactIdx] = uniqueId.split('-').map(Number);
+    const company = currentCompanies[companyIdx];
+    const contact = currentContacts[companyIdx][contactIdx];
+    
+    console.log('=== INICIANDO ANÁLISIS ===');
+    console.log('Company:', company);
+    console.log('Contact inicial:', contact);
+    
+    const resultDiv = document.getElementById(`analysis-result-${uniqueId}`);
+    resultDiv.classList.remove('hidden');
+    resultDiv.innerHTML = `
+        <div class="mt-4 p-4 bg-gray-100 rounded-lg">
+            <div class="flex items-center">
+                <i class="fas fa-spinner fa-spin text-2xl text-indigo-600 mr-3"></i>
+                <div>
+                    <p class="font-semibold" id="analysis-status">Iniciando análise...</p>
+                    <div class="w-64 bg-gray-200 rounded-full h-2 mt-2">
+                        <div id="analysis-progress" class="bg-indigo-600 h-2 rounded-full transition-all" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    try {
+        const updateProgress = (text, percent) => {
+            document.getElementById('analysis-status').textContent = text;
+            document.getElementById('analysis-progress').style.width = `${percent}%`;
+        };
+        
+        // 1. Apollo Enrichment
+        updateProgress('Enriquecendo com Apollo...', 25);
+        console.log('Chamando Apollo com:', { person: contact });
+        
+        const apolloRes = await fetch('/api/3-enrich-apollo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ person: contact })
+        });
+        const apolloData = await apolloRes.json();
+        
+        console.log('=== RESPOSTA APOLLO ===');
+        console.log('Apollo response completa:', apolloData);
+        console.log('Apollo person data:', apolloData.person);
+        
+        // 2. Lusha Enrichment
+        updateProgress('Buscando telefone com Lusha...', 50);
+        const enrichedContact = apolloData.person || contact;
+        
+        const lushaRes = await fetch('/api/3-enrich-lusha', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                person: enrichedContact,
+                company: company.name
+            })
+        });
+        const lushaData = await lushaRes.json();
+        
+        console.log('=== RESPOSTA LUSHA ===');
+        console.log('Lusha response:', lushaData);
+        
+        // 3. Serper Intel
+        updateProgress('Coletando inteligência de mercado...', 75);
+        
+        const serperRes = await fetch('/api/3-intel-serper', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ company })
+        });
+        const serperData = await serperRes.json();
+        
+        console.log('=== RESPOSTA SERPER ===');
+        console.log('Serper intel:', serperData);
+        
+        // 4. Claude Analysis
+        updateProgress('Analisando com IA...', 90);
+        
+        // Construir objeto de contato consolidado
+        const consolidatedContact = {
+            ...contact,
+            ...enrichedContact,
+            email: enrichedContact?.email || 
+                   contact?.email ||
+                   lushaData?.email ||
+                   'Não disponível',
+            phone: lushaData?.phone || 
+                   enrichedContact?.phone_numbers?.[0] ||
+                   null
+        };
+        
+        console.log('=== CONTATO CONSOLIDADO ===');
+        console.log('Contato final:', consolidatedContact);
+        
+        const claudeRes = await fetch('/api/4-analyze-claude', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                company,
+                contact: consolidatedContact,
+                intel: serperData
+            })
+        });
+        const analysis = await claudeRes.json();
+        
+        console.log('=== RESPOSTA CLAUDE ===');
+        console.log('Claude analysis:', analysis);
+        
+        // Store results
+        analysisResults[uniqueId] = {
+            company,
+            contact: consolidatedContact,
+            analysis,
+            intel: serperData
+        };
+        
+        // Update credits
+        creditsUsed += 3;
+        document.getElementById('credits-used').textContent = creditsUsed;
+        
+        // Display results
+        window.displayAnalysisResults(uniqueId, analysisResults[uniqueId]);
+        updateStepIndicator(2);
+        
+    } catch (error) {
+        console.error('=== ERRO NA ANÁLISE ===');
+        console.error('Erro:', error);
+        
+        resultDiv.innerHTML = `
+            <div class="mt-4 p-4 bg-red-50 rounded-lg text-red-700">
+                <i class="fas fa-exclamation-circle mr-2"></i>
+                Erro na análise: ${error.message}
+                <br><small>Verifique o console para mais detalhes</small>
+            </div>
+        `;
+    }
+}
+
+// Display analysis results
+window.displayAnalysisResults = function(uniqueId, data) {
     const resultDiv = document.getElementById(`analysis-result-${uniqueId}`);
     const { contact, analysis } = data;
     
     console.log('Displaying results for contact:', contact);
     
-    // El email ya viene consolidado desde performDeepAnalysis
     const email = contact.email || 'Não disponível';
     const phone = contact.phone || null;
     
@@ -466,165 +676,6 @@ function displayAnalysisResults(uniqueId, data) {
             </div>
         </div>
     `;
-}
-
-// Display analysis results
-// Display analysis results - CORREGIDO PARA MOSTRAR EMAIL
-function displayAnalysisResults(uniqueId, data) {
-    const resultDiv = document.getElementById(`analysis-result-${uniqueId}`);
-    const { contact, analysis } = data;
-    
-    // Buscar email en diferentes lugares posibles
-    const email = contact.email || 
-                  contact.email_status || 
-                  contact.personal_emails?.[0] || 
-                  contact.work_email ||
-                  'No encontrado';
-    
-    const phone = contact.phone || 
-                  contact.phone_numbers?.[0] || 
-                  contact.mobile_phone || 
-                  contact.work_phone || 
-                  null;
-    
-    const score = analysis.total_score || 0;
-    const priority = analysis.priority || 'COLD';
-    const priorityColor = priority === 'HOT' ? 'red' : priority === 'WARM' ? 'yellow' : 'gray';
-    
-    resultDiv.innerHTML = `
-        <div class="mt-4 space-y-4">
-            <!-- Contact Info -->
-            <div class="bg-green-50 p-4 rounded-lg">
-                <h5 class="font-bold mb-2">📞 Informações de Contato</h5>
-                <div class="space-y-1">
-                    ${email !== 'No encontrado' ? 
-                        `<p class="text-sm"><i class="fas fa-envelope mr-2"></i>${email}</p>` : 
-                        '<p class="text-sm text-gray-500"><i class="fas fa-envelope mr-2"></i>Email não disponível</p>'
-                    }
-                    ${phone ? 
-                        `<p class="text-sm font-bold text-green-700"><i class="fas fa-phone mr-2"></i>${phone}</p>` : 
-                        '<p class="text-sm text-red-600"><i class="fas fa-times mr-2"></i>Telefone não encontrado</p>'
-                    }
-                    ${contact.linkedin_url ? 
-                        `<p class="text-sm"><i class="fab fa-linkedin mr-2"></i><a href="${contact.linkedin_url}" target="_blank" class="text-blue-600 hover:underline">Ver LinkedIn</a></p>` : 
-                        ''
-                    }
-                </div>
-            </div>
-            
-            <!-- PPVVC Analysis -->
-            <div class="bg-white border-2 border-indigo-200 rounded-lg p-4">
-                <div class="flex justify-between items-center mb-3">
-                    <h5 class="font-bold">Análise PPVVC</h5>
-                    <span class="px-3 py-1 bg-${priorityColor}-500 text-white rounded-full font-bold">
-                        ${priority} - ${score}/10
-                    </span>
-                </div>
-                
-                <div class="grid grid-cols-3 gap-2 mb-3">
-                    ${Object.entries(analysis.scores || {}).map(([key, value]) => `
-                        <div class="text-center p-2 bg-gray-50 rounded">
-                            <div class="text-xs font-semibold text-gray-600">${key.toUpperCase()}</div>
-                            <div class="text-xl font-bold ${value >= 7 ? 'text-green-600' : value >= 5 ? 'text-yellow-600' : 'text-red-600'}">
-                                ${value}/10
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-                
-                <div class="bg-gray-50 p-3 rounded text-sm">
-                    <p class="font-semibold mb-1">Justificativa:</p>
-                    <p class="text-gray-700">${analysis.justification || 'N/A'}</p>
-                </div>
-                
-                <div class="bg-purple-50 p-3 rounded mt-3">
-                    <p class="font-semibold text-purple-900 mb-1">
-                        <i class="fas fa-bullseye mr-2"></i>Abordagem Recomendada:
-                    </p>
-                    <p class="text-purple-800">${analysis.approach || 'N/A'}</p>
-                </div>
-                
-                ${analysis.estimated_boxes_day ? `
-                    <div class="text-center mt-3 pt-3 border-t">
-                        <span class="text-sm text-gray-600">Volume Estimado:</span>
-                        <span class="text-lg font-bold text-indigo-600 ml-2">${analysis.estimated_boxes_day} caixas/dia</span>
-                    </div>
-                ` : ''}
-            </div>
-        </div>
-    `;
-}
-
-// Pagination functions
-function updatePaginationControls() {
-    document.getElementById('current-page').textContent = currentPageNum;
-    document.getElementById('total-pages').textContent = totalPages;
-    
-    const prevBtn = document.getElementById('prev-btn');
-    const nextBtn = document.getElementById('next-btn');
-    
-    prevBtn.disabled = currentPageNum <= 1;
-    nextBtn.disabled = currentPageNum >= totalPages;
-}
-
-function previousPage() {
-    if (currentPageNum > 1) {
-        searchCompaniesWithContacts(currentPageNum - 1);
-    }
-}
-
-function nextPage() {
-    if (currentPageNum < totalPages) {
-        searchCompaniesWithContacts(currentPageNum + 1);
-    }
-}
-
-function updateStepIndicator(step) {
-    for (let i = 1; i <= 2; i++) {
-        const indicator = document.getElementById(`step${i}-indicator`);
-        if (indicator && i <= step) {
-            indicator.classList.remove('opacity-50');
-            indicator.querySelector('div').classList.remove('bg-gray-300');
-            indicator.querySelector('div').classList.add('bg-blue-600');
-            indicator.querySelector('span').classList.remove('text-gray-500');
-        }
-    }
-}
-
-function closeModal() {
-    document.getElementById('contactModal').classList.add('hidden');
-}
-
-function clearAll() {
-    currentCompanies = [];
-    currentContacts = {};
-    analysisResults = {};
-    creditsUsed = 0;
-    currentPageNum = 1;
-    totalPages = 1;
-    totalCompanies = 0;
-    document.getElementById('companies-container').classList.add('hidden');
-    document.getElementById('credits-used').textContent = '0';
-    updateStepIndicator(1);
-}
-
-function exportResults() {
-    if (Object.keys(analysisResults).length === 0) {
-        alert('Nenhuma análise para exportar');
-        return;
-    }
-    
-    let csv = 'Empresa,Contato,Cargo,Email,Telefone,Score PPVVC,Prioridade,Abordagem\n';
-    
-    Object.values(analysisResults).forEach(result => {
-        csv += `"${result.company.name}","${result.contact.name}","${result.contact.title || ''}","${result.contact.email || ''}","${result.contact.phone || ''}","${result.analysis.total_score}","${result.analysis.priority}","${result.analysis.approach || ''}"\n`;
-    });
-    
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `ventapel_prospects_${new Date().toISOString().split('T')[0]}.csv`;
-    link.click();
 }
 
 // Initialize
