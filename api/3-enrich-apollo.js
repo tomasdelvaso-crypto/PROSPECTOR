@@ -30,7 +30,42 @@ module.exports = async (req, res) => {
             });
         }
 
-        // Try to match the person using available data
+        // OPCIÓN 1: Usar el endpoint de people/enrich con el ID
+        if (person.id) {
+            try {
+                console.log('Trying Apollo enrich with ID:', person.id);
+                
+                const enrichResponse = await axios.post(
+                    `https://api.apollo.io/v1/people/enrich`,
+                    {
+                        person_id: person.id,  // Usar person_id en lugar de solo id
+                        reveal_personal_emails: true,
+                        reveal_phone_numbers: true
+                    },
+                    {
+                        headers: {
+                            'X-Api-Key': apiKey,
+                            'Content-Type': 'application/json'
+                        },
+                        timeout: 15000
+                    }
+                );
+
+                if (enrichResponse.data?.person) {
+                    console.log('Enrich successful, email:', enrichResponse.data.person.email);
+                    return res.status(200).json({
+                        success: true,
+                        enriched: true,
+                        person: enrichResponse.data.person,
+                        source: 'apollo_enrich'
+                    });
+                }
+            } catch (enrichError) {
+                console.log('Enrich failed, trying match:', enrichError.message);
+            }
+        }
+
+        // OPCIÓN 2: Usar people/match si enrich falla
         const matchPayload = {
             first_name: person.first_name || person.name?.split(' ')[0],
             last_name: person.last_name || person.name?.split(' ').slice(1).join(' '),
@@ -39,52 +74,47 @@ module.exports = async (req, res) => {
             reveal_phone_numbers: true
         };
 
-        // Add LinkedIn if available
+        // Agregar LinkedIn si está disponible
         if (person.linkedin_url) {
             matchPayload.linkedin_url = person.linkedin_url;
         }
 
-        // Add email if available for better matching
-        if (person.email) {
-            matchPayload.email = person.email;
-        }
+        console.log('Trying Apollo match with:', matchPayload);
 
-        console.log('Apollo match request:', JSON.stringify(matchPayload, null, 2));
-
-        const response = await axios.post(
+        const matchResponse = await axios.post(
             'https://api.apollo.io/v1/people/match',
             matchPayload,
             {
                 headers: {
                     'X-Api-Key': apiKey,
-                    'Content-Type': 'application/json',
-                    'Cache-Control': 'no-cache'
+                    'Content-Type': 'application/json'
                 },
                 timeout: 15000
             }
         );
 
-        if (response.data?.person) {
-            res.status(200).json({
+        if (matchResponse.data?.person) {
+            console.log('Match successful, email:', matchResponse.data.person.email);
+            return res.status(200).json({
                 success: true,
                 enriched: true,
-                person: response.data.person,
+                person: matchResponse.data.person,
                 source: 'apollo_match'
-            });
-        } else {
-            res.status(200).json({
-                success: false,
-                enriched: false,
-                person: person,
-                message: 'No match found in Apollo'
             });
         }
 
+        // Si no hay match, devolver los datos originales
+        return res.status(200).json({
+            success: false,
+            enriched: false,
+            person: person,
+            message: 'No match found in Apollo'
+        });
+
     } catch (error) {
-        console.error('Apollo enrich error:', error.response?.data || error.message);
+        console.error('Apollo error:', error.response?.data || error.message);
         
-        // Return original person data even if enrichment fails
-        res.status(200).json({
+        return res.status(200).json({
             success: false,
             enriched: false,
             person: req.body.person,
