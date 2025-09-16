@@ -98,7 +98,8 @@ module.exports = async (req, res) => {
                         organization_ids: [company.id],
                         contact_email_status: ["verified", "unverified", "likely to engage"],
                         person_titles: profile.titles.length > 0 ? profile.titles : undefined,
-                        person_seniorities: profile.seniorities
+                        person_seniorities: profile.seniorities,
+                        reveal_contact_info: true
                     };
 
                     const contactsResponse = await axios.post(
