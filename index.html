@@ -3,641 +3,710 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ventapel Prospector - Sistema Inteligente com PPVVC</title>
+    <title>Ventapel Prospector v2.0 - Sistema Inteligente de Prospecção B2B</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body class="bg-gray-50">
-    <nav class="bg-white shadow-lg border-b-4 border-blue-600">
+    <nav class="bg-gradient-to-r from-blue-900 to-indigo-800 shadow-xl">
         <div class="max-w-7xl mx-auto px-4">
-            <div class="flex justify-between items-center py-4">
+            <div class="flex justify-between items-center py-5">
                 <div>
-                    <h1 class="text-2xl font-bold">Ventapel Prospector Brasil</h1>
-                    <p class="text-xs text-gray-600">Sistema de Qualificação com Análise PPVVC</p>
+                    <h1 class="text-3xl font-bold text-white">Ventapel Prospector v2.0</h1>
+                    <p class="text-sm text-blue-200">Sistema Inteligente de Qualificação B2B com Análise PPVVC</p>
                 </div>
-                <div class="text-sm text-gray-600">
-                    <span class="bg-green-100 px-2 py-1 rounded">Apollo</span>
-                    <span class="bg-yellow-100 px-2 py-1 rounded">Lusha</span>
-                    <span class="bg-purple-100 px-2 py-1 rounded">Serper</span>
-                    <span class="bg-indigo-100 px-2 py-1 rounded">Claude AI</span>
+                <div class="flex gap-2">
+                    <span class="bg-green-500 px-3 py-1 rounded-full text-white text-xs">Apollo.io</span>
+                    <span class="bg-yellow-500 px-3 py-1 rounded-full text-white text-xs">Lusha</span>
+                    <span class="bg-purple-500 px-3 py-1 rounded-full text-white text-xs">Serper</span>
+                    <span class="bg-indigo-500 px-3 py-1 rounded-full text-white text-xs">Claude AI</span>
                 </div>
             </div>
         </div>
     </nav>
 
     <div class="max-w-7xl mx-auto px-4 py-6">
-        <!-- Info Box -->
-        <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-indigo-500 p-4 mb-6">
-            <div class="flex items-center">
-                <i class="fas fa-lightbulb text-indigo-600 mr-2"></i>
+        <!-- Alerta de mejora -->
+        <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+            <div class="flex">
+                <i class="fas fa-exclamation-triangle text-yellow-400 mr-3"></i>
                 <div>
-                    <p class="text-sm font-semibold">Processo Otimizado em 3 Passos</p>
-                    <p class="text-xs text-gray-600">
-                        1. Busca rápida (Apollo) → 2. Identificar 2-3 prometedores → 3. Análise Profunda (Apollo + Lusha + Serper + Claude PPVVC)
-                    </p>
+                    <p class="font-semibold">Sistema v2.0 - Melhorias Implementadas</p>
+                    <ul class="text-sm mt-2 space-y-1">
+                        <li>✅ Busca primeiro por tipo de empresa e setor relevante</li>
+                        <li>✅ Enriquecimento completo com Apollo + Lusha funcionando</li>
+                        <li>✅ Análise inteligente focada em potencial de fechamento de caixas</li>
+                        <li>✅ Dados salvos localmente (CSV export melhorado)</li>
+                    </ul>
                 </div>
             </div>
         </div>
 
-        <!-- Painel de Busca -->
-        <div class="bg-white rounded-lg shadow p-6 mb-6">
-            <h2 class="text-lg font-semibold mb-4">
-                <i class="fas fa-search mr-2"></i>Busca de Prospectos B2B
+        <!-- Panel de búsqueda mejorado -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <h2 class="text-xl font-bold mb-4">
+                <i class="fas fa-industry mr-2 text-blue-600"></i>Busca por Setor e Potencial
             </h2>
             
-            <div class="grid grid-cols-4 gap-4 mb-4">
+            <div class="grid grid-cols-3 gap-4 mb-4">
+                <!-- Búsqueda por SECTOR primero -->
                 <div>
-                    <label class="block text-sm font-medium mb-1">Cargo do Decisor</label>
-                    <select id="titleFilter" class="w-full p-2 border rounded">
-                        <option value="">Todos</option>
-                        <option value="operations">Operations/Operações</option>
-                        <option value="logistics">Logistics/Logística</option>
-                        <option value="quality">Quality/Qualidade</option>
-                        <option value="production">Production/Produção</option>
-                        <option value="supply">Supply Chain</option>
-                        <option value="director">Director Level</option>
-                        <option value="ceo">C-Level/CEO</option>
+                    <label class="block text-sm font-semibold mb-1 text-gray-700">
+                        🏭 Setor Principal (PRIORIDADE)
+                    </label>
+                    <select id="sectorFilter" class="w-full p-3 border-2 border-blue-200 rounded-lg focus:border-blue-500">
+                        <option value="high_volume">📦 Alto Volume (E-commerce, Fulfillment, 3PL)</option>
+                        <option value="manufacturing">🏭 Indústria (Alimentos, Bebidas, Farmacêutica)</option>
+                        <option value="automotive">🚗 Automotiva e Autopeças</option>
+                        <option value="retail">🛍️ Varejo e Distribuição</option>
+                        <option value="textil">👔 Têxtil e Vestuário</option>
+                        <option value="cosmetics">💄 Cosméticos e Beleza</option>
+                        <option value="all">Todos os Setores Relevantes</option>
                     </select>
                 </div>
                 
+                <!-- Tamaño de empresa -->
                 <div>
-                    <label class="block text-sm font-medium mb-1">Indústria</label>
-                    <select id="industryFilter" class="w-full p-2 border rounded">
-                        <option value="">Todas</option>
-                        <option value="ecommerce">E-commerce/Marketplace</option>
-                        <option value="logistics">3PL/Logística/Fulfillment</option>
-                        <option value="manufacturing">Manufactura/Indústria</option>
-                        <option value="food">Alimentos e Bebidas</option>
-                        <option value="pharma">Farmacêutica/Cosmética</option>
-                        <option value="automotive">Automotiva/Autopeças</option>
-                        <option value="retail">Varejo/Têxtil</option>
+                    <label class="block text-sm font-semibold mb-1 text-gray-700">
+                        👥 Porte (Funcionários)
+                    </label>
+                    <select id="sizeFilter" class="w-full p-3 border-2 border-gray-200 rounded-lg">
+                        <option value="500,10000">500+ (Alto potencial)</option>
+                        <option value="200,500">200-500 (Médio potencial)</option>
+                        <option value="100,200">100-200 (Potencial inicial)</option>
+                        <option value="1000,10000">1000+ (Enterprise)</option>
                     </select>
                 </div>
                 
+                <!-- Región -->
                 <div>
-                    <label class="block text-sm font-medium mb-1">Região</label>
-                    <select id="locationFilter" class="w-full p-2 border rounded">
-                        <option value="Brazil">Brasil (Todos)</option>
-                        <option value="São Paulo, Brazil">São Paulo - SP</option>
-                        <option value="Rio de Janeiro, Brazil">Rio de Janeiro - RJ</option>
-                        <option value="Minas Gerais, Brazil">Minas Gerais - MG</option>
-                        <option value="Santa Catarina, Brazil">Santa Catarina - SC</option>
-                        <option value="Paraná, Brazil">Paraná - PR</option>
+                    <label class="block text-sm font-semibold mb-1 text-gray-700">
+                        📍 Região
+                    </label>
+                    <select id="locationFilter" class="w-full p-3 border-2 border-gray-200 rounded-lg">
+                        <option value="São Paulo, Brazil">São Paulo</option>
+                        <option value="Rio de Janeiro, Brazil">Rio de Janeiro</option>
+                        <option value="Minas Gerais, Brazil">Minas Gerais</option>
+                        <option value="Santa Catarina, Brazil">Santa Catarina</option>
+                        <option value="Paraná, Brazil">Paraná</option>
+                        <option value="Brazil">Todo Brasil</option>
                     </select>
                 </div>
-                
+            </div>
+
+            <!-- Nuevos filtros avanzados -->
+            <div class="grid grid-cols-3 gap-4 mb-4">
                 <div>
-                    <label class="block text-sm font-medium mb-1">Porte</label>
-                    <select id="sizeFilter" class="w-full p-2 border rounded">
-                        <option value="">Todos</option>
-                        <option value="201,500">201-500</option>
-                        <option value="501,1000">501-1000</option>
-                        <option value="1001,5000">1001-5000</option>
-                        <option value="5001,10000">5001+</option>
+                    <label class="block text-sm font-semibold mb-1 text-gray-700">
+                        🎯 Prioridade de Cargo
+                    </label>
+                    <select id="titlePriority" class="w-full p-3 border rounded-lg">
+                        <option value="operations_first">Operations/Logística primeiro</option>
+                        <option value="quality_first">Qualidade/Produção primeiro</option>
+                        <option value="c_level">Apenas C-Level/Diretores</option>
+                        <option value="all">Todos os níveis</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold mb-1 text-gray-700">
+                        📊 Volume Estimado
+                    </label>
+                    <select id="volumeFilter" class="w-full p-3 border rounded-lg">
+                        <option value="high">Alto (>1000 caixas/dia)</option>
+                        <option value="medium">Médio (100-1000 caixas/dia)</option>
+                        <option value="all">Qualquer volume</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold mb-1 text-gray-700">
+                        🔍 Busca Inteligente
+                    </label>
+                    <select id="searchMode" class="w-full p-3 border rounded-lg">
+                        <option value="deep">Análise Profunda (mais lenta, mais precisa)</option>
+                        <option value="quick">Busca Rápida (menos detalhes)</option>
                     </select>
                 </div>
             </div>
             
-            <div class="flex gap-2">
-                <button onclick="searchProspects()" 
-                        class="px-6 py-3 bg-blue-600 text-white rounded hover:bg-blue-700">
-                    <i class="fas fa-search mr-2"></i>Buscar Prospectos
+            <div class="flex gap-3">
+                <button onclick="searchProspectsV2()" 
+                        class="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 font-semibold shadow-lg">
+                    <i class="fas fa-search mr-2"></i>Buscar Empresas Relevantes
                 </button>
                 
-                <button onclick="exportResults()" 
-                        class="px-4 py-3 bg-green-600 text-white rounded hover:bg-green-700">
-                    <i class="fas fa-download mr-2"></i>Exportar CSV
+                <button onclick="exportEnhancedCSV()" 
+                        class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold shadow-lg">
+                    <i class="fas fa-file-excel mr-2"></i>Exportar Dados Completos
+                </button>
+
+                <button onclick="clearResults()" 
+                        class="px-4 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600">
+                    <i class="fas fa-trash mr-2"></i>Limpar
                 </button>
             </div>
         </div>
 
-        <!-- Métricas -->
-        <div class="grid grid-cols-5 gap-4 mb-6">
-            <div class="bg-white rounded-lg shadow p-4">
-                <div class="text-2xl font-bold text-blue-600" id="totalFound">0</div>
-                <div class="text-xs text-gray-600">Encontrados</div>
+        <!-- Métricas mejoradas -->
+        <div class="grid grid-cols-6 gap-4 mb-6">
+            <div class="bg-white rounded-lg shadow p-4 border-t-4 border-blue-500">
+                <div class="text-2xl font-bold text-blue-600" id="companiesFound">0</div>
+                <div class="text-xs text-gray-600">Empresas Relevantes</div>
             </div>
-            <div class="bg-white rounded-lg shadow p-4">
-                <div class="text-2xl font-bold text-green-600" id="withContact">0</div>
-                <div class="text-xs text-gray-600">Com Contato</div>
+            <div class="bg-white rounded-lg shadow p-4 border-t-4 border-green-500">
+                <div class="text-2xl font-bold text-green-600" id="contactsFound">0</div>
+                <div class="text-xs text-gray-600">Contatos Identificados</div>
             </div>
-            <div class="bg-white rounded-lg shadow p-4">
-                <div class="text-2xl font-bold text-purple-600" id="analyzed">0</div>
-                <div class="text-xs text-gray-600">Analisados</div>
+            <div class="bg-white rounded-lg shadow p-4 border-t-4 border-purple-500">
+                <div class="text-2xl font-bold text-purple-600" id="enrichedCount">0</div>
+                <div class="text-xs text-gray-600">Enriquecidos</div>
             </div>
-            <div class="bg-white rounded-lg shadow p-4">
-                <div class="text-2xl font-bold text-orange-600" id="hotLeads">0</div>
-                <div class="text-xs text-gray-600">Hot Leads (7+)</div>
+            <div class="bg-white rounded-lg shadow p-4 border-t-4 border-yellow-500">
+                <div class="text-2xl font-bold text-yellow-600" id="withPhone">0</div>
+                <div class="text-xs text-gray-600">Com Telefone</div>
             </div>
-            <div class="bg-white rounded-lg shadow p-4">
-                <div class="text-2xl font-bold text-indigo-600" id="avgScore">0</div>
-                <div class="text-xs text-gray-600">Score Médio</div>
+            <div class="bg-white rounded-lg shadow p-4 border-t-4 border-red-500">
+                <div class="text-2xl font-bold text-red-600" id="hotLeads">0</div>
+                <div class="text-xs text-gray-600">🔥 Hot Leads</div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-4 border-t-4 border-indigo-500">
+                <div class="text-2xl font-bold text-indigo-600" id="estimatedBoxes">0</div>
+                <div class="text-xs text-gray-600">Caixas/Dia Total</div>
             </div>
         </div>
 
-        <!-- Resultados -->
-        <div class="bg-white rounded-lg shadow p-6">
+        <!-- Área de resultados mejorada -->
+        <div class="bg-white rounded-lg shadow-lg p-6">
             <div class="flex justify-between items-center mb-4">
-                <h3 class="font-semibold">Resultados</h3>
-                <div id="resultsCount" class="text-sm text-gray-600"></div>
-            </div>
-            <div id="results">
-                <p class="text-gray-500">Nenhuma busca realizada</p>
+                <h3 class="text-lg font-bold">Resultados da Busca</h3>
+                <div class="flex gap-2">
+                    <button onclick="sortByScore()" class="px-3 py-1 bg-indigo-100 text-indigo-700 rounded text-sm">
+                        <i class="fas fa-sort mr-1"></i>Ordenar por Score
+                    </button>
+                    <button onclick="filterHotOnly()" class="px-3 py-1 bg-red-100 text-red-700 rounded text-sm">
+                        <i class="fas fa-fire mr-1"></i>Só Hot Leads
+                    </button>
+                </div>
             </div>
             
-            <!-- Botón Carregar Mais -->
-            <div id="loadMoreContainer" class="mt-4 text-center hidden">
-                <button onclick="loadMoreProspects()" 
-                        class="px-6 py-3 bg-blue-600 text-white rounded hover:bg-blue-700">
-                    <i class="fas fa-plus-circle mr-2"></i>Carregar mais 25 prospectos
-                </button>
+            <div id="searchProgress" class="hidden mb-4">
+                <div class="bg-blue-50 p-4 rounded-lg">
+                    <div class="flex items-center">
+                        <i class="fas fa-spinner fa-spin text-blue-600 mr-3"></i>
+                        <div class="flex-1">
+                            <div class="font-semibold text-sm" id="progressText">Iniciando busca...</div>
+                            <div class="w-full bg-gray-200 rounded-full h-2 mt-2">
+                                <div id="progressBar" class="bg-blue-600 h-2 rounded-full transition-all" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="results">
+                <p class="text-gray-500 text-center py-8">
+                    <i class="fas fa-search text-4xl text-gray-300 mb-3 block"></i>
+                    Selecione os filtros e clique em buscar
+                </p>
             </div>
         </div>
     </div>
 
     <script>
-    // Configuração
-    const TITLE_MAPPING = {
-        'operations': ['Operations Manager', 'Operations Director', 'COO', 'VP Operations'],
-        'logistics': ['Logistics Manager', 'Supply Chain Manager', 'Logistics Director'],
-        'quality': ['Quality Manager', 'Quality Director', 'QA Manager'],
-        'production': ['Production Manager', 'Plant Manager', 'Manufacturing Manager'],
-        'supply': ['Supply Chain Manager', 'Head of Supply Chain', 'Procurement Manager'],
-        'director': ['Director', 'Operations Director', 'Industrial Director'],
-        'ceo': ['CEO', 'President', 'Chief Executive Officer', 'Owner']
-    };
-
-    let currentResults = [];
-    let analyzedCount = 0;
-    let analyzedProspects = [];
-    let currentPage = 1;
-    let allResults = [];
-
-    async function searchProspects() {
-        currentPage = 1;
-        allResults = [];
-        analyzedCount = 0;
-        analyzedProspects = [];
-        document.getElementById('analyzed').textContent = '0';
-        document.getElementById('hotLeads').textContent = '0';
-        document.getElementById('avgScore').textContent = '0';
-        
-        const filters = {
-            location: document.getElementById('locationFilter').value || 'Brazil',
-            size: document.getElementById('sizeFilter').value
-        };
-        
-        const titleType = document.getElementById('titleFilter').value;
-        if (titleType && TITLE_MAPPING[titleType]) {
-            filters.titles = TITLE_MAPPING[titleType];
-        }
-        
-        const resultsDiv = document.getElementById('results');
-        resultsDiv.innerHTML = '<p class="text-blue-600"><i class="fas fa-spinner fa-spin mr-2"></i>Buscando prospectos...</p>';
-        
+    // Estado global mejorado
+    let allProspects = [];
+    let enrichedData = new Map(); // Guardar todos los datos enriquecidos
+    let companiesData = new Map(); // Datos de empresas
+    let enrichmentQueue = []; // Cola de contactos para enriquecer
+    let totalCreditsUsed = 0; // Contador de créditos gastados
+    
+    // Función para enriquecer un contacto específico después de revisar LinkedIn
+    async function enrichThisContact(encodedContact) {
         try {
-            const response = await fetch('/api/apollo-search', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ filters, page: currentPage })
-            });
+            const contact = JSON.parse(atob(encodedContact));
+            const contactId = contact.id || contact.name.replace(/\s/g, '_');
+            const btn = document.getElementById(`enrich-btn-${contactId}`);
             
-            const data = await response.json();
-            currentResults = data.people || [];
-            allResults = currentResults;
+            // Cambiar estado del botón
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Enriqueciendo...';
+            btn.disabled = true;
             
-            displayResults(currentResults);
-            updateStats();
+            // Enriquecer el contacto
+            const enriched = await enrichContact(contact, contactId);
             
-            if (currentResults.length >= 25) {
-                document.getElementById('loadMoreContainer').classList.remove('hidden');
+            // Actualizar el display con los datos obtenidos
+            const dataDiv = document.getElementById(`contact-data-${contactId}`);
+            dataDiv.innerHTML = `
+                ${enriched.email && enriched.email !== 'email_not_unlocked@domain.com' ? `
+                    <div class="text-green-600 font-semibold">
+                        <i class="fas fa-check-circle mr-1"></i>
+                        ${enriched.email}
+                        <button onclick="navigator.clipboard.writeText('${enriched.email}')" class="ml-2 text-blue-500 hover:text-blue-700">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                ` : '<div class="text-red-400"><i class="fas fa-times-circle mr-1"></i>Email não encontrado</div>'}
+                
+                ${enriched.phone ? `
+                    <div class="text-green-600 font-semibold">
+                        <i class="fas fa-check-circle mr-1"></i>
+                        ${enriched.phone}
+                        <button onclick="navigator.clipboard.writeText('${enriched.phone}')" class="ml-2 text-blue-500 hover:text-blue-700">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                ` : '<div class="text-red-400"><i class="fas fa-times-circle mr-1"></i>Telefone não encontrado</div>'}
+                
+                ${enriched.serper_data?.insights ? `
+                    <div class="mt-2 p-2 bg-yellow-50 rounded text-xs">
+                        <p class="font-semibold">📊 Intel:</p>
+                        <p>${enriched.serper_data.insights}</p>
+                    </div>
+                ` : ''}
+            `;
+            
+            // Hacer análisis con Claude
+            const analysis = await analyzeProspect(enriched, contactId);
+            
+            // Mostrar análisis
+            const analysisDiv = document.getElementById(`analysis-${contactId}`);
+            if (analysis) {
+                const score = analysis.total_score || 0;
+                analysisDiv.innerHTML = `
+                    <div class="p-3 ${score >= 7 ? 'bg-green-50' : score >= 5 ? 'bg-yellow-50' : 'bg-gray-50'} rounded-lg border ${score >= 7 ? 'border-green-300' : 'border-gray-200'}">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-sm font-bold">Análise PPVVC</span>
+                            <span class="text-xl font-bold ${score >= 7 ? 'text-green-600' : score >= 5 ? 'text-yellow-600' : 'text-red-600'}">
+                                ${score}/10 ${score >= 7 ? '🔥' : ''}
+                            </span>
+                        </div>
+                        
+                        <div class="grid grid-cols-3 gap-1 text-xs mb-2">
+                            ${Object.entries(analysis.scores || {}).map(([key, value]) => `
+                                <div class="text-center">
+                                    <div class="font-semibold">${key.toUpperCase()}</div>
+                                    <div class="text-lg ${value >= 7 ? 'text-green-600' : value >= 5 ? 'text-yellow-600' : 'text-red-600'}">${value}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                        
+                        ${analysis.key_insight ? `
+                            <div class="p-2 bg-white rounded text-xs">
+                                <span class="font-semibold">💡 Insight:</span> ${analysis.key_insight}
+                            </div>
+                        ` : ''}
+                        
+                        ${analysis.estimated_boxes_per_day ? `
+                            <div class="mt-2 text-center">
+                                <span class="text-xs text-gray-600">Volume estimado:</span>
+                                <span class="text-sm font-bold text-indigo-600 ml-1">${analysis.estimated_boxes_per_day} caixas/dia</span>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+                
+                // Actualizar métricas si es hot lead
+                if (score >= 7) {
+                    const currentHot = parseInt(document.getElementById('hotLeads').textContent);
+                    document.getElementById('hotLeads').textContent = currentHot + 1;
+                }
+            }
+            
+            // Cambiar botón a completado
+            btn.innerHTML = '<i class="fas fa-check mr-1"></i>Enriquecido!';
+            btn.classList.remove('from-purple-600', 'to-indigo-600');
+            btn.classList.add('bg-green-600');
+            
+            // Actualizar contador de créditos
+            totalCreditsUsed += 2; // Apollo + Lusha
+            updateCreditCounter();
+            
+            // Actualizar métricas
+            const currentEnriched = parseInt(document.getElementById('enrichedCount').textContent);
+            document.getElementById('enrichedCount').textContent = currentEnriched + 1;
+            
+            if (enriched.phone) {
+                const currentWithPhone = parseInt(document.getElementById('withPhone').textContent);
+                document.getElementById('withPhone').textContent = currentWithPhone + 1;
             }
             
         } catch (error) {
-            console.error('Erro:', error);
-            resultsDiv.innerHTML = `
-                <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-                    <p>Erro ao buscar: ${error.message}</p>
-                </div>
-            `;
+            console.error('Error enriqueciendo:', error);
+            const contactId = JSON.parse(atob(encodedContact)).id || JSON.parse(atob(encodedContact)).name.replace(/\s/g, '_');
+            const btn = document.getElementById(`enrich-btn-${contactId}`);
+            btn.innerHTML = '<i class="fas fa-exclamation-triangle mr-1"></i>Error';
+            btn.classList.add('bg-red-600');
+        }
+    }
+    
+    // Agregar contador de créditos en la UI
+    function updateCreditCounter() {
+        let counterDiv = document.getElementById('creditCounter');
+        if (!counterDiv) {
+            // Crear el contador si no existe
+            const nav = document.querySelector('nav .flex.gap-2');
+            counterDiv = document.createElement('div');
+            counterDiv.id = 'creditCounter';
+            counterDiv.className = 'ml-4 bg-yellow-500 px-3 py-1 rounded-full text-white text-xs font-bold';
+            nav.appendChild(counterDiv);
+        }
+        counterDiv.innerHTML = `💳 ${totalCreditsUsed} créditos usados`;
+    }
+    
+    // Mapeo de sectores a palabras clave para Apollo
+    const SECTOR_KEYWORDS = {
+        'high_volume': ['ecommerce', 'e-commerce', 'fulfillment', 'marketplace', 'logistics', '3pl', 'warehouse'],
+        'manufacturing': ['manufacturing', 'industrial', 'factory', 'production', 'food', 'beverage', 'pharmaceutical'],
+        'automotive': ['automotive', 'auto parts', 'autopeças', 'vehicle', 'car manufacturer'],
+        'retail': ['retail', 'wholesale', 'distribution', 'varejo', 'atacado', 'distribuição'],
+        'textil': ['textile', 'clothing', 'fashion', 'apparel', 'têxtil', 'vestuário', 'moda'],
+        'cosmetics': ['cosmetics', 'beauty', 'personal care', 'cosméticos', 'beleza']
+    };
+
+    // Función principal de búsqueda v2
+    async function searchProspectsV2() {
+        const sector = document.getElementById('sectorFilter').value;
+        const size = document.getElementById('sizeFilter').value;
+        const location = document.getElementById('locationFilter').value;
+        const titlePriority = document.getElementById('titlePriority').value;
+        const searchMode = document.getElementById('searchMode').value;
+        
+        // Reset
+        allProspects = [];
+        enrichedData.clear();
+        companiesData.clear();
+        updateMetrics();
+        
+        // Mostrar progreso
+        showProgress('Buscando empresas relevantes no setor...');
+        
+        try {
+            // Paso 1: Buscar empresas por sector
+            const companies = await searchCompaniesBySector(sector, size, location);
+            updateProgress(20, `${companies.length} empresas encontradas. Buscando decisores...`);
+            
+            // Paso 2: Buscar contactos relevantes en esas empresas
+            let contacts = [];
+            for (const company of companies.slice(0, 10)) { // Limitar a 10 empresas top
+                const companyContacts = await findContactsInCompany(company, titlePriority);
+                contacts = contacts.concat(companyContacts);
+                updateProgress(20 + (contacts.length * 2), `${contacts.length} contatos identificados...`);
+            }
+            
+            // Paso 3: NO enriquecer automáticamente - esperar decisión del usuario
+            // Los contactos se mostrarán primero con LinkedIn para revisión manual
+            
+            // Paso 4: Análisis básico rápido sin gastar créditos
+            updateProgress(90, 'Preparando resultados...');
+            
+            // Mostrar resultados
+            allProspects = contacts;
+            displayResultsV2(contacts);
+            hideProgress();
+            
+        } catch (error) {
+            console.error('Erro na busca:', error);
+            hideProgress();
+            showError('Erro ao buscar prospectos. Verifique console para detalhes.');
         }
     }
 
-    async function loadMoreProspects() {
-        currentPage++;
-        const btn = event.target;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Carregando...';
-        btn.disabled = true;
+    // Buscar empresas por sector
+    async function searchCompaniesBySector(sector, size, location) {
+        const keywords = SECTOR_KEYWORDS[sector] || SECTOR_KEYWORDS['all'];
         
-        try {
-            const filters = {
-                location: document.getElementById('locationFilter').value || 'Brazil',
-                size: document.getElementById('sizeFilter').value
-            };
-            
-            const titleType = document.getElementById('titleFilter').value;
-            if (titleType && TITLE_MAPPING[titleType]) {
-                filters.titles = TITLE_MAPPING[titleType];
-            }
-            
-            const response = await fetch('/api/apollo-search', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ filters, page: currentPage })
-            });
-            
-            const data = await response.json();
-            const newResults = data.people || [];
-            
-            if (newResults.length > 0) {
-                allResults = [...allResults, ...newResults];
-                currentResults = allResults;
-                displayResults(allResults);
-                updateStats();
-            } else {
-                document.getElementById('loadMoreContainer').classList.add('hidden');
-            }
-        } finally {
-            btn.innerHTML = '<i class="fas fa-plus-circle mr-2"></i>Carregar mais 25 prospectos';
-            btn.disabled = false;
-        }
+        const response = await fetch('/api/apollo-search-companies', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                industries: keywords,
+                size_range: size,
+                location: location
+            })
+        });
+        
+        const data = await response.json();
+        return data.companies || [];
     }
 
-    async function performDeepAnalysis(index) {
-        const person = currentResults[index];
-        const analysisDiv = document.getElementById(`analysis-${index}`);
+    // Buscar contactos en una empresa específica
+    async function findContactsInCompany(company, titlePriority) {
+        let titles = [];
         
-        analysisDiv.innerHTML = `
-            <div class="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-indigo-200">
-                <div class="flex items-center">
-                    <i class="fas fa-spinner fa-spin text-indigo-600 mr-2"></i>
-                    <span class="text-sm font-semibold">Iniciando análise profunda...</span>
-                </div>
-                <div class="mt-2 text-xs text-gray-600">
-                    <div id="progress-${index}">📍 Passo 1/5: Preparando dados...</div>
-                </div>
-            </div>
-        `;
+        switch(titlePriority) {
+            case 'operations_first':
+                titles = ['Operations Manager', 'Logistics Manager', 'Supply Chain Manager', 'COO'];
+                break;
+            case 'quality_first':
+                titles = ['Quality Manager', 'Production Manager', 'Plant Manager'];
+                break;
+            case 'c_level':
+                titles = ['COO', 'CEO', 'Operations Director', 'VP Operations'];
+                break;
+            default:
+                titles = ['Manager', 'Director', 'Gerente', 'Diretor'];
+        }
         
+        const response = await fetch('/api/apollo-find-contacts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                company_name: company.name,
+                company_domain: company.domain,
+                titles: titles
+            })
+        });
+        
+        const data = await response.json();
+        const contacts = data.contacts || [];
+        
+        // Agregar información de la empresa a cada contacto
+        return contacts.map(contact => ({
+            ...contact,
+            company: company,
+            company_employees: company.estimated_num_employees,
+            company_industry: company.industry
+        }));
+    }
+
+    // Enriquecer contacto con Apollo y Lusha
+    async function enrichContact(contact, index) {
+        const enriched = {
+            ...contact,
+            apollo_data: null,
+            lusha_data: null,
+            serper_data: null
+        };
+        
+        // Apollo enrich
         try {
-            let enrichedPerson = {...person};
-            
-            // Paso 1: Apollo Enrich
-            document.getElementById(`progress-${index}`).innerHTML = '🔍 Passo 1/5: Buscando em Apollo...';
-            
-            try {
-                const apolloResponse = await fetch('/api/apollo-enrich', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ person: person })
-                });
-                
-                const apolloData = await apolloResponse.json();
-                
-                if (apolloData.success && apolloData.person) {
-                    enrichedPerson = {
-                        ...enrichedPerson,
-                        email: apolloData.person.email || enrichedPerson.email,
-                        phone_numbers: apolloData.person.phone_numbers || enrichedPerson.phone_numbers
-                    };
-                }
-            } catch (error) {
-                console.log('Apollo enrich failed:', error);
-            }
-            
-            // Paso 2: Lusha si no hay teléfono
-            if (!enrichedPerson.phone_numbers || enrichedPerson.phone_numbers.length === 0) {
-                document.getElementById(`progress-${index}`).innerHTML = '📱 Passo 2/5: Buscando telefone em Lusha...';
-                
-                try {
-                    const lushaResponse = await fetch('/api/lusha-enrich', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            firstName: person.first_name,
-                            lastName: person.last_name,
-                            company: person.organization?.name,
-                            domain: person.organization?.primary_domain,
-                            linkedinUrl: person.linkedin_url
-                        })
-                    });
-                    
-                    const lushaData = await lushaResponse.json();
-                    console.log('Lusha response:', lushaData);
-                    
-                    if (lushaData.enriched && lushaData.contact) {
-                        if (lushaData.contact.phones?.length > 0) {
-                            enrichedPerson.phone_numbers = lushaData.contact.phone_numbers || lushaData.contact.phones;
-                        }
-                        if (!enrichedPerson.email && lushaData.contact.email) {
-                            enrichedPerson.email = lushaData.contact.email;
-                        }
-                    }
-                } catch (error) {
-                    console.log('Lusha failed:', error);
-                }
-            }
-            
-            // Actualizar display del contacto
-            updateContactDisplay(index, enrichedPerson);
-            
-            // Paso 3: Serper
-            document.getElementById(`progress-${index}`).innerHTML = '🔍 Passo 3/5: Buscando inteligência de mercado...';
-            
-            let enrichData = {};
-            try {
-                const enrichResponse = await fetch('/api/enrich-prospect', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        company: person.organization || {},
-                        contact: enrichedPerson
-                    })
-                });
-                
-                enrichData = await enrichResponse.json();
-            } catch (error) {
-                console.log('Serper failed:', error);
-                enrichData = { enriched: false };
-            }
-            
-            // Paso 4: Claude
-            document.getElementById(`progress-${index}`).innerHTML = '🧠 Passo 4/5: Analisando com IA (PPVVC)...';
-            
-            const analysisResponse = await fetch('/api/claude-analyze', {
+            const apolloResp = await fetch('/api/apollo-enrich-fixed', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    company: person.organization || {},
-                    contact: {
-                        name: enrichedPerson.name,
-                        title: enrichedPerson.title,
-                        email: enrichedPerson.email,
-                        phone: enrichedPerson.phone_numbers?.[0]?.sanitized_number || enrichedPerson.phone_numbers?.[0]?.number
-                    },
-                    enrichment: enrichData
+                    person: contact,
+                    first_name: contact.first_name,
+                    last_name: contact.last_name,
+                    company_name: contact.company?.name
                 })
             });
-            
-            const analysis = await analysisResponse.json();
-            
-            // Paso 5: Display
-            document.getElementById(`progress-${index}`).innerHTML = '✅ Passo 5/5: Compilando resultados...';
-            
-            displayCompleteAnalysis(index, enrichedPerson, enrichData, analysis);
-            
-            // Actualizar métricas
-            analyzedCount++;
-            document.getElementById('analyzed').textContent = analyzedCount;
-            
-            if (analysis.total_score >= 7) {
-                const hotLeadsCount = parseInt(document.getElementById('hotLeads').textContent) + 1;
-                document.getElementById('hotLeads').textContent = hotLeadsCount;
+            const apolloData = await apolloResp.json();
+            if (apolloData.success) {
+                enriched.apollo_data = apolloData.person;
+                enriched.email = apolloData.person?.email || contact.email;
+                enriched.phone = apolloData.person?.phone_numbers?.[0]?.number;
             }
-            
-            analyzedProspects.push({
-                person: enrichedPerson,
-                analysis: analysis,
-                score: analysis.total_score
+        } catch (e) {
+            console.log('Apollo enrich failed:', e);
+        }
+        
+        // Lusha enrich si no hay teléfono
+        if (!enriched.phone) {
+            try {
+                const lushaResp = await fetch('/api/lusha-enrich', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        firstName: contact.first_name,
+                        lastName: contact.last_name,
+                        company: contact.company?.name,
+                        linkedinUrl: contact.linkedin_url
+                    })
+                });
+                const lushaData = await lushaResp.json();
+                if (lushaData.enriched) {
+                    enriched.lusha_data = lushaData.contact;
+                    enriched.phone = enriched.phone || lushaData.contact?.phone;
+                    enriched.email = enriched.email || lushaData.contact?.email;
+                }
+            } catch (e) {
+                console.log('Lusha enrich failed:', e);
+            }
+        }
+        
+        // Serper - buscar información útil de la empresa
+        try {
+            const serperResp = await fetch('/api/serper-company-intel', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    company_name: contact.company?.name,
+                    queries: [
+                        `"${contact.company?.name}" "centro de distribuição" OR "fábrica" OR "unidade"`,
+                        `"${contact.company?.name}" "volume de produção" OR "capacidade" OR "caixas por dia"`,
+                        `"${contact.company?.name}" "problemas" OR "recall" OR "logística"`
+                    ]
+                })
             });
-            
-            const totalScore = analyzedProspects.reduce((sum, p) => sum + (p.score || 0), 0);
-            const avgScore = Math.round(totalScore / analyzedProspects.length);
-            document.getElementById('avgScore').textContent = avgScore;
-            
-        } catch (error) {
-            console.error('Erro na análise:', error);
-            analysisDiv.innerHTML = `
-                <div class="p-3 bg-red-50 rounded border border-red-200">
-                    <p class="text-red-600 text-sm">❌ Erro na análise</p>
-                </div>
-            `;
+            const serperData = await serperResp.json();
+            enriched.serper_data = serperData;
+        } catch (e) {
+            console.log('Serper failed:', e);
         }
+        
+        enrichedData.set(contact.id || `${contact.first_name}_${contact.last_name}`, enriched);
+        return enriched;
     }
 
-    function updateContactDisplay(index, enrichedPerson) {
-        const contactDiv = document.querySelector(`#prospect-${index} .text-sm.space-y-1`);
-        if (!contactDiv) return;
+    // Análisis con Claude mejorado
+    async function analyzeProspect(contact, index) {
+        const enriched = enrichedData.get(contact.id || `${contact.first_name}_${contact.last_name}`) || contact;
         
-        let updatedHTML = '';
+        const response = await fetch('/api/claude-analyze-v2', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contact: enriched,
+                company: contact.company,
+                enrichment_data: {
+                    apollo: enriched.apollo_data,
+                    lusha: enriched.lusha_data,
+                    serper: enriched.serper_data
+                }
+            })
+        });
         
-        if (enrichedPerson.email && enrichedPerson.email !== 'email_not_unlocked@domain.com') {
-            updatedHTML += `
-                <div>
-                    <i class="fas fa-envelope mr-1 text-green-500"></i>
-                    <a href="mailto:${enrichedPerson.email}" class="text-blue-500">${enrichedPerson.email}</a>
-                    <span class="text-xs text-green-600 ml-1">(revelado)</span>
-                </div>
-            `;
-        } else {
-            updatedHTML += '<div class="text-gray-400"><i class="fas fa-envelope mr-1"></i>Email não disponível</div>';
-        }
+        const analysis = await response.json();
+        enriched.analysis = analysis;
+        enriched.score = analysis.total_score || 0;
         
-        const phone = enrichedPerson.phone_numbers?.[0]?.sanitized_number || 
-                      enrichedPerson.phone_numbers?.[0]?.number;
-        
-        if (phone) {
-            updatedHTML += `
-                <div>
-                    <i class="fas fa-phone mr-1 text-green-500"></i>
-                    ${phone}
-                    <span class="text-xs text-green-600 ml-1">(revelado)</span>
-                </div>
-            `;
-        } else {
-            updatedHTML += '<div class="text-gray-400"><i class="fas fa-phone mr-1"></i>Telefone não disponível</div>';
-        }
-        
-        if (enrichedPerson.linkedin_url) {
-            updatedHTML += `
-                <div>
-                    <i class="fab fa-linkedin mr-1 text-gray-400"></i>
-                    <a href="${enrichedPerson.linkedin_url}" target="_blank" class="text-blue-500">LinkedIn</a>
-                </div>
-            `;
-        }
-        
-        if (enrichedPerson.organization?.estimated_num_employees) {
-            updatedHTML += `
-                <div>
-                    <i class="fas fa-users mr-1 text-gray-400"></i>
-                    ${enrichedPerson.organization.estimated_num_employees} funcionários
-                </div>
-            `;
-        }
-        
-        if (enrichedPerson.organization?.industry) {
-            updatedHTML += `
-                <div>
-                    <i class="fas fa-industry mr-1 text-gray-400"></i>
-                    ${enrichedPerson.organization.industry}
-                </div>
-            `;
-        }
-        
-        contactDiv.innerHTML = updatedHTML;
-        
-        // Actualizar botones si ahora hay email
-        const buttonsDiv = document.querySelector(`#prospect-${index} .ml-4.space-y-2`);
-        if (buttonsDiv && enrichedPerson.email && enrichedPerson.email !== 'email_not_unlocked@domain.com') {
-            if (!buttonsDiv.querySelector('.bg-green-600')) {
-                const copyButton = document.createElement('button');
-                copyButton.className = 'px-4 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 w-full';
-                copyButton.innerHTML = '<i class="fas fa-copy mr-1"></i>Copiar Email';
-                copyButton.onclick = () => copyEmail(enrichedPerson.email);
-                buttonsDiv.appendChild(copyButton);
-            }
-        }
+        return analysis;
     }
 
-    function displayCompleteAnalysis(index, person, enrichData, analysis) {
-        const analysisDiv = document.getElementById(`analysis-${index}`);
-        
-        let html = `
-            <div class="p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg border border-indigo-300">
-                <div class="flex justify-between items-start mb-4">
-                    <h4 class="font-bold text-lg">🧠 Análise Profunda Completa</h4>
-                    <span class="px-3 py-1 ${analysis.total_score >= 7 ? 'bg-green-500' : analysis.total_score >= 5 ? 'bg-yellow-500' : 'bg-red-500'} text-white rounded-full text-sm font-bold">
-                        ${analysis.total_score}/10
-                    </span>
-                </div>
-                
-                ${enrichData.enriched ? `
-                    <div class="bg-white p-3 rounded mb-3">
-                        <h5 class="font-semibold text-sm mb-2">📊 Inteligência de Mercado</h5>
-                        ${enrichData.enrichmentData?.publicProblems?.length > 0 ? `
-                            <div class="text-red-600 text-sm mb-2">
-                                ⚠️ <strong>Problemas:</strong> ${enrichData.enrichmentData.publicProblems[0].issue}
-                            </div>
-                        ` : ''}
-                        ${enrichData.enrichmentData?.buyingSignals?.length > 0 ? `
-                            <div class="text-green-600 text-sm mb-2">
-                                🛒 <strong>Buscando fornecedores!</strong>
-                            </div>
-                        ` : ''}
-                        ${enrichData.enrichmentData?.news?.length > 0 ? `
-                            <div class="text-blue-600 text-sm">
-                                📰 ${enrichData.enrichmentData.news[0].title}
-                            </div>
-                        ` : '<p class="text-gray-500 text-sm">Sem sinais públicos detectados</p>'}
-                    </div>
-                ` : ''}
-                
-                <div class="bg-white p-3 rounded mb-3">
-                    <h5 class="font-semibold text-sm mb-3">📈 Análise PPVVC</h5>
-                    <div class="grid grid-cols-3 gap-2">
-                        ${Object.entries(analysis.scores || {}).map(([key, value]) => `
-                            <div class="text-center">
-                                <div class="text-xs font-semibold uppercase text-gray-600">${key}</div>
-                                <div class="mt-1">
-                                    <div class="h-2 bg-gray-200 rounded-full">
-                                        <div class="h-2 ${value >= 7 ? 'bg-green-500' : value >= 5 ? 'bg-yellow-500' : 'bg-red-400'} rounded-full" style="width: ${value * 10}%"></div>
-                                    </div>
-                                    <div class="text-sm font-bold mt-1">${value}/10</div>
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-                
-                ${analysis.explanations ? `
-                    <div class="bg-gray-50 p-3 rounded mb-3 border border-gray-200">
-                        <h5 class="font-semibold text-sm mb-2">📝 Justificación</h5>
-                        <div class="space-y-1 text-xs">
-                            ${Object.entries(analysis.explanations).map(([key, value]) => `
-                                <div><strong class="text-gray-700">${key.toUpperCase()}:</strong> ${value}</div>
-                            `).join('')}
-                        </div>
-                    </div>
-                ` : ''}
-                
-                ${analysis.recommended_approach ? `
-                    <div class="bg-purple-100 p-3 rounded">
-                        <p class="text-sm font-semibold text-purple-900">
-                            🎯 ${analysis.recommended_approach}
-                        </p>
-                    </div>
-                ` : ''}
-            </div>
-        `;
-        
-        analysisDiv.innerHTML = html;
-    }
-
-    function displayResults(prospects) {
+    // Mostrar resultados v2
+    function displayResultsV2(prospects) {
         const resultsDiv = document.getElementById('results');
         
         if (prospects.length === 0) {
-            resultsDiv.innerHTML = '<p class="text-gray-500">Nenhum prospecto encontrado</p>';
+            resultsDiv.innerHTML = '<p class="text-gray-500 text-center py-8">Nenhuma empresa relevante encontrada</p>';
             return;
         }
         
-        let html = '<div class="space-y-4">';
+        let html = '<div class="space-y-6">';
         
-        prospects.forEach((person, index) => {
-            const hasEmail = person.email && person.email !== 'email_not_unlocked@domain.com';
-            const hasPhone = person.phone_numbers?.length > 0;
+        // Agrupar por empresa
+        const companiesMap = new Map();
+        prospects.forEach(p => {
+            const companyName = p.company?.name || 'Empresa não identificada';
+            if (!companiesMap.has(companyName)) {
+                companiesMap.set(companyName, []);
+            }
+            companiesMap.get(companyName).push(p);
+        });
+        
+        // Mostrar por empresa
+        companiesMap.forEach((contacts, companyName) => {
+            const company = contacts[0]?.company || {};
+            const enriched = enrichedData.get(contacts[0]?.id) || {};
             
             html += `
-                <div id="prospect-${index}" class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-all">
-                    <div class="flex justify-between">
-                        <div class="flex-1">
-                            <h4 class="font-semibold text-lg">${person.name || 'Nome não disponível'}</h4>
-                            <p class="text-gray-600">${person.title || 'Cargo não especificado'}</p>
-                            <p class="text-blue-600 font-medium">${person.organization?.name || 'Empresa não especificada'}</p>
-                            
-                            <div class="mt-2 text-sm space-y-1">
-                                ${hasEmail ? `
-                                    <div>
-                                        <i class="fas fa-envelope mr-1 text-gray-400"></i>
-                                        <a href="mailto:${person.email}" class="text-blue-500">${person.email}</a>
-                                    </div>
-                                ` : '<div class="text-gray-400"><i class="fas fa-envelope mr-1"></i>Email não disponível</div>'}
-                                
-                                ${hasPhone ? `
-                                    <div>
-                                        <i class="fas fa-phone mr-1 text-gray-400"></i>
-                                        ${person.phone_numbers[0].sanitized_number || person.phone_numbers[0].number}
-                                    </div>
-                                ` : '<div class="text-gray-400"><i class="fas fa-phone mr-1"></i>Telefone não disponível</div>'}
-                                
-                                ${person.linkedin_url ? `
-                                    <div>
-                                        <i class="fab fa-linkedin mr-1 text-gray-400"></i>
-                                        <a href="${person.linkedin_url}" target="_blank" class="text-blue-500">LinkedIn</a>
-                                    </div>
-                                ` : ''}
-                                
-                                ${person.organization?.estimated_num_employees ? `
-                                    <div>
-                                        <i class="fas fa-users mr-1 text-gray-400"></i>
-                                        ${person.organization.estimated_num_employees} funcionários
-                                    </div>
-                                ` : ''}
-                                
-                                ${person.organization?.industry ? `
-                                    <div>
-                                        <i class="fas fa-industry mr-1 text-gray-400"></i>
-                                        ${person.organization.industry}
+                <div class="border-2 border-gray-200 rounded-xl overflow-hidden">
+                    <!-- Header da empresa mejorado con más información visible -->
+                    <div class="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 border-b">
+                        <div class="flex justify-between items-start">
+                            <div class="flex-1">
+                                <h3 class="text-xl font-bold text-gray-800">${companyName}</h3>
+                                <div class="flex gap-4 mt-2 text-sm">
+                                    <span><i class="fas fa-industry mr-1"></i>${company.industry || 'Setor não identificado'}</span>
+                                    <span><i class="fas fa-users mr-1"></i>${company.estimated_num_employees || '?'} funcionários</span>
+                                    <span><i class="fas fa-map-marker-alt mr-1"></i>${company.location || 'Brasil'}</span>
+                                    ${company.website ? `<a href="${company.website}" target="_blank" class="text-blue-600 hover:text-blue-800"><i class="fas fa-globe mr-1"></i>Website</a>` : ''}
+                                </div>
+                                ${company.description ? `
+                                    <div class="mt-2 text-xs text-gray-600 italic">
+                                        ${company.description.substring(0, 200)}${company.description.length > 200 ? '...' : ''}
                                     </div>
                                 ` : ''}
                             </div>
-                            
-                            <div id="analysis-${index}" class="mt-4"></div>
+                            <div class="text-right">
+                                <div class="text-2xl font-bold text-indigo-600">
+                                    ${estimateBoxesPerDay(company)}
+                                </div>
+                                <div class="text-xs text-gray-600">caixas/dia estimado</div>
+                                <div class="mt-2">
+                                    <span class="px-2 py-1 ${parseInt(estimateBoxesPerDay(company)) > 1000 ? 'bg-green-500' : parseInt(estimateBoxesPerDay(company)) > 500 ? 'bg-yellow-500' : 'bg-gray-500'} text-white rounded-full text-xs">
+                                        ${parseInt(estimateBoxesPerDay(company)) > 1000 ? 'Alto Potencial' : parseInt(estimateBoxesPerDay(company)) > 500 ? 'Médio Potencial' : 'Baixo Potencial'}
+                                    </span>
+                                </div>
+                            </div>
                         </div>
                         
-                        <div class="ml-4 space-y-2">
-                            <button onclick="performDeepAnalysis(${index})" 
-                                    class="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded text-sm hover:from-indigo-700 hover:to-purple-700 w-full font-semibold">
-                                <i class="fas fa-microscope mr-1"></i>Análise Profunda
-                            </button>
-                            
-                            ${hasEmail ? `
-                                <button onclick="copyEmail('${person.email}')" 
-                                        class="px-4 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 w-full">
-                                    <i class="fas fa-copy mr-1"></i>Copiar Email
-                                </button>
-                            ` : ''}
+                        ${enriched.serper_data?.insights ? `
+                            <div class="mt-3 p-3 bg-white rounded-lg">
+                                <p class="text-sm font-semibold mb-1">📊 Inteligência de Mercado:</p>
+                                <p class="text-xs text-gray-700">${enriched.serper_data.insights}</p>
+                            </div>
+                        ` : ''}
+                    </div>
+                    
+                    <!-- Contatos da empresa -->
+                    <div class="p-4">
+                        <p class="text-sm font-semibold mb-3">Decisores Identificados:</p>
+                        <div class="grid grid-cols-2 gap-3">
+                            ${contacts.map(contact => {
+                                const enriched = enrichedData.get(contact.id) || contact;
+                                const score = enriched.analysis?.total_score || 0;
+                                
+                                return `
+                                    <div class="border rounded-lg p-3 hover:shadow-md transition-all" id="contact-${contact.id || contact.name.replace(/\s/g, '_')}">
+                                        <div class="flex justify-between items-start">
+                                            <div class="flex-1">
+                                                <p class="font-semibold">${contact.name}</p>
+                                                <p class="text-sm text-gray-600">${contact.title}</p>
+                                                
+                                                <!-- LinkedIn siempre visible primero para revisión -->
+                                                <div class="mt-2 space-y-1 text-xs">
+                                                    ${contact.linkedin_url ? `
+                                                        <div class="flex items-center gap-2">
+                                                            <a href="${contact.linkedin_url}" target="_blank" class="text-blue-600 hover:text-blue-800 font-semibold">
+                                                                <i class="fab fa-linkedin mr-1"></i>Ver LinkedIn Primeiro
+                                                            </a>
+                                                            <span class="text-gray-400">← Revise antes de enriquecer</span>
+                                                        </div>
+                                                    ` : '<div class="text-red-400"><i class="fas fa-exclamation-triangle mr-1"></i>Sem LinkedIn disponível</div>'}
+                                                    
+                                                    <!-- Mostrar datos si ya fueron enriquecidos -->
+                                                    <div id="contact-data-${contact.id || contact.name.replace(/\s/g, '_')}" class="mt-2">
+                                                        ${enriched.email ? `
+                                                            <div class="text-green-600">
+                                                                <i class="fas fa-check-circle mr-1"></i>
+                                                                ${enriched.email}
+                                                            </div>
+                                                        ` : '<div class="text-gray-400"><i class="fas fa-envelope mr-1"></i>Email não revelado</div>'}
+                                                        
+                                                        ${enriched.phone ? `
+                                                            <div class="text-green-600">
+                                                                <i class="fas fa-check-circle mr-1"></i>
+                                                                ${enriched.phone}
+                                                            </div>
+                                                        ` : '<div class="text-gray-400"><i class="fas fa-phone mr-1"></i>Telefone não revelado</div>'}
+                                                    </div>
+                                                </div>
+                                                
+                                                <!-- Área de análisis que se llena después -->
+                                                <div id="analysis-${contact.id || contact.name.replace(/\s/g, '_')}" class="mt-3"></div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Botones de acción -->
+                                        <div class="mt-3 flex gap-2">
+                                            ${contact.linkedin_url ? `
+                                                <button onclick="enrichThisContact('${btoa(JSON.stringify(contact))}')" 
+                                                        class="px-3 py-1 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded text-xs hover:from-purple-700 hover:to-indigo-700 w-full font-semibold"
+                                                        id="enrich-btn-${contact.id || contact.name.replace(/\s/g, '_')}">
+                                                    <i class="fas fa-search-dollar mr-1"></i>Enriquecer (gastar créditos)
+                                                </button>
+                                            ` : `
+                                                <button disabled 
+                                                        class="px-3 py-1 bg-gray-300 text-gray-500 rounded text-xs w-full cursor-not-allowed">
+                                                    <i class="fas fa-times mr-1"></i>Sem LinkedIn
+                                                </button>
+                                            `}
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
                         </div>
                     </div>
                 </div>
@@ -646,56 +715,210 @@
         
         html += '</div>';
         resultsDiv.innerHTML = html;
-        document.getElementById('resultsCount').textContent = `${prospects.length} resultados`;
+        updateMetrics();
     }
 
-    function updateStats() {
-        document.getElementById('totalFound').textContent = currentResults.length;
+    // Estimar cajas por día basado en empleados y sector
+    function estimateBoxesPerDay(company) {
+        const employees = company.estimated_num_employees || 100;
+        const industry = (company.industry || '').toLowerCase();
         
-        const withContact = currentResults.filter(p => 
-            (p.email && p.email !== 'email_not_unlocked@domain.com') || p.phone_numbers?.length > 0
-        ).length;
-        document.getElementById('withContact').textContent = withContact;
+        let multiplier = 1;
+        
+        // Multiplicador por industria
+        if (industry.includes('ecommerce') || industry.includes('fulfillment')) {
+            multiplier = 3;
+        } else if (industry.includes('food') || industry.includes('beverage')) {
+            multiplier = 2.5;
+        } else if (industry.includes('pharmaceutical') || industry.includes('cosmetic')) {
+            multiplier = 2;
+        } else if (industry.includes('manufacturing')) {
+            multiplier = 1.5;
+        }
+        
+        // Cálculo base: 1 caja por cada 10 empleados por día
+        const baseBoxes = Math.round((employees / 10) * multiplier);
+        
+        // Formatear número
+        if (baseBoxes > 1000) {
+            return `${(baseBoxes / 1000).toFixed(1)}k`;
+        }
+        return baseBoxes.toString();
     }
 
-    function copyEmail(email) {
-        navigator.clipboard.writeText(email);
+    // Funciones de utilidad
+    function showProgress(text) {
+        document.getElementById('searchProgress').classList.remove('hidden');
+        document.getElementById('progressText').textContent = text;
+        document.getElementById('progressBar').style.width = '10%';
+    }
+
+    function updateProgress(percent, text) {
+        document.getElementById('progressText').textContent = text;
+        document.getElementById('progressBar').style.width = `${percent}%`;
+    }
+
+    function hideProgress() {
+        document.getElementById('searchProgress').classList.add('hidden');
+    }
+
+    function showError(message) {
+        document.getElementById('results').innerHTML = `
+            <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+                <p>${message}</p>
+            </div>
+        `;
+    }
+
+    function updateMetrics() {
+        const companiesCount = new Set(allProspects.map(p => p.company?.name)).size;
+        const withPhone = allProspects.filter(p => {
+            const e = enrichedData.get(p.id) || p;
+            return e.phone;
+        }).length;
+        const hotLeads = allProspects.filter(p => {
+            const e = enrichedData.get(p.id) || p;
+            return e.analysis?.total_score >= 7;
+        }).length;
+        
+        document.getElementById('companiesFound').textContent = companiesCount;
+        document.getElementById('contactsFound').textContent = allProspects.length;
+        document.getElementById('enrichedCount').textContent = enrichedData.size;
+        document.getElementById('withPhone').textContent = withPhone;
+        document.getElementById('hotLeads').textContent = hotLeads;
+        
+        // Calcular total de cajas estimadas
+        let totalBoxes = 0;
+        new Set(allProspects.map(p => p.company?.name)).forEach(companyName => {
+            const company = allProspects.find(p => p.company?.name === companyName)?.company;
+            if (company) {
+                const boxes = parseInt(estimateBoxesPerDay(company).replace('k', '000')) || 0;
+                totalBoxes += boxes;
+            }
+        });
+        document.getElementById('estimatedBoxes').textContent = totalBoxes > 1000 ? `${(totalBoxes/1000).toFixed(1)}k` : totalBoxes;
+    }
+
+    function copyContact(email, phone) {
+        const text = `Email: ${email || 'Não disponível'}\nTelefone: ${phone || 'Não disponível'}`;
+        navigator.clipboard.writeText(text);
+        
+        // Feedback visual
         event.target.innerHTML = '<i class="fas fa-check mr-1"></i>Copiado!';
         setTimeout(() => {
-            event.target.innerHTML = '<i class="fas fa-copy mr-1"></i>Copiar Email';
+            event.target.innerHTML = '<i class="fas fa-copy mr-1"></i>Copiar';
         }, 2000);
     }
 
-    function exportResults() {
-        if (currentResults.length === 0) {
-            alert('Nenhum resultado para exportar');
+    function saveContact(encodedData) {
+        try {
+            const data = JSON.parse(atob(encodedData));
+            
+            // Aquí podrías hacer una llamada a tu API para guardar en base de datos
+            // Por ahora lo guardamos en localStorage
+            const saved = JSON.parse(localStorage.getItem('ventapel_contacts') || '[]');
+            saved.push({
+                ...data,
+                saved_at: new Date().toISOString()
+            });
+            localStorage.setItem('ventapel_contacts', JSON.stringify(saved));
+            
+            event.target.innerHTML = '<i class="fas fa-check mr-1"></i>Salvo!';
+            setTimeout(() => {
+                event.target.innerHTML = '<i class="fas fa-save mr-1"></i>Salvar';
+            }, 2000);
+        } catch (e) {
+            console.error('Erro ao salvar:', e);
+        }
+    }
+
+    function exportEnhancedCSV() {
+        if (allProspects.length === 0) {
+            alert('Nenhum dado para exportar');
             return;
         }
         
         const BOM = '\uFEFF';
-        let csvContent = BOM + "Nome,Cargo,Empresa,Email,Telefone,LinkedIn,Funcionários,Indústria\n";
+        let csvContent = BOM + "Empresa,Setor,Funcionários,Caixas/Dia Est.,Nome,Cargo,Email,Telefone,LinkedIn,Score PPVVC,Pain,Power,Vision,Value,Control,Compras,Análise,Potencial\n";
         
-        currentResults.forEach(person => {
+        allProspects.forEach(prospect => {
+            const enriched = enrichedData.get(prospect.id) || prospect;
+            const analysis = enriched.analysis || {};
+            const scores = analysis.scores || {};
+            
             const row = [
-                person.name || '',
-                person.title || '',
-                person.organization?.name || '',
-                person.email || '',
-                person.phone_numbers?.[0]?.sanitized_number || '',
-                person.linkedin_url || '',
-                person.organization?.estimated_num_employees || '',
-                person.organization?.industry || ''
+                prospect.company?.name || '',
+                prospect.company?.industry || '',
+                prospect.company?.estimated_num_employees || '',
+                estimateBoxesPerDay(prospect.company || {}),
+                prospect.name || '',
+                prospect.title || '',
+                enriched.email || '',
+                enriched.phone || '',
+                prospect.linkedin_url || '',
+                analysis.total_score || '0',
+                scores.pain || '0',
+                scores.power || '0',
+                scores.vision || '0',
+                scores.value || '0',
+                scores.control || '0',
+                scores.compras || '0',
+                analysis.key_insight || '',
+                analysis.total_score >= 7 ? 'HOT' : analysis.total_score >= 5 ? 'WARM' : 'COLD'
             ].map(field => `"${String(field).replace(/"/g, '""')}"`).join(',');
             
             csvContent += row + "\n";
         });
         
+        // Agregar resumen al final
+        csvContent += "\n\n--- RESUMO ---\n";
+        csvContent += `Total de empresas:,${new Set(allProspects.map(p => p.company?.name)).size}\n`;
+        csvContent += `Total de contatos:,${allProspects.length}\n`;
+        csvContent += `Hot Leads:,${allProspects.filter(p => (enrichedData.get(p.id)?.analysis?.total_score || 0) >= 7).length}\n`;
+        csvContent += `Com telefone:,${allProspects.filter(p => enrichedData.get(p.id)?.phone).length}\n`;
+        csvContent += `Com email:,${allProspects.filter(p => enrichedData.get(p.id)?.email).length}\n`;
+        
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
-        link.download = `ventapel_prospectos_${new Date().toISOString().split('T')[0]}.csv`;
+        link.download = `ventapel_prospects_${new Date().toISOString().split('T')[0]}.csv`;
         link.click();
     }
+
+    function sortByScore() {
+        allProspects.sort((a, b) => {
+            const scoreA = enrichedData.get(a.id)?.analysis?.total_score || 0;
+            const scoreB = enrichedData.get(b.id)?.analysis?.total_score || 0;
+            return scoreB - scoreA;
+        });
+        displayResultsV2(allProspects);
+    }
+
+    function filterHotOnly() {
+        const hotProspects = allProspects.filter(p => {
+            const score = enrichedData.get(p.id)?.analysis?.total_score || 0;
+            return score >= 7;
+        });
+        displayResultsV2(hotProspects);
+    }
+
+    function clearResults() {
+        allProspects = [];
+        enrichedData.clear();
+        companiesData.clear();
+        document.getElementById('results').innerHTML = `
+            <p class="text-gray-500 text-center py-8">
+                <i class="fas fa-search text-4xl text-gray-300 mb-3 block"></i>
+                Selecione os filtros e clique em buscar
+            </p>
+        `;
+        updateMetrics();
+    }
+
+    // Inicialización
+    document.addEventListener('DOMContentLoaded', () => {
+        updateMetrics();
+    });
     </script>
 </body>
 </html>
