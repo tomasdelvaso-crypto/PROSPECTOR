@@ -22,33 +22,18 @@ module.exports = async (req, res) => {
 
         const { filters = {}, page = 1 } = req.body;
 
-        // STEP 1: Get companies (1st API call)
+        // STEP 1: Get companies
         const apolloPayload = {
             page: page,
             per_page: 10,
-            organization_locations: [],
-            organization_num_employees_ranges: [],
-            q_organization_keyword_tags: []
+            organization_locations: filters.location ? [filters.location] : [],
+            organization_num_employees_ranges: filters.size ? [filters.size] : [],
+            q_organization_keyword_tags: filters.keywords && filters.keywords.length > 0 
+                ? filters.keywords 
+                : ["logistics", "manufacturing", "ecommerce", "fulfillment", "warehouse", "distribution"]
         };
 
-        if (filters.keywords && filters.keywords.length > 0) {
-            apolloPayload.q_organization_keyword_tags = filters.keywords;
-        } else {
-            apolloPayload.q_organization_keyword_tags = [
-                "logistics", "manufacturing", "ecommerce", 
-                "fulfillment", "warehouse", "distribution"
-            ];
-        }
-
-        if (filters.location) {
-            apolloPayload.organization_locations = [filters.location];
-        }
-
-        if (filters.size) {
-            apolloPayload.organization_num_employees_ranges = [filters.size];
-        }
-
-        console.log('Fetching companies with filters:', apolloPayload);
+        console.log('Fetching companies with filters:', JSON.stringify(apolloPayload, null, 2));
 
         const companiesResponse = await axios.post(
             'https://api.apollo.io/api/v1/mixed_companies/search',
@@ -64,6 +49,8 @@ module.exports = async (req, res) => {
 
         const organizations = companiesResponse.data?.organizations || [];
         const pagination = companiesResponse.data?.pagination || {};
+        
+        console.log(`Found ${organizations.length} companies`);
 
         if (organizations.length === 0) {
             return res.status(200).json({
@@ -75,43 +62,30 @@ module.exports = async (req, res) => {
             });
         }
 
-        // Extract all company IDs
+        // Extract company IDs
         const companyIds = organizations.map(org => org.id).filter(Boolean);
-        
-        console.log(`Found ${organizations.length} companies. Fetching all contacts for these companies in one call...`);
+        console.log('Company IDs:', companyIds);
 
-        // STEP 2: Get ALL contacts for ALL companies in ONE call (2nd API call)
+        // STEP 2: Get contacts - Apollo permite máximo 100 per_page
         const contactsPayload = {
             page: 1,
-            per_page: 200, // Get max contacts in one call
-            organization_ids: companyIds, // Array of all company IDs
-            person_titles: [
-                // Operations & Logistics
-                "Operations Manager", "Operations Director", "COO", "VP Operations",
-                "Logistics Manager", "Logistics Director", "Logistics Coordinator",
-                "Supply Chain Manager", "Supply Chain Director", "Supply Chain Analyst",
-                
-                // Production & Quality
-                "Production Manager", "Production Director", "Manufacturing Manager",
-                "Plant Manager", "Plant Director", "Factory Manager",
-                "Quality Manager", "Quality Director", "Quality Assurance Manager",
-                
-                // Warehouse & Distribution
-                "Warehouse Manager", "Warehouse Director", "Distribution Manager",
-                "Fulfillment Manager", "Inventory Manager", "Shipping Manager",
-                
-                // Procurement & Purchasing
-                "Procurement Manager", "Procurement Director", "Purchasing Manager",
-                "Buyer", "Strategic Sourcing Manager", "Suprimentos Manager",
-                "Compras Manager", "Head of Procurement", "CPO",
-                
-                // General Management
-                "General Manager", "General Director", "CEO", "Managing Director",
-                "Site Manager", "Facility Manager", "Business Unit Manager"
-            ],
+            per_page: 100,  // Cambiado de 200 a 100 - máximo permitido por Apollo
+            organization_ids: companyIds,
             person_seniorities: ["manager", "director", "head", "vp", "c_suite", "owner"],
-            contact_email_status: ["verified", "unverified", "likely to engage"]
+            person_titles: [
+                "Operations Manager", "Operations Director", "COO",
+                "Logistics Manager", "Logistics Director", 
+                "Supply Chain Manager", "Supply Chain Director",
+                "Production Manager", "Production Director",
+                "Quality Manager", "Quality Director",
+                "Plant Manager", "Plant Director",
+                "Warehouse Manager", "Warehouse Director",
+                "Procurement Manager", "Purchasing Manager",
+                "General Manager", "CEO"
+            ]
         };
+
+        console.log(`Fetching contacts for ${companyIds.length} companies...`);
 
         const contactsResponse = await axios.post(
             'https://api.apollo.io/api/v1/mixed_people/search',
@@ -126,29 +100,26 @@ module.exports = async (req, res) => {
         );
 
         const allContacts = contactsResponse.data?.people || [];
-        
-        console.log(`Retrieved ${allContacts.length} total contacts across all companies`);
+        console.log(`Retrieved ${allContacts.length} total contacts`);
 
-        // STEP 3: Map contacts back to their companies
+        // STEP 3: Map contacts to companies
         const companiesWithContacts = organizations.map(company => {
-            // Filter contacts that belong to this company
             const companyContacts = allContacts.filter(contact => 
                 contact.organization_id === company.id || 
                 contact.organization?.id === company.id ||
                 contact.organization?.name === company.name
             );
             
-            // Take top 10 contacts per company, prioritizing by seniority
+            // Ordenar por senioridad y tomar top 10
             const prioritizedContacts = companyContacts
                 .sort((a, b) => {
-                    // Prioritize C-level and directors
                     const getPriority = (title) => {
                         if (!title) return 999;
                         const titleLower = title.toLowerCase();
-                        if (titleLower.includes('ceo') || titleLower.includes('coo') || titleLower.includes('cfo')) return 1;
-                        if (titleLower.includes('director') || titleLower.includes('diretor')) return 2;
+                        if (titleLower.includes('ceo') || titleLower.includes('coo')) return 1;
+                        if (titleLower.includes('director')) return 2;
                         if (titleLower.includes('head') || titleLower.includes('vp')) return 3;
-                        if (titleLower.includes('manager') || titleLower.includes('gerente')) return 4;
+                        if (titleLower.includes('manager')) return 4;
                         return 5;
                     };
                     return getPriority(a.title) - getPriority(b.title);
@@ -161,12 +132,12 @@ module.exports = async (req, res) => {
             };
         });
 
-        // Sort companies by employee count
+        // Ordenar empresas por número de empleados
         companiesWithContacts.sort((a, b) => 
             (b.estimated_num_employees || 0) - (a.estimated_num_employees || 0)
         );
 
-        console.log('Successfully mapped contacts to companies. API calls used: 2');
+        console.log('Successfully processed companies and contacts');
 
         res.status(200).json({
             success: true,
