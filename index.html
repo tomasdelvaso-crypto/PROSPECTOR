@@ -272,122 +272,188 @@
     let hasMoreResults = true;
     let allResults = [];
 
-    async function searchProspects() {
-        // Reset paginación
-        currentPage = 1;
-        allResults = [];
-        hasMoreResults = true;
-        analyzedCount = 0;
-        document.getElementById('analyzed').textContent = '0';
-        document.getElementById('hotLeads').textContent = '0';
-        document.getElementById('avgScore').textContent = '0';
+async function searchProspects() {
+    // Reset state
+    currentPage = 1;
+    allResults = [];
+    hasMoreResults = true;
+    analyzedCount = 0;
+    analyzedProspects = [];
+    
+    // Update UI
+    document.getElementById('analyzed').textContent = '0';
+    document.getElementById('hotLeads').textContent = '0';
+    document.getElementById('avgScore').textContent = '0';
+    
+    // REFACTOR: Get filter values from UI
+    const titleType = document.getElementById('titleFilter').value;
+    const location = document.getElementById('locationFilter').value;
+    const size = document.getElementById('sizeFilter').value;
+    const company = document.getElementById('companyFilter').value;
+    const industryType = document.getElementById('industryFilter').value;
+    const keywords = document.getElementById('keywordsFilter').value;
+    
+    const resultsDiv = document.getElementById('results');
+    resultsDiv.innerHTML = '<p class="text-blue-600"><i class="fas fa-spinner fa-spin mr-2"></i>Buscando prospectos...</p>';
+    
+    try {
+        // REFACTOR: Build filters object with proper structure
+        const filters = {
+            location: location || 'Brazil'
+        };
         
-        const titleType = document.getElementById('titleFilter').value;
-        const location = document.getElementById('locationFilter').value;
-        const size = document.getElementById('sizeFilter').value;
-        const company = document.getElementById('companyFilter').value;
-        const industryType = document.getElementById('industryFilter').value;
-        const keywords = document.getElementById('keywordsFilter').value;
+        // REFACTOR: Map title type to actual titles using TITLE_MAPPING
+        if (titleType && TITLE_MAPPING[titleType]) {
+            filters.titles = TITLE_MAPPING[titleType];
+        } else {
+            // Default titles if none selected
+            filters.titles = [
+                'Manager', 'Director', 'CEO', 'President', 
+                'VP', 'Vice President', 'Head', 'Chief'
+            ];
+        }
         
-        const resultsDiv = document.getElementById('results');
-        resultsDiv.innerHTML = '<p class="text-blue-600"><i class="fas fa-spinner fa-spin mr-2"></i>Buscando prospectos...</p>';
+        // REFACTOR: Add size filter
+        if (size) {
+            filters.size = size;
+        }
         
-        try {
-            const response = await fetch('/api/apollo-search', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    query: keywords || '',
-                    filters: {
-                        titles: titleType ? TITLE_MAPPING[titleType] : [
-                            'Manager',
-                            'Director', 
-                            'Head',
-                            'Chief',
-                            'VP',
-                            'Vice President'
-                        ],
-                        location: location || 'Brazil',
-                        size: size || '501,1000',
-                        company_names: company ? [company] : null,
-                        industries: industryType ? INDUSTRY_MAPPING[industryType] : null,
-                        seniority_levels: [
-                            'manager',
-                            'director', 
-                            'vp',
-                            'owner',
-                            'c_suite',
-                            'partner'
-                        ],
-                        departments: [
-                            'operations',
-                            'logistics',
-                            'supply_chain',
-                            'procurement',
-                            'quality',
-                            'manufacturing',
-                            'production',
-                            'warehouse'
-                        ],
-                        excluded_titles: [
-                            'Assistant',
-                            'Analyst', 
-                            'Intern',
-                            'Junior',
-                            'Trainee',
-                            'Student',
-                            'Coordinator',
-                            'Specialist',
-                            'Advisor',
-                            'Consultant'
-                        ],
-                        must_have_verified_email: true
-                    },
-                    page: currentPage,
-                    per_page: 25
-                })
-            });
-            
-            if (!response.ok) {
-                throw new Error(`Erro ${response.status}`);
-            }
-            
-            const data = await response.json();
-            currentResults = data.people || [];
-            
-            // Ordenar por relevância/prioridade
-            currentResults = prioritizeResults(currentResults, industryType);
-            allResults = currentResults;
-            
-            if (currentResults.length === 0) {
-                resultsDiv.innerHTML = `
-                    <div class="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded">
-                        <p>Nenhum prospecto encontrado. Tente ajustar os filtros.</p>
-                    </div>
-                `;
-                return;
-            }
-            
-            displayResults(currentResults);
-            updateStats();
-            
-            // Mostrar botão de carregar mais se houver 25 resultados
-            if (currentResults.length >= 25) {
-                document.getElementById('loadMoreContainer').classList.remove('hidden');
-            }
-            
-        } catch (error) {
-            console.error('Erro:', error);
+        // REFACTOR: Add industry keywords for Apollo search
+        if (industryType) {
+            filters.industryKeywords = industryType;
+        }
+        
+        // REFACTOR: Add company name if specified
+        if (company && company.trim()) {
+            filters.company_names = [company.trim()];
+        }
+        
+        // REFACTOR: Log the request for debugging
+        console.log('Sending search request with filters:', filters);
+        
+        const response = await fetch('/api/apollo-search', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                filters: filters,
+                page: currentPage,
+                per_page: 25
+            })
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || `Error ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log(`Received ${data.people?.length || 0} prospects`);
+        
+        currentResults = data.people || [];
+        
+        if (currentResults.length === 0) {
             resultsDiv.innerHTML = `
-                <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-                    <p class="font-bold">Erro ao buscar prospectos</p>
-                    <p class="text-sm">${error.message}</p>
+                <div class="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded">
+                    <p class="font-bold">Nenhum prospecto encontrado</p>
+                    <p class="text-sm mt-1">Tente ajustar os filtros:</p>
+                    <ul class="text-sm mt-2 list-disc list-inside">
+                        <li>Remova o filtro de empresa específica</li>
+                        <li>Selecione uma região mais ampla</li>
+                        <li>Escolha um cargo menos específico</li>
+                    </ul>
                 </div>
             `;
+            document.getElementById('loadMoreContainer').classList.add('hidden');
+            return;
         }
+        
+        // REFACTOR: Results already come sorted by priorityScore from backend
+        allResults = currentResults;
+        
+        displayResults(currentResults);
+        updateStats();
+        
+        // Show load more button if we got 25 results (might be more)
+        if (currentResults.length >= 25) {
+            document.getElementById('loadMoreContainer').classList.remove('hidden');
+        } else {
+            document.getElementById('loadMoreContainer').classList.add('hidden');
+        }
+        
+    } catch (error) {
+        console.error('Search error:', error);
+        resultsDiv.innerHTML = `
+            <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+                <p class="font-bold">Erro ao buscar prospectos</p>
+                <p class="text-sm">${error.message}</p>
+                <p class="text-xs mt-2">Verifique sua conexão e tente novamente.</p>
+            </div>
+        `;
     }
+}
+
+// REFACTOR: Update loadMoreProspects to use same filter logic
+async function loadMoreProspects() {
+    currentPage++;
+    const btn = event.target;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Carregando...';
+    btn.disabled = true;
+    
+    // REFACTOR: Get current filter values
+    const titleType = document.getElementById('titleFilter').value;
+    const location = document.getElementById('locationFilter').value;
+    const size = document.getElementById('sizeFilter').value;
+    const company = document.getElementById('companyFilter').value;
+    const industryType = document.getElementById('industryFilter').value;
+    
+    try {
+        // REFACTOR: Build filters same as searchProspects
+        const filters = {
+            location: location || 'Brazil'
+        };
+        
+        if (titleType && TITLE_MAPPING[titleType]) {
+            filters.titles = TITLE_MAPPING[titleType];
+        } else {
+            filters.titles = ['Manager', 'Director', 'CEO', 'President', 'VP', 'Head'];
+        }
+        
+        if (size) filters.size = size;
+        if (industryType) filters.industryKeywords = industryType;
+        if (company && company.trim()) filters.company_names = [company.trim()];
+        
+        const response = await fetch('/api/apollo-search', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                filters: filters,
+                page: currentPage,
+                per_page: 25
+            })
+        });
+        
+        const data = await response.json();
+        let newResults = data.people || [];
+        
+        if (newResults.length > 0) {
+            allResults = [...allResults, ...newResults];
+            currentResults = allResults;
+            displayResults(allResults);
+            updateStats();
+        } else {
+            hasMoreResults = false;
+            document.getElementById('loadMoreContainer').classList.add('hidden');
+        }
+        
+    } catch (error) {
+        console.error('Error loading more:', error);
+    } finally {
+        btn.innerHTML = '<i class="fas fa-plus-circle mr-2"></i>Carregar mais 25 prospectos';
+        btn.disabled = false;
+    }
+}
 
     function prioritizeResults(results, selectedIndustry) {
         // Adicionar score de prioridade para cada resultado
