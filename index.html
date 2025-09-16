@@ -178,6 +178,9 @@
         allResults = [];
         analyzedCount = 0;
         analyzedProspects = [];
+        document.getElementById('analyzed').textContent = '0';
+        document.getElementById('hotLeads').textContent = '0';
+        document.getElementById('avgScore').textContent = '0';
         
         const filters = {
             location: document.getElementById('locationFilter').value || 'Brazil',
@@ -314,17 +317,21 @@
                             firstName: person.first_name,
                             lastName: person.last_name,
                             company: person.organization?.name,
+                            domain: person.organization?.primary_domain,
                             linkedinUrl: person.linkedin_url
                         })
                     });
                     
                     const lushaData = await lushaResponse.json();
+                    console.log('Lusha response:', lushaData);
                     
-                    if (lushaData.contact?.phones?.length > 0) {
-                        enrichedPerson.phone_numbers = lushaData.contact.phones;
-                    }
-                    if (!enrichedPerson.email && lushaData.contact?.email) {
-                        enrichedPerson.email = lushaData.contact.email;
+                    if (lushaData.enriched && lushaData.contact) {
+                        if (lushaData.contact.phones?.length > 0) {
+                            enrichedPerson.phone_numbers = lushaData.contact.phone_numbers || lushaData.contact.phones;
+                        }
+                        if (!enrichedPerson.email && lushaData.contact.email) {
+                            enrichedPerson.email = lushaData.contact.email;
+                        }
                     }
                 } catch (error) {
                     console.log('Lusha failed:', error);
@@ -337,16 +344,22 @@
             // Paso 3: Serper
             document.getElementById(`progress-${index}`).innerHTML = '🔍 Passo 3/5: Buscando inteligência de mercado...';
             
-            const enrichResponse = await fetch('/api/enrich-prospect', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    company: person.organization || {},
-                    contact: enrichedPerson
-                })
-            });
-            
-            const enrichData = await enrichResponse.json();
+            let enrichData = {};
+            try {
+                const enrichResponse = await fetch('/api/enrich-prospect', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        company: person.organization || {},
+                        contact: enrichedPerson
+                    })
+                });
+                
+                enrichData = await enrichResponse.json();
+            } catch (error) {
+                console.log('Serper failed:', error);
+                enrichData = { enriched: false };
+            }
             
             // Paso 4: Claude
             document.getElementById(`progress-${index}`).innerHTML = '🧠 Passo 4/5: Analisando com IA (PPVVC)...';
@@ -360,7 +373,7 @@
                         name: enrichedPerson.name,
                         title: enrichedPerson.title,
                         email: enrichedPerson.email,
-                        phone: enrichedPerson.phone_numbers?.[0]?.sanitized_number
+                        phone: enrichedPerson.phone_numbers?.[0]?.sanitized_number || enrichedPerson.phone_numbers?.[0]?.number
                     },
                     enrichment: enrichData
                 })
@@ -373,6 +386,7 @@
             
             displayCompleteAnalysis(index, enrichedPerson, enrichData, analysis);
             
+            // Actualizar métricas
             analyzedCount++;
             document.getElementById('analyzed').textContent = analyzedCount;
             
@@ -462,6 +476,18 @@
         }
         
         contactDiv.innerHTML = updatedHTML;
+        
+        // Actualizar botones si ahora hay email
+        const buttonsDiv = document.querySelector(`#prospect-${index} .ml-4.space-y-2`);
+        if (buttonsDiv && enrichedPerson.email && enrichedPerson.email !== 'email_not_unlocked@domain.com') {
+            if (!buttonsDiv.querySelector('.bg-green-600')) {
+                const copyButton = document.createElement('button');
+                copyButton.className = 'px-4 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 w-full';
+                copyButton.innerHTML = '<i class="fas fa-copy mr-1"></i>Copiar Email';
+                copyButton.onclick = () => copyEmail(enrichedPerson.email);
+                buttonsDiv.appendChild(copyButton);
+            }
+        }
     }
 
     function displayCompleteAnalysis(index, person, enrichData, analysis) {
@@ -513,6 +539,17 @@
                         `).join('')}
                     </div>
                 </div>
+                
+                ${analysis.explanations ? `
+                    <div class="bg-gray-50 p-3 rounded mb-3 border border-gray-200">
+                        <h5 class="font-semibold text-sm mb-2">📝 Justificación</h5>
+                        <div class="space-y-1 text-xs">
+                            ${Object.entries(analysis.explanations).map(([key, value]) => `
+                                <div><strong class="text-gray-700">${key.toUpperCase()}:</strong> ${value}</div>
+                            `).join('')}
+                        </div>
+                    </div>
+                ` : ''}
                 
                 ${analysis.recommended_approach ? `
                     <div class="bg-purple-100 p-3 rounded">
