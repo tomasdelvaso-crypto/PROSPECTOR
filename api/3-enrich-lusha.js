@@ -29,10 +29,8 @@ module.exports = async (req, res) => {
             });
         }
 
-        // Build Lusha query parameters
-        const params = {
-            property: 'person' // Required for v2 API
-        };
+        // Build Lusha query parameters - QUITAMOS 'property'
+        const params = {};
 
         // Add name parameters
         if (person.first_name) {
@@ -56,19 +54,22 @@ module.exports = async (req, res) => {
             params.companyName = person.company_name;
         }
 
-        // Add LinkedIn URL if available (most important for Lusha)
+        // Add LinkedIn URL if available
         if (person.linkedin_url) {
-            params.linkedinUrl = person.linkedin_url;
+            // Clean the LinkedIn URL
+            const cleanLinkedIn = person.linkedin_url.replace('http://', 'https://');
+            params.linkedinUrl = cleanLinkedIn;
         }
 
         console.log('Lusha request params:', params);
 
+        // Try v2 API first
         const response = await axios.get(
-            'https://api.lusha.com/v2/person',
+            'https://api.lusha.com/v2/company', // O usa 'person' endpoint según necesidad
             {
                 headers: { 
                     'api_key': apiKey,
-                    'Content-Type': 'application/json'
+                    'Accept': 'application/json'
                 },
                 params: params,
                 timeout: 15000
