@@ -390,105 +390,82 @@ function openAnalysisModal(uniqueId) {
 }
 
 // Deep Analysis - FIXED ENDPOINTS
-async function performDeepAnalysis(uniqueId) {
-    const [companyIdx, contactIdx] = uniqueId.split('-').map(Number);
-    const company = currentCompanies[companyIdx];
-    const contact = currentContacts[companyIdx][contactIdx];
-    
+// Display analysis results con mejor manejo de email
+function displayAnalysisResults(uniqueId, data) {
     const resultDiv = document.getElementById(`analysis-result-${uniqueId}`);
-    resultDiv.classList.remove('hidden');
+    const { contact, analysis } = data;
+    
+    console.log('Displaying results for contact:', contact);
+    
+    // El email ya viene consolidado desde performDeepAnalysis
+    const email = contact.email || 'Não disponível';
+    const phone = contact.phone || null;
+    
+    const score = analysis.total_score || 0;
+    const priority = analysis.priority || 'COLD';
+    const priorityColor = priority === 'HOT' ? 'red' : priority === 'WARM' ? 'yellow' : 'gray';
+    
     resultDiv.innerHTML = `
-        <div class="mt-4 p-4 bg-gray-100 rounded-lg">
-            <div class="flex items-center">
-                <i class="fas fa-spinner fa-spin text-2xl text-indigo-600 mr-3"></i>
-                <div>
-                    <p class="font-semibold" id="analysis-status">Iniciando análise...</p>
-                    <div class="w-64 bg-gray-200 rounded-full h-2 mt-2">
-                        <div id="analysis-progress" class="bg-indigo-600 h-2 rounded-full transition-all" style="width: 0%"></div>
-                    </div>
+        <div class="mt-4 space-y-4">
+            <!-- Contact Info -->
+            <div class="bg-green-50 p-4 rounded-lg">
+                <h5 class="font-bold mb-2">📞 Informações de Contato</h5>
+                <div class="space-y-1">
+                    <p class="text-sm ${email !== 'Não disponível' ? '' : 'text-gray-500'}">
+                        <i class="fas fa-envelope mr-2"></i>${email}
+                    </p>
+                    ${phone ? 
+                        `<p class="text-sm font-bold text-green-700"><i class="fas fa-phone mr-2"></i>${phone}</p>` : 
+                        '<p class="text-sm text-red-600"><i class="fas fa-times mr-2"></i>Telefone não encontrado</p>'
+                    }
+                    ${contact.linkedin_url ? 
+                        `<p class="text-sm"><i class="fab fa-linkedin mr-2"></i><a href="${contact.linkedin_url}" target="_blank" class="text-blue-600 hover:underline">Ver perfil LinkedIn</a></p>` : 
+                        ''
+                    }
                 </div>
+            </div>
+            
+            <!-- PPVVC Analysis -->
+            <div class="bg-white border-2 border-indigo-200 rounded-lg p-4">
+                <div class="flex justify-between items-center mb-3">
+                    <h5 class="font-bold">Análise PPVVC</h5>
+                    <span class="px-3 py-1 bg-${priorityColor}-500 text-white rounded-full font-bold">
+                        ${priority} - ${score}/10
+                    </span>
+                </div>
+                
+                <div class="grid grid-cols-3 gap-2 mb-3">
+                    ${Object.entries(analysis.scores || {}).map(([key, value]) => `
+                        <div class="text-center p-2 bg-gray-50 rounded">
+                            <div class="text-xs font-semibold text-gray-600">${key.toUpperCase()}</div>
+                            <div class="text-xl font-bold ${value >= 7 ? 'text-green-600' : value >= 5 ? 'text-yellow-600' : 'text-red-600'}">
+                                ${value}/10
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                
+                <div class="bg-gray-50 p-3 rounded text-sm">
+                    <p class="font-semibold mb-1">Justificativa:</p>
+                    <p class="text-gray-700">${analysis.justification || 'N/A'}</p>
+                </div>
+                
+                <div class="bg-purple-50 p-3 rounded mt-3">
+                    <p class="font-semibold text-purple-900 mb-1">
+                        <i class="fas fa-bullseye mr-2"></i>Abordagem Recomendada:
+                    </p>
+                    <p class="text-purple-800">${analysis.approach || 'N/A'}</p>
+                </div>
+                
+                ${analysis.estimated_boxes_day ? `
+                    <div class="text-center mt-3 pt-3 border-t">
+                        <span class="text-sm text-gray-600">Volume Estimado:</span>
+                        <span class="text-lg font-bold text-indigo-600 ml-2">${analysis.estimated_boxes_day} caixas/dia</span>
+                    </div>
+                ` : ''}
             </div>
         </div>
     `;
-    
-    try {
-        const updateProgress = (text, percent) => {
-            document.getElementById('analysis-status').textContent = text;
-            document.getElementById('analysis-progress').style.width = `${percent}%`;
-        };
-        
-        // 1. Apollo Enrichment
-        updateProgress('Enriquecendo com Apollo...', 25);
-        const apolloRes = await fetch('/api/3-enrich-apollo', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ person: contact })
-        });
-        const apolloData = await apolloRes.json();
-        
-        // 2. Lusha Enrichment
-        updateProgress('Buscando telefone com Lusha...', 50);
-        const lushaRes = await fetch('/api/3-enrich-lusha', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                person: apolloData.person || contact,
-                company: company.name
-            })
-        });
-        const lushaData = await lushaRes.json();
-        
-        // 3. Serper Intel
-        updateProgress('Coletando inteligência de mercado...', 75);
-        const serperRes = await fetch('/api/3-intel-serper', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ company })
-        });
-        const serperData = await serperRes.json();
-        
-        // 4. Claude Analysis
-        updateProgress('Analisando com IA...', 90);
-        const claudeRes = await fetch('/api/4-analyze-claude', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                company,
-                contact: {
-                    ...contact,
-                    ...apolloData.person,
-                    phone: lushaData.phone
-                },
-                intel: serperData
-            })
-        });
-        const analysis = await claudeRes.json();
-        
-        // Store results
-        analysisResults[uniqueId] = {
-            company,
-            contact: {...contact, ...apolloData.person, phone: lushaData.phone},
-            analysis,
-            intel: serperData
-        };
-        
-        // Update credits
-        creditsUsed += 3;
-        document.getElementById('credits-used').textContent = creditsUsed;
-        
-        // Display results
-        displayAnalysisResults(uniqueId, analysisResults[uniqueId]);
-        updateStepIndicator(2);
-        
-    } catch (error) {
-        console.error('Analysis error:', error);
-        resultDiv.innerHTML = `
-            <div class="mt-4 p-4 bg-red-50 rounded-lg text-red-700">
-                <i class="fas fa-exclamation-circle mr-2"></i>
-                Erro na análise: ${error.message}
-            </div>
-        `;
-    }
 }
 
 // Display analysis results
