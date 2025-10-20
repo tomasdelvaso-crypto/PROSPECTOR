@@ -57,60 +57,98 @@
                 Buscar Empresas & Decisores
             </h2>
             
-            <div class="grid grid-cols-3 gap-4 mb-4">
-                <div>
-                    <label class="block text-sm font-semibold mb-1 text-gray-700">
-                        🏭 Indústria Vertical
-                    </label>
-                    <select id="industryFilter" 
-                            class="w-full p-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
-                        <option value="logistica" selected>Logística e Transporte</option>
-                        <option value="ecommerce">E-commerce e Varejo</option>
-                        <option value="manufactura">Manufactura e Indústria</option>
-                        <option value="alimentos">Alimentos e Bebidas</option>
-                        <option value="automotriz">Automotriz e Autopartes</option>
-                        <option value="farma_cosmetica">Farmacêutica e Cosmética</option>
-                        <option value="textil">Têxtil e Vestuário</option>
-                    </select>
+            <!-- Toggle para modo de búsqueda -->
+            <div class="flex gap-3 mb-4 p-3 bg-blue-50 rounded-lg">
+                <button id="searchByFilters" onclick="toggleSearchMode('filters')" 
+                        class="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold transition-all duration-200">
+                    <i class="fas fa-filter mr-2"></i>Busca por Filtros
+                </button>
+                <button id="searchByName" onclick="toggleSearchMode('name')" 
+                        class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-semibold transition-all duration-200">
+                    <i class="fas fa-search mr-2"></i>Busca por Nome da Empresa
+                </button>
+            </div>
+            
+            <!-- Panel de búsqueda por nombre -->
+            <div id="nameSearchPanel" class="hidden mb-4">
+                <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
+                    <p class="text-sm text-yellow-800">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        Digite o nome da empresa. A busca encontrará empresas que contenham o texto digitado.
+                    </p>
                 </div>
-                
-                <div>
-                    <label class="block text-sm font-semibold mb-1 text-gray-700">
-                        📍 Localização
-                    </label>
-                    <select id="locationFilter" 
-                            class="w-full p-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
-                        <option value="Brazil">Brasil (Todo)</option>
-                        <option value="São Paulo, Brazil">São Paulo</option>
-                        <option value="Rio de Janeiro, Brazil">Rio de Janeiro</option>
-                        <option value="Santa Catarina, Brazil" selected>Santa Catarina</option>
-                        <option value="Rio Grande do Sul, Brazil">Rio Grande do Sul</option>
-                        <option value="Paraná, Brazil">Paraná</option>
-                        <option value="Minas Gerais, Brazil">Minas Gerais</option>
-                    </select>
-                </div>
-                
-                <div>
-                    <label class="block text-sm font-semibold mb-1 text-gray-700">
-                        👥 Porte (Funcionários)
-                    </label>
-                    <select id="sizeFilter" 
-                            class="w-full p-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
-                        <option value="">Todos os Portes</option>
-                        <option value="100,500">100-500</option>
-                        <option value="501,1000" selected>501-1000</option>
-                        <option value="1001,5000">1001-5000</option>
-                        <option value="5001,10000">5001+</option>
-                    </select>
+                <div class="flex gap-3">
+                    <input type="text" 
+                           id="companyNameInput"
+                           placeholder="Ex: Lojas Americanas, Magazine Luiza, B2W..."
+                           class="flex-1 p-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
+                    <button onclick="searchByCompanyName()" 
+                            class="px-6 py-3 bg-gradient-to-r from-green-600 to-teal-600 text-white rounded-lg hover:from-green-700 hover:to-teal-700 font-semibold shadow-lg transition-all duration-200 transform hover:scale-105">
+                        <i class="fas fa-building-circle-check mr-2"></i>Buscar Empresa
+                    </button>
                 </div>
             </div>
             
-            <div class="flex gap-3">
-                <button onclick="searchCompaniesWithContacts()" 
-                        class="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 font-semibold shadow-lg transition-all duration-200 transform hover:scale-105">
-                    <i class="fas fa-search mr-2"></i>Buscar Empresas com Decisores
-                </button>
+            <!-- Panel de filtros tradicionales -->
+            <div id="filtersPanel">
+                <div class="grid grid-cols-3 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-semibold mb-1 text-gray-700">
+                            🏭 Indústria Vertical
+                        </label>
+                        <select id="industryFilter" 
+                                class="w-full p-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
+                            <option value="logistica" selected>Logística e Transporte</option>
+                            <option value="ecommerce">E-commerce e Varejo</option>
+                            <option value="manufactura">Manufactura e Indústria</option>
+                            <option value="alimentos">Alimentos e Bebidas</option>
+                            <option value="automotriz">Automotriz e Autopeças</option>
+                            <option value="farma_cosmetica">Farmacêutica e Cosmética</option>
+                            <option value="textil">Têxtil e Vestuário</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-semibold mb-1 text-gray-700">
+                            📍 Localização
+                        </label>
+                        <select id="locationFilter" 
+                                class="w-full p-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
+                            <option value="Brazil">Brasil (Todo)</option>
+                            <option value="São Paulo, Brazil">São Paulo</option>
+                            <option value="Rio de Janeiro, Brazil">Rio de Janeiro</option>
+                            <option value="Santa Catarina, Brazil" selected>Santa Catarina</option>
+                            <option value="Rio Grande do Sul, Brazil">Rio Grande do Sul</option>
+                            <option value="Paraná, Brazil">Paraná</option>
+                            <option value="Minas Gerais, Brazil">Minas Gerais</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-semibold mb-1 text-gray-700">
+                            👥 Porte (Funcionários)
+                        </label>
+                        <select id="sizeFilter" 
+                                class="w-full p-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
+                            <option value="">Todos os Portes</option>
+                            <option value="100,500">100-500</option>
+                            <option value="501,1000" selected>501-1000</option>
+                            <option value="1001,5000">1001-5000</option>
+                            <option value="5001,10000">5001+</option>
+                        </select>
+                    </div>
+                </div>
                 
+                <div class="flex gap-3">
+                    <button onclick="searchCompaniesWithContacts()" 
+                            class="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 font-semibold shadow-lg transition-all duration-200 transform hover:scale-105">
+                        <i class="fas fa-search mr-2"></i>Buscar Empresas com Decisores
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Botones generales -->
+            <div class="flex gap-3 mt-4">
                 <button onclick="clearAll()" 
                         class="px-4 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-all duration-200">
                     <i class="fas fa-eraser mr-2"></i>Limpar
@@ -158,7 +196,7 @@
         <div id="loading-companies" class="hidden">
             <div class="bg-blue-50 rounded-lg p-8 text-center">
                 <i class="fas fa-spinner fa-spin text-4xl text-blue-600 mb-4"></i>
-                <p class="text-lg font-semibold text-blue-800">Buscando empresas e decisores qualificados...</p>
+                <p class="text-lg font-semibold text-blue-800" id="loading-text">Buscando empresas e decisores qualificados...</p>
                 <p class="text-sm text-blue-600 mt-2">Isso pode levar alguns segundos</p>
             </div>
         </div>
@@ -199,6 +237,123 @@ let analysisResults = {};
 let currentPageNum = 1;
 let totalPages = 1;
 let totalCompanies = 0;
+let currentSearchMode = 'filters';
+let lastSearchParams = null;
+
+// Toggle entre modos de búsqueda
+function toggleSearchMode(mode) {
+    currentSearchMode = mode;
+    const filtersPanel = document.getElementById('filtersPanel');
+    const namePanel = document.getElementById('nameSearchPanel');
+    const filterBtn = document.getElementById('searchByFilters');
+    const nameBtn = document.getElementById('searchByName');
+    
+    if (mode === 'name') {
+        filtersPanel.classList.add('hidden');
+        namePanel.classList.remove('hidden');
+        filterBtn.classList.remove('bg-blue-600', 'text-white');
+        filterBtn.classList.add('bg-gray-200', 'text-gray-700');
+        nameBtn.classList.remove('bg-gray-200', 'text-gray-700');
+        nameBtn.classList.add('bg-green-600', 'text-white');
+    } else {
+        filtersPanel.classList.remove('hidden');
+        namePanel.classList.add('hidden');
+        filterBtn.classList.remove('bg-gray-200', 'text-gray-700');
+        filterBtn.classList.add('bg-blue-600', 'text-white');
+        nameBtn.classList.remove('bg-green-600', 'text-white');
+        nameBtn.classList.add('bg-gray-200', 'text-gray-700');
+    }
+}
+
+// Búsqueda por nombre de empresa
+async function searchByCompanyName(page = 1) {
+    const companyName = document.getElementById('companyNameInput').value.trim();
+    
+    if (!companyName) {
+        alert('Por favor, digite o nome da empresa');
+        return;
+    }
+    
+    const loadingDiv = document.getElementById('loading-companies');
+    const companiesContainer = document.getElementById('companies-container');
+    const loadingText = document.getElementById('loading-text');
+    
+    loadingText.textContent = `Buscando "${companyName}" no banco de dados...`;
+    loadingDiv.classList.remove('hidden');
+    companiesContainer.classList.add('hidden');
+    
+    currentPageNum = page;
+    
+    // Guardar parámetros para paginación
+    lastSearchParams = {
+        type: 'name',
+        companyName: companyName
+    };
+    
+    try {
+        const response = await fetch('/api/1-search-company-by-name', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                companyName,
+                page
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            currentCompanies = data.organizations || [];
+            totalCompanies = data.total || 0;
+            totalPages = data.total_pages || 1;
+            
+            // Store contacts in global object
+            currentCompanies.forEach((company, idx) => {
+                currentContacts[idx] = company.contacts || [];
+            });
+            
+            if (currentCompanies.length === 0) {
+                displayNoResults(companyName);
+            } else {
+                displayCompaniesWithContacts(currentCompanies);
+            }
+            
+            updatePaginationControls();
+        } else {
+            alert(`Erro na busca: ${data.error || 'Erro desconhecido'}`);
+        }
+        
+    } catch (error) {
+        console.error('Error searching company by name:', error);
+        alert('Erro ao buscar empresa. Verifique o console.');
+    } finally {
+        loadingDiv.classList.add('hidden');
+    }
+}
+
+// Mostrar cuando no hay resultados
+function displayNoResults(searchTerm) {
+    const container = document.getElementById('companies-container');
+    const listDiv = document.getElementById('companies-list');
+    
+    listDiv.innerHTML = `
+        <div class="text-center py-12">
+            <i class="fas fa-search-minus text-6xl text-gray-300 mb-4"></i>
+            <p class="text-xl text-gray-700 mb-2">Nenhuma empresa encontrada para:</p>
+            <p class="text-lg font-semibold text-gray-900">"${searchTerm}"</p>
+            <div class="mt-6 text-sm text-gray-600">
+                <p>Sugestões:</p>
+                <ul class="mt-2 space-y-1">
+                    <li>• Verifique a ortografia</li>
+                    <li>• Tente um nome mais curto ou parcial</li>
+                    <li>• Use apenas o nome principal (sem "Ltda", "S.A.", etc)</li>
+                </ul>
+            </div>
+        </div>
+    `;
+    
+    container.classList.remove('hidden');
+}
 
 // Utility functions
 function estimateBoxesPerDay(company) {
@@ -239,8 +394,10 @@ function clearAll() {
     currentPageNum = 1;
     totalPages = 1;
     totalCompanies = 0;
+    lastSearchParams = null;
     document.getElementById('companies-container').classList.add('hidden');
     document.getElementById('credits-used').textContent = '0';
+    document.getElementById('companyNameInput').value = '';
     updateStepIndicator(1);
 }
 
@@ -277,13 +434,21 @@ function updatePaginationControls() {
 
 function previousPage() {
     if (currentPageNum > 1) {
-        searchCompaniesWithContacts(currentPageNum - 1);
+        if (lastSearchParams?.type === 'name') {
+            searchByCompanyName(currentPageNum - 1);
+        } else {
+            searchCompaniesWithContacts(currentPageNum - 1);
+        }
     }
 }
 
 function nextPage() {
     if (currentPageNum < totalPages) {
-        searchCompaniesWithContacts(currentPageNum + 1);
+        if (lastSearchParams?.type === 'name') {
+            searchByCompanyName(currentPageNum + 1);
+        } else {
+            searchCompaniesWithContacts(currentPageNum + 1);
+        }
     }
 }
 
@@ -291,7 +456,9 @@ function nextPage() {
 async function searchCompaniesWithContacts(page = 1) {
     const loadingDiv = document.getElementById('loading-companies');
     const companiesContainer = document.getElementById('companies-container');
+    const loadingText = document.getElementById('loading-text');
     
+    loadingText.textContent = 'Buscando empresas e decisores qualificados...';
     loadingDiv.classList.remove('hidden');
     companiesContainer.classList.add('hidden');
     
@@ -305,6 +472,12 @@ async function searchCompaniesWithContacts(page = 1) {
         keywords: keywords,
         location: document.getElementById('locationFilter').value,
         size: document.getElementById('sizeFilter').value
+    };
+    
+    // Guardar parámetros para paginación
+    lastSearchParams = {
+        type: 'filters',
+        filters: filters
     };
     
     console.log('Searching with industry:', selectedIndustry);
@@ -708,6 +881,13 @@ window.displayAnalysisResults = function(uniqueId, data) {
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     updateStepIndicator(1);
+    
+    // Enter key en búsqueda por nombre
+    document.getElementById('companyNameInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            searchByCompanyName();
+        }
+    });
 });
 </script>
 
