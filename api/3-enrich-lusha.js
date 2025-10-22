@@ -56,31 +56,27 @@ module.exports = async (req, res) => {
         
         console.log('Lusha response status:', response.status);
         
-        // BUSCAR DATOS EN LA ESTRUCTURA CORRECTA: response.data.contact.data
+        // BUSCAR DATOS EN LA ESTRUCTURA CORRECTA
         let personData = null;
         let creditCharged = false;
         
-        // Opción 1: response.data.contact.data (estructura que vemos en tu log)
+        // Verificar diferentes estructuras posibles de respuesta
         if (response.data?.contact?.data) {
             personData = response.data.contact.data;
             creditCharged = response.data.contact.isCreditCharged || false;
             console.log('✅ Found data at response.data.contact.data');
-        }
-        // Opción 2: response.data.data (otra estructura posible)
-        else if (response.data?.data) {
+        } else if (response.data?.data) {
             personData = response.data.data;
             creditCharged = response.data.isCreditCharged || false;
             console.log('✅ Found data at response.data.data');
-        }
-        // Opción 3: directamente en response.data
-        else if (response.data && response.data.phoneNumbers) {
+        } else if (response.data && response.data.phoneNumbers) {
             personData = response.data;
             creditCharged = response.data.isCreditCharged || false;
             console.log('✅ Found data at response.data');
         }
         
         if (personData) {
-            // Procesar teléfonos
+            // PROCESAR TODOS LOS TELÉFONOS
             const phones = [];
             if (personData.phoneNumbers && Array.isArray(personData.phoneNumbers)) {
                 personData.phoneNumbers.forEach(phone => {
@@ -89,69 +85,138 @@ module.exports = async (req, res) => {
                             number: phone.number,
                             type: phone.phoneType || 'unknown',
                             doNotCall: phone.doNotCall || false,
-                            source: 'Lusha'
+                            source: 'Lusha',
+                            country: phone.countryCode || null,
+                            formatted: phone.internationalNumber || phone.number
                         });
                     }
                 });
                 console.log(`✅ Found ${phones.length} phone(s)`);
             }
             
-            // Procesar emails
+            // PROCESAR TODOS LOS EMAILS
             const emails = [];
             if (personData.emailAddresses && Array.isArray(personData.emailAddresses)) {
                 personData.emailAddresses.forEach(email => {
                     if (email && email.email) {
-                        emails.push(email.email);
+                        emails.push({
+                            email: email.email,
+                            type: email.emailType || 'work',
+                            status: email.status || 'unknown'
+                        });
                     }
                 });
                 console.log(`✅ Found ${emails.length} email(s)`);
             }
             
-            // Seleccionar mejor teléfono
+            // CLASIFICAR TELÉFONOS POR PRIORIDAD
+            const mobilePhones = phones.filter(p => p.type === 'mobile');
+            const directPhones = phones.filter(p => p.type === 'direct');
+            const workPhones = phones.filter(p => p.type === 'work' || p.type === 'company');
+            const otherPhones = phones.filter(p => !['mobile', 'direct', 'work', 'company'].includes(p.type));
+            
+            // Seleccionar mejor teléfono principal (para compatibilidad)
             let bestPhone = null;
             let bestPhoneType = null;
             
-            if (phones.length > 0) {
-                const mobilePhone = phones.find(p => p.type === 'mobile');
-                const directPhone = phones.find(p => p.type === 'direct');
-                
-                if (mobilePhone) {
-                    bestPhone = mobilePhone.number;
-                    bestPhoneType = 'mobile';
-                } else if (directPhone) {
-                    bestPhone = directPhone.number;
-                    bestPhoneType = 'direct';
-                } else {
-                    bestPhone = phones[0].number;
-                    bestPhoneType = phones[0].type;
-                }
-                
-                console.log(`📱 Best phone: ${bestPhone} (${bestPhoneType})`);
+            if (mobilePhones.length > 0) {
+                bestPhone = mobilePhones[0].number;
+                bestPhoneType = 'mobile';
+            } else if (directPhones.length > 0) {
+                bestPhone = directPhones[0].number;
+                bestPhoneType = 'direct';
+            } else if (workPhones.length > 0) {
+                bestPhone = workPhones[0].number;
+                bestPhoneType = 'work';
+            } else if (otherPhones.length > 0) {
+                bestPhone = otherPhones[0].number;
+                bestPhoneType = otherPhones[0].type;
             }
             
+            console.log(`📱 Best phone: ${bestPhone} (${bestPhoneType})`);
+            console.log(`📱 Total phones found: ${phones.length}`);
             console.log(`💳 Credit charged: ${creditCharged}`);
+            
+            // INFORMACIÓN ADICIONAL DE LA PERSONA
+            const additionalInfo = {
+                full_name: personData.fullName || `${firstName} ${lastName}`.trim(),
+                title: personData.title || person?.title || null,
+                company: personData.company?.name || companyName || null,
+                location: personData.location || null,
+                social_profiles: []
+            };
+            
+            // Agregar perfiles sociales si existen
+            if (personData.linkedin) {
+                additionalInfo.social_profiles.push({
+                    type: 'linkedin',
+                    url: personData.linkedin
+                });
+            }
+            if (personData.twitter) {
+                additionalInfo.social_profiles.push({
+                    type: 'twitter',
+                    url: personData.twitter
+                });
+            }
             
             return res.status(200).json({
                 success: true,
                 enriched: true,
                 source: 'lusha',
+                
+                // COMPATIBILIDAD: Campos anteriores
                 phone: bestPhone,
                 phone_type: bestPhoneType,
-                email: emails[0] || null,
+                email: emails[0]?.email || null,
+                
+                // DATOS COMPLETOS NUEVOS
                 all_phones: phones,
-                full_name: personData.fullName || `${firstName} ${lastName}`.trim(),
-                credit_charged: creditCharged
+                phone_summary: {
+                    total: phones.length,
+                    mobile: mobilePhones.length,
+                    direct: directPhones.length,
+                    work: workPhones.length,
+                    other: otherPhones.length,
+                    best_phone: bestPhone,
+                    best_type: bestPhoneType
+                },
+                
+                all_emails: emails,
+                email_summary: {
+                    total: emails.length,
+                    primary: emails[0]?.email || null
+                },
+                
+                person_info: additionalInfo,
+                credit_charged: creditCharged,
+                
+                // Para debug
+                phones_by_type: {
+                    mobile: mobilePhones,
+                    direct: directPhones,
+                    work: workPhones,
+                    other: otherPhones
+                }
             });
         }
         
         // No se encontraron datos
-        console.log('❌ No data found in expected structure');
-        console.log('Response structure:', JSON.stringify(response.data, null, 2));
+        console.log('⌛ No data found in Lusha response');
         
         return res.status(200).json({
             success: false,
             enriched: false,
-            message: 'No data found in Lusha response'
+            message: 'No data found in Lusha',
+            all_phones: [],
+            all_emails: [],
+            phone_summary: {
+                total: 0,
+                mobile: 0,
+                direct: 0,
+                work: 0,
+                other: 0
+            }
         });
         
     } catch (error) {
@@ -161,7 +226,9 @@ module.exports = async (req, res) => {
             return res.status(200).json({ 
                 success: false,
                 enriched: false,
-                message: 'Person not found in Lusha'
+                message: 'Person not found in Lusha',
+                all_phones: [],
+                all_emails: []
             });
         }
         
@@ -169,7 +236,9 @@ module.exports = async (req, res) => {
             success: false,
             enriched: false,
             error: error.message,
-            status: error.response?.status
+            status: error.response?.status,
+            all_phones: [],
+            all_emails: []
         });
     }
 };
