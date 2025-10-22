@@ -1,14 +1,15 @@
 const axios = require('axios');
 
-async function searchSerper(query, apiKey) {
+async function searchSerper(query, apiKey, gl = 'br', num = 10) {
     try {
         const response = await axios.post(
             'https://google.serper.dev/search',
             { 
                 q: query, 
-                gl: 'br', 
+                gl: gl, 
                 hl: 'pt-br', 
-                num: 5 
+                num: num,
+                dateRestriction: 'd[6]' // Solo últimos 6 meses para info más relevante
             },
             { 
                 headers: { 
@@ -56,67 +57,204 @@ module.exports = async (req, res) => {
         }
 
         const companyName = company.name;
+        const companyDomain = company.primary_domain || company.website_url || '';
+        const industry = company.industry || '';
+        
         const results = {
-            pain_points: [],
-            buying_signals: [],
+            logistics_problems: [],
+            expansion_signals: [],
             recent_news: [],
-            insights: ''
+            financial_info: [],
+            technology_adoption: [],
+            competitors: [],
+            ecommerce_activity: [],
+            insights: {},
+            raw_intelligence: ''
         };
 
-        // Search 1: Pain points related to packaging/logistics
-        const painQuery = `"${companyName}" (problemas OR reclamação OR avaria OR "danos no transporte" OR "violação de carga" OR "roubo de mercadoria")`;
-        const painResults = await searchSerper(painQuery, apiKey);
+        // 1. PROBLEMAS LOGÍSTICOS ESPECÍFICOS
+        const logisticsQuery = `"${companyName}" ("atraso na entrega" OR "problema logístico" OR "reclamação transporte" OR "avaria mercadoria" OR "extravio" OR "devolução" OR "insatisfação cliente" OR "prazo de entrega") site:reclameaqui.com.br OR site:consumidor.gov.br`;
+        const logisticsResults = await searchSerper(logisticsQuery, apiKey, 'br', 5);
         
-        painResults.forEach(result => {
+        logisticsResults.forEach(result => {
             if (result.snippet && result.snippet.toLowerCase().includes(companyName.toLowerCase())) {
-                results.pain_points.push({
+                // Extrae números si los hay
+                const numbers = result.snippet.match(/\d+/g);
+                results.logistics_problems.push({
                     title: result.title,
                     snippet: result.snippet,
+                    link: result.link,
+                    severity: numbers && parseInt(numbers[0]) > 100 ? 'HIGH' : 'MEDIUM',
+                    date: result.date
+                });
+            }
+        });
+
+        // 2. SEÑALES DE CRECIMIENTO/INVERSIÓN
+        const growthQuery = `"${companyName}" ("novo centro de distribuição" OR "nova unidade" OR "expansão" OR "investimento" OR "aumento de produção" OR "contratando" OR "vagas abertas" OR "inauguração" OR "aquisição")`;
+        const growthResults = await searchSerper(growthQuery, apiKey, 'br', 5);
+        
+        growthResults.forEach(result => {
+            if (result.snippet) {
+                // Busca valores de inversión
+                const moneyMatch = result.snippet.match(/R\$\s?[\d,.]+ (milhões|milhão|mil)/i);
+                const employeeMatch = result.snippet.match(/(\d+)\s?(funcionários|colaboradores|vagas)/i);
+                
+                results.expansion_signals.push({
+                    title: result.title,
+                    snippet: result.snippet,
+                    link: result.link,
+                    investment: moneyMatch ? moneyMatch[0] : null,
+                    jobs: employeeMatch ? employeeMatch[1] : null,
+                    type: result.snippet.includes('distribuição') ? 'LOGISTICS' : 'GENERAL'
+                });
+            }
+        });
+
+        // 3. INFORMACIÓN FINANCIERA Y DE MERCADO
+        const financeQuery = `"${companyName}" ("faturamento" OR "receita" OR "lucro" OR "crescimento" OR "market share" OR "líder de mercado")`;
+        const financeResults = await searchSerper(financeQuery, apiKey, 'br', 3);
+        
+        financeResults.forEach(result => {
+            const revenueMatch = result.snippet.match(/R\$\s?[\d,.]+ (bilhões|bilhão|milhões|milhão)/i);
+            const growthMatch = result.snippet.match(/(\d+)%/);
+            
+            if (revenueMatch || growthMatch) {
+                results.financial_info.push({
+                    snippet: result.snippet,
+                    revenue: revenueMatch ? revenueMatch[0] : null,
+                    growth: growthMatch ? growthMatch[0] : null,
                     link: result.link
                 });
             }
         });
 
-        // Search 2: Buying signals and expansion
-        const signalQuery = `"${companyName}" (expansão OR "novo centro de distribuição" OR "nova fábrica" OR "aumenta produção" OR "investe em logística" OR "melhoria operacional")`;
-        const signalResults = await searchSerper(signalQuery, apiKey);
-        
-        signalResults.forEach(result => {
-            if (result.snippet && result.snippet.toLowerCase().includes(companyName.toLowerCase())) {
-                results.buying_signals.push({
-                    title: result.title,
+        // 4. E-COMMERCE Y MARKETPLACE (muy relevante para packaging)
+        if (industry.toLowerCase().includes('commerce') || industry.toLowerCase().includes('retail')) {
+            const ecomQuery = `"${companyName}" ("marketplace" OR "e-commerce" OR "vendas online" OR "entrega rápida" OR "fulfillment" OR "última milha")`;
+            const ecomResults = await searchSerper(ecomQuery, apiKey, 'br', 3);
+            
+            ecomResults.forEach(result => {
+                results.ecommerce_activity.push({
                     snippet: result.snippet,
-                    link: result.link
+                    link: result.link,
+                    is_marketplace: result.snippet.toLowerCase().includes('marketplace')
                 });
-            }
-        });
-
-        // Search 3: Recent news
-        const newsQuery = `"${companyName}" site:valor.com.br OR site:exame.com OR site:estadao.com.br`;
-        const newsResults = await searchSerper(newsQuery, apiKey);
-        
-        newsResults.slice(0, 3).forEach(result => {
-            results.recent_news.push({
-                title: result.title,
-                snippet: result.snippet,
-                link: result.link,
-                date: result.date
             });
+        }
+
+        // 5. TECNOLOGÍA Y AUTOMATIZACIÓN
+        const techQuery = `"${companyName}" ("automação" OR "tecnologia" OR "sistema" OR "ERP" OR "WMS" OR "robô" OR "inteligência artificial")`;
+        const techResults = await searchSerper(techQuery, apiKey, 'br', 3);
+        
+        techResults.forEach(result => {
+            if (result.snippet.toLowerCase().includes('automa') || 
+                result.snippet.toLowerCase().includes('tecnolog') ||
+                result.snippet.toLowerCase().includes('sistema')) {
+                results.technology_adoption.push({
+                    snippet: result.snippet,
+                    link: result.link,
+                    type: result.snippet.includes('WMS') ? 'WAREHOUSE' : 'GENERAL'
+                });
+            }
         });
 
-        // Generate insights summary
-        if (results.pain_points.length > 0) {
-            results.insights += `Encontrados ${results.pain_points.length} problemas potenciais. `;
+        // 6. COMPETIDORES (para contexto de mercado)
+        if (industry) {
+            const competitorQuery = `"${industry}" "principais empresas" Brasil -"${companyName}"`;
+            const competitorResults = await searchSerper(competitorQuery, apiKey, 'br', 2);
+            
+            competitorResults.slice(0, 2).forEach(result => {
+                results.competitors.push({
+                    snippet: result.snippet,
+                    link: result.link
+                });
+            });
         }
-        if (results.buying_signals.length > 0) {
-            results.insights += `${results.buying_signals.length} sinais de expansão/investimento. `;
+
+        // ANÁLISIS DE INSIGHTS
+        const totalProblems = results.logistics_problems.length;
+        const totalExpansion = results.expansion_signals.length;
+        const hasEcommerce = results.ecommerce_activity.length > 0;
+        const hasTechInvestment = results.technology_adoption.length > 0;
+        const hasFinancialData = results.financial_info.length > 0;
+        
+        // Calcular score de oportunidad (0-100)
+        let opportunityScore = 0;
+        let buyingIntent = 'LOW';
+        let urgency = 'LOW';
+        
+        // Problemas logísticos = alta oportunidad
+        if (totalProblems > 0) {
+            opportunityScore += totalProblems * 15;
+            urgency = totalProblems > 2 ? 'HIGH' : 'MEDIUM';
         }
-        if (results.recent_news.length > 0) {
-            results.insights += `${results.recent_news.length} notícias recentes. `;
+        
+        // Expansión = alta oportunidad
+        if (totalExpansion > 0) {
+            opportunityScore += totalExpansion * 20;
+            buyingIntent = 'MEDIUM';
+            if (results.expansion_signals.some(s => s.type === 'LOGISTICS')) {
+                opportunityScore += 15;
+                buyingIntent = 'HIGH';
+            }
         }
-        if (results.insights === '') {
-            results.insights = 'Informações limitadas encontradas. Empresa pode ter baixa presença digital.';
+        
+        // E-commerce activo = necesita buen packaging
+        if (hasEcommerce) {
+            opportunityScore += 15;
+            if (results.ecommerce_activity.some(e => e.is_marketplace)) {
+                opportunityScore += 10;
+            }
         }
+        
+        // Inversión en tecnología = presupuesto disponible
+        if (hasTechInvestment) {
+            opportunityScore += 10;
+            buyingIntent = buyingIntent === 'LOW' ? 'MEDIUM' : buyingIntent;
+        }
+        
+        // Datos financieros positivos
+        if (hasFinancialData && results.financial_info.some(f => f.growth && parseInt(f.growth) > 10)) {
+            opportunityScore += 10;
+        }
+        
+        opportunityScore = Math.min(opportunityScore, 100);
+        
+        results.insights = {
+            opportunity_score: opportunityScore,
+            buying_intent: buyingIntent,
+            urgency: urgency,
+            key_pain_points: totalProblems,
+            expansion_signals: totalExpansion,
+            has_ecommerce: hasEcommerce,
+            tech_adoption: hasTechInvestment,
+            recommendation: opportunityScore > 60 ? 'HOT_LEAD' : opportunityScore > 30 ? 'WARM_LEAD' : 'COLD_LEAD'
+        };
+        
+        // Generar inteligencia en texto para Claude
+        results.raw_intelligence = `
+        EMPRESA: ${companyName}
+        INDUSTRIA: ${industry}
+        
+        PROBLEMAS ENCONTRADOS (${totalProblems}):
+        ${results.logistics_problems.map(p => `- ${p.snippet} [${p.severity}]`).join('\n')}
+        
+        SEÑALES DE EXPANSIÓN (${totalExpansion}):
+        ${results.expansion_signals.map(e => `- ${e.snippet} ${e.investment ? `[Inversión: ${e.investment}]` : ''}`).join('\n')}
+        
+        ACTIVIDAD E-COMMERCE: ${hasEcommerce ? 'SÍ' : 'NO'}
+        ${results.ecommerce_activity.map(e => `- ${e.snippet}`).join('\n')}
+        
+        INFORMACIÓN FINANCIERA:
+        ${results.financial_info.map(f => `- Receita: ${f.revenue || 'N/D'}, Crecimiento: ${f.growth || 'N/D'}`).join('\n')}
+        
+        ADOPCIÓN TECNOLÓGICA: ${hasTechInvestment ? 'SÍ' : 'NO'}
+        
+        SCORE DE OPORTUNIDAD: ${opportunityScore}/100
+        INTENCIÓN DE COMPRA: ${buyingIntent}
+        URGENCIA: ${urgency}
+        `;
 
         res.status(200).json({
             success: true,
