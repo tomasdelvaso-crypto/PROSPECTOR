@@ -685,7 +685,7 @@ window.openAnalysisModal = function(uniqueId) {
     modal.classList.remove('hidden');
 }
 
-// Deep Analysis
+// Deep Analysis - Función completa para reemplazar en index.html
 window.performDeepAnalysis = async function(uniqueId) {
     const [companyIdx, contactIdx] = uniqueId.split('-').map(Number);
     const company = currentCompanies[companyIdx];
@@ -750,19 +750,203 @@ window.performDeepAnalysis = async function(uniqueId) {
         // 4. Claude Analysis
         updateProgress('Analisando com IA...', 90);
         
-        // Construir objeto de contato consolidado
+        // CONSOLIDACIÓN COMPLETA DE TODOS LOS DATOS
+        const allEmails = [];
+        const allPhones = [];
+        const emailSet = new Set();
+        const phoneSet = new Set();
+        
+        // 1. Capturar emails de Apollo original
+        if (contact?.email && contact.email !== 'Não disponível' && contact.email !== '') {
+            emailSet.add(contact.email);
+        }
+        
+        // 2. Capturar emails de Apollo enriquecido
+        if (apolloData?.person) {
+            // Email principal de Apollo
+            if (apolloData.person.email && apolloData.person.email !== 'Não disponível') {
+                emailSet.add(apolloData.person.email);
+            }
+            // Array de emails adicionales de Apollo
+            if (apolloData.person.email_addresses && Array.isArray(apolloData.person.email_addresses)) {
+                apolloData.person.email_addresses.forEach(email => {
+                    if (email && email !== 'Não disponível') {
+                        emailSet.add(email);
+                    }
+                });
+            }
+            // Otro campo posible de Apollo
+            if (apolloData.person.emails && Array.isArray(apolloData.person.emails)) {
+                apolloData.person.emails.forEach(email => {
+                    if (email && email !== 'Não disponível') {
+                        emailSet.add(email);
+                    }
+                });
+            }
+        }
+        
+        // 3. Capturar TODOS los emails de Lusha
+        if (lushaData?.all_emails && Array.isArray(lushaData.all_emails)) {
+            lushaData.all_emails.forEach(emailObj => {
+                // Lusha puede devolver objetos {email: "xxx", type: "work"} o strings directos
+                const email = typeof emailObj === 'string' ? emailObj : (emailObj.email || emailObj);
+                if (email && email !== 'Não disponível' && email !== '') {
+                    emailSet.add(email);
+                }
+            });
+        } else if (lushaData?.email && lushaData.email !== 'Não disponível') {
+            emailSet.add(lushaData.email);
+        }
+        
+        // 4. Capturar TODOS los teléfonos de Lusha
+        if (lushaData?.all_phones && Array.isArray(lushaData.all_phones)) {
+            lushaData.all_phones.forEach(phone => {
+                if (phone && phone.number && !phoneSet.has(phone.number)) {
+                    allPhones.push(phone);
+                    phoneSet.add(phone.number);
+                }
+            });
+        } else if (lushaData?.phone) {
+            // Fallback al formato antiguo
+            allPhones.push({
+                number: lushaData.phone,
+                type: lushaData.phone_type || 'unknown',
+                source: 'Lusha'
+            });
+            phoneSet.add(lushaData.phone);
+        }
+        
+        // 5. Capturar teléfonos de Apollo (como backup si Lusha no encontró)
+        if (apolloData?.person?.phone_numbers) {
+            const apolloPhones = apolloData.person.phone_numbers;
+            if (Array.isArray(apolloPhones)) {
+                apolloPhones.forEach(phone => {
+                    const number = typeof phone === 'string' ? phone : phone.number;
+                    const type = typeof phone === 'object' ? phone.type : 'work';
+                    
+                    if (number && !phoneSet.has(number)) {
+                        allPhones.push({
+                            number: number,
+                            type: type || 'work',
+                            source: 'Apollo'
+                        });
+                        phoneSet.add(number);
+                    }
+                });
+            } else if (typeof apolloPhones === 'string' && !phoneSet.has(apolloPhones)) {
+                allPhones.push({
+                    number: apolloPhones,
+                    type: 'work',
+                    source: 'Apollo'
+                });
+                phoneSet.add(apolloPhones);
+            }
+        }
+        
+        // Si Apollo tiene un campo phone simple
+        if (apolloData?.person?.phone && !phoneSet.has(apolloData.person.phone)) {
+            allPhones.push({
+                number: apolloData.person.phone,
+                type: 'work',
+                source: 'Apollo'
+            });
+            phoneSet.add(apolloData.person.phone);
+        }
+        
+        // 6. Convertir Sets a Arrays con metadata
+        emailSet.forEach(email => {
+            // Determinar fuente del email
+            let source = 'Unknown';
+            if (contact?.email === email) {
+                source = 'Apollo_Search';
+            } else if (apolloData?.person?.email === email) {
+                source = 'Apollo_Enrich';
+            } else if (lushaData?.all_emails?.some(e => (typeof e === 'string' ? e : e.email) === email)) {
+                source = 'Lusha';
+            }
+            
+            allEmails.push({
+                email: email,
+                source: source
+            });
+        });
+        
+        // Ordenar emails: Apollo primero, luego Lusha
+        allEmails.sort((a, b) => {
+            if (a.source.includes('Apollo') && !b.source.includes('Apollo')) return -1;
+            if (!a.source.includes('Apollo') && b.source.includes('Apollo')) return 1;
+            return 0;
+        });
+        
+        // Ordenar teléfonos: móvil primero, luego directo, luego trabajo
+        allPhones.sort((a, b) => {
+            const priority = { 'mobile': 1, 'direct': 2, 'work': 3, 'other': 4 };
+            return (priority[a.type] || 5) - (priority[b.type] || 5);
+        });
+        
+        // 7. Construir objeto consolidado final
         const consolidatedContact = {
+            // Mantener todos los datos originales
             ...contact,
-            ...enrichedContact,
-            email: enrichedContact?.email || 
-                   contact?.email ||
-                   lushaData?.email ||
-                   'Não disponível',
-            phone: lushaData?.phone || 
-                   enrichedContact?.phone_numbers?.[0] ||
-                   null
+            ...apolloData?.person,
+            
+            // Datos básicos
+            name: apolloData?.person?.name || contact?.name,
+            title: apolloData?.person?.title || contact?.title,
+            company: company?.name,
+            linkedin_url: contact?.linkedin_url || apolloData?.person?.linkedin_url,
+            
+            // Email principal (para compatibilidad)
+            email: allEmails[0]?.email || 'Não disponível',
+            
+            // TODOS los emails encontrados
+            all_emails: allEmails,
+            
+            // Teléfono principal (para compatibilidad)
+            phone: allPhones[0]?.number || null,
+            
+            // TODOS los teléfonos encontrados
+            all_phones: allPhones,
+            phone_summary: {
+                total: allPhones.length,
+                mobile: allPhones.filter(p => p.type === 'mobile').length,
+                direct: allPhones.filter(p => p.type === 'direct').length,
+                work: allPhones.filter(p => p.type === 'work').length,
+                other: allPhones.filter(p => !['mobile', 'direct', 'work'].includes(p.type)).length,
+                from_lusha: allPhones.filter(p => p.source === 'Lusha').length,
+                from_apollo: allPhones.filter(p => p.source === 'Apollo').length
+            },
+            
+            // Metadata de enriquecimiento
+            data_sources: {
+                emails: {
+                    total: allEmails.length,
+                    from_apollo: allEmails.filter(e => e.source.includes('Apollo')).length,
+                    from_lusha: allEmails.filter(e => e.source === 'Lusha').length
+                },
+                phones: {
+                    total: allPhones.length,
+                    from_apollo: allPhones.filter(p => p.source === 'Apollo').length,
+                    from_lusha: allPhones.filter(p => p.source === 'Lusha' || !p.source).length
+                }
+            },
+            
+            // Flags de enriquecimiento
+            enrichment_status: {
+                apollo_success: apolloData?.success || false,
+                apollo_enriched: apolloData?.enriched || false,
+                lusha_success: lushaData?.success || false,
+                lusha_enriched: lushaData?.enriched || false,
+                lusha_credit_charged: lushaData?.credit_charged || false
+            }
         };
         
+        // Log para debug
+        console.log('📧 Total emails encontrados:', consolidatedContact.all_emails.length, consolidatedContact.all_emails);
+        console.log('📱 Total teléfonos encontrados:', consolidatedContact.all_phones.length, consolidatedContact.all_phones);
+        console.log('📊 Fuentes de datos:', consolidatedContact.data_sources);
+        
+        // Continuar con Claude
         const claudeRes = await fetch('/api/4-analyze-claude', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -782,8 +966,8 @@ window.performDeepAnalysis = async function(uniqueId) {
             intel: serperData
         };
         
-        // Update credits
-        creditsUsed += 3;
+        // Update credits (2 por análisis: Apollo + Lusha)
+        creditsUsed += 2;
         document.getElementById('credits-used').textContent = creditsUsed;
         
         // Display results
