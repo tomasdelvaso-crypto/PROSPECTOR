@@ -806,34 +806,137 @@ window.performDeepAnalysis = async function(uniqueId) {
 // Display analysis results
 window.displayAnalysisResults = function(uniqueId, data) {
     const resultDiv = document.getElementById(`analysis-result-${uniqueId}`);
-    const { contact, analysis } = data;
+    const { contact, analysis, intel } = data;
     
     const email = contact.email || 'Não disponível';
     const phone = contact.phone || null;
     
+    // Procesar todos los teléfonos si vienen de Lusha
+    const allPhones = contact.all_phones || [];
+    const phoneSummary = contact.phone_summary || {};
+    
     const score = analysis.total_score || 0;
     const priority = analysis.priority || 'COLD';
     const priorityColor = priority === 'HOT' ? 'red' : priority === 'WARM' ? 'yellow' : 'gray';
+    
+    // Generar HTML para todos los teléfonos
+    let phonesHtml = '';
+    if (allPhones && allPhones.length > 0) {
+        phonesHtml = `
+            <div class="mt-2 p-3 bg-blue-50 rounded">
+                <p class="text-xs font-semibold text-blue-900 mb-2">
+                    📱 ${allPhones.length} telefone${allPhones.length > 1 ? 's' : ''} encontrado${allPhones.length > 1 ? 's' : ''}:
+                </p>
+                <div class="space-y-1">
+                    ${allPhones.map((p, idx) => {
+                        const typeEmoji = p.type === 'mobile' ? '📱' : 
+                                        p.type === 'direct' ? '☎️' : 
+                                        p.type === 'work' ? '🏢' : '📞';
+                        const typeLabel = p.type === 'mobile' ? 'Celular' : 
+                                        p.type === 'direct' ? 'Direto' : 
+                                        p.type === 'work' ? 'Trabalho' : 'Outro';
+                        const isPrimary = idx === 0;
+                        
+                        return `
+                            <div class="flex items-center justify-between p-2 ${isPrimary ? 'bg-green-100 border border-green-300' : 'bg-white'} rounded">
+                                <div class="flex items-center gap-2">
+                                    <span>${typeEmoji}</span>
+                                    <span class="font-semibold text-sm">${p.number}</span>
+                                    <span class="text-xs px-2 py-1 bg-gray-200 rounded">${typeLabel}</span>
+                                    ${isPrimary ? '<span class="text-xs px-2 py-1 bg-green-500 text-white rounded">Principal</span>' : ''}
+                                </div>
+                                <a href="https://wa.me/${p.number.replace(/[^0-9]/g, '')}" 
+                                   target="_blank" 
+                                   class="text-green-600 hover:text-green-800">
+                                    <i class="fab fa-whatsapp text-lg"></i>
+                                </a>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+                ${phoneSummary.mobile > 0 || phoneSummary.direct > 0 ? `
+                    <div class="mt-2 text-xs text-gray-600">
+                        ✅ ${phoneSummary.mobile > 0 ? `${phoneSummary.mobile} celular${phoneSummary.mobile > 1 ? 'es' : ''}` : ''}
+                        ${phoneSummary.mobile > 0 && phoneSummary.direct > 0 ? ' • ' : ''}
+                        ${phoneSummary.direct > 0 ? `${phoneSummary.direct} direto${phoneSummary.direct > 1 ? 's' : ''}` : ''}
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    } else if (phone) {
+        // Fallback para formato antiguo con un solo teléfono
+        phonesHtml = `
+            <p class="text-sm font-bold text-green-700">
+                <i class="fas fa-phone mr-2"></i>${phone}
+                <a href="https://wa.me/${phone.replace(/[^0-9]/g, '')}" 
+                   target="_blank" 
+                   class="ml-2 text-green-600 hover:text-green-800">
+                    <i class="fab fa-whatsapp"></i>
+                </a>
+            </p>
+        `;
+    } else {
+        phonesHtml = '<p class="text-sm text-red-600"><i class="fas fa-times mr-2"></i>Telefone não encontrado</p>';
+    }
+    
+    // Procesar todos los emails si vienen múltiples
+    const allEmails = contact.all_emails || [];
+    let emailsHtml = '';
+    
+    if (allEmails && allEmails.length > 0) {
+        emailsHtml = `
+            <div class="space-y-1">
+                ${allEmails.map((e, idx) => `
+                    <p class="text-sm ${idx === 0 ? 'font-semibold' : ''}">
+                        <i class="fas fa-envelope mr-2"></i>${e.email || e}
+                        ${idx === 0 ? ' <span class="text-xs text-gray-500">(Principal)</span>' : ''}
+                    </p>
+                `).join('')}
+            </div>
+        `;
+    } else if (email !== 'Não disponível') {
+        emailsHtml = `<p class="text-sm"><i class="fas fa-envelope mr-2"></i>${email}</p>`;
+    } else {
+        emailsHtml = `<p class="text-sm text-gray-500"><i class="fas fa-envelope mr-2"></i>Email não disponível</p>`;
+    }
     
     resultDiv.innerHTML = `
         <div class="mt-4 space-y-4">
             <!-- Contact Info -->
             <div class="bg-green-50 p-4 rounded-lg">
                 <h5 class="font-bold mb-2">📞 Informações de Contato</h5>
-                <div class="space-y-1">
-                    <p class="text-sm ${email !== 'Não disponível' ? '' : 'text-gray-500'}">
-                        <i class="fas fa-envelope mr-2"></i>${email}
-                    </p>
-                    ${phone ? 
-                        `<p class="text-sm font-bold text-green-700"><i class="fas fa-phone mr-2"></i>${phone}</p>` : 
-                        '<p class="text-sm text-red-600"><i class="fas fa-times mr-2"></i>Telefone não encontrado</p>'
-                    }
+                <div class="space-y-2">
+                    ${emailsHtml}
+                    ${phonesHtml}
                     ${contact.linkedin_url ? 
                         `<p class="text-sm"><i class="fab fa-linkedin mr-2"></i><a href="${contact.linkedin_url}" target="_blank" class="text-blue-600 hover:underline">Ver perfil LinkedIn</a></p>` : 
                         ''
                     }
                 </div>
             </div>
+            
+            <!-- Company Context (NEW) -->
+            ${analysis.company_context ? `
+                <div class="bg-blue-50 p-4 rounded-lg">
+                    <h5 class="font-bold mb-2">🏢 Contexto da Empresa</h5>
+                    <p class="text-sm text-gray-700">${analysis.company_context}</p>
+                </div>
+            ` : ''}
+            
+            <!-- Key Talking Points (NEW) -->
+            ${analysis.key_talking_points && analysis.key_talking_points.length > 0 ? `
+                <div class="bg-yellow-50 p-4 rounded-lg">
+                    <h5 class="font-bold mb-2">💡 Pontos-Chave para Abordagem</h5>
+                    <ul class="space-y-1">
+                        ${analysis.key_talking_points.map(point => 
+                            `<li class="text-sm flex items-start">
+                                <span class="text-yellow-600 mr-2">▸</span>
+                                <span>${point}</span>
+                            </li>`
+                        ).join('')}
+                    </ul>
+                </div>
+            ` : ''}
             
             <!-- PPVVC Analysis -->
             <div class="bg-white border-2 border-indigo-200 rounded-lg p-4">
@@ -860,12 +963,47 @@ window.displayAnalysisResults = function(uniqueId, data) {
                     <p class="text-gray-700">${analysis.justification || 'N/A'}</p>
                 </div>
                 
-                <div class="bg-purple-50 p-3 rounded mt-3">
-                    <p class="font-semibold text-purple-900 mb-1">
+                <!-- Recommended Case Study (NEW) -->
+                ${analysis.recommended_case_study ? `
+                    <div class="bg-green-50 p-3 rounded mt-3">
+                        <p class="font-semibold text-green-900 mb-1">
+                            <i class="fas fa-briefcase mr-2"></i>Case Recomendado:
+                        </p>
+                        <p class="text-green-800 text-sm">${analysis.recommended_case_study}</p>
+                    </div>
+                ` : ''}
+                
+                <!-- Discovery Questions (NEW) -->
+                ${analysis.discovery_questions && analysis.discovery_questions.length > 0 ? `
+                    <div class="bg-purple-50 p-3 rounded mt-3">
+                        <p class="font-semibold text-purple-900 mb-2">
+                            <i class="fas fa-question-circle mr-2"></i>Perguntas de Descoberta:
+                        </p>
+                        <ol class="list-decimal list-inside space-y-1">
+                            ${analysis.discovery_questions.map(q => 
+                                `<li class="text-sm text-purple-800">${q}</li>`
+                            ).join('')}
+                        </ol>
+                    </div>
+                ` : ''}
+                
+                <!-- Approach -->
+                <div class="bg-indigo-50 p-3 rounded mt-3">
+                    <p class="font-semibold text-indigo-900 mb-1">
                         <i class="fas fa-bullseye mr-2"></i>Abordagem Recomendada:
                     </p>
-                    <p class="text-purple-800">${analysis.approach || 'N/A'}</p>
+                    <p class="text-indigo-800">${analysis.approach || 'N/A'}</p>
                 </div>
+                
+                <!-- Objection Handling -->
+                ${analysis.objection_handling ? `
+                    <div class="bg-red-50 p-3 rounded mt-3">
+                        <p class="font-semibold text-red-900 mb-1">
+                            <i class="fas fa-shield-alt mr-2"></i>Objeção Provável:
+                        </p>
+                        <p class="text-red-800 text-sm">${analysis.objection_handling}</p>
+                    </div>
+                ` : ''}
                 
                 ${analysis.estimated_boxes_day ? `
                     <div class="text-center mt-3 pt-3 border-t">
@@ -877,7 +1015,7 @@ window.displayAnalysisResults = function(uniqueId, data) {
         </div>
     `;
 }
-
+    
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     updateStepIndicator(1);
