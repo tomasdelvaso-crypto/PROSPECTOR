@@ -189,7 +189,7 @@ module.exports = async (req, res) => {
     }
 
     // Verificar config
-    if (!process.env.CRM_SUPABASE_URL || !process.env.CRM_SUPABASE_KEY) {
+   if (!process.env.VITE_SUPABASE_URL || !process.env.VITE_SUPABASE_ANON_KEY)
         return res.status(500).json({
             success: false,
             error: 'CRM_SUPABASE_URL y CRM_SUPABASE_KEY no configurados en Vercel env vars'
