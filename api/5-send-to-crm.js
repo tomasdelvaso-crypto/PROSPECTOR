@@ -12,8 +12,8 @@
 const { createClient } = require('@supabase/supabase-js');
 
 const supabase = createClient(
-    process.env.CRM_SUPABASE_URL,
-    process.env.CRM_SUPABASE_KEY
+    process.env.VITE_SUPABASE_URL,
+    process.env.VITE_SUPABASE_ANON_KEY
 );
 
 // --- SCALE DESCRIPTIONS (mirror del CRM) ---
