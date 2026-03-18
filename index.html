@@ -6,6 +6,7 @@
     <title>Ventapel Prospector Pro - Sistema Company-First</title>
     <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="bg-gray-50">
     <!-- Header -->
@@ -157,6 +158,11 @@
                 <button onclick="exportResults()" 
                         class="px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all duration-200">
                     <i class="fas fa-download mr-2"></i>Exportar CSV
+                </button>
+                
+                <button onclick="sendAllToCRM()" 
+                        class="px-4 py-3 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-lg hover:from-teal-700 hover:to-blue-700 transition-all duration-200 font-semibold">
+                    <i class="fas fa-paper-plane mr-2"></i>Enviar Todos ao CRM
                 </button>
             </div>
         </div>
@@ -1196,9 +1202,392 @@ window.displayAnalysisResults = function(uniqueId, data) {
                     </div>
                 ` : ''}
             </div>
+            ${getCRMButtonHTML(uniqueId)}
         </div>
     `;
 }
+    
+// ============================================================================
+// CRM BRIDGE — Prospector → CRM Ventapel (Supabase)
+// ============================================================================
+
+// --- CONFIGURACIÓN SUPABASE (mismas credenciales que el CRM) ---
+const CRM_SUPABASE_URL = 'TU_SUPABASE_URL_ACÁ';       // ← Reemplazar
+const CRM_SUPABASE_KEY = 'TU_SUPABASE_ANON_KEY_ACÁ';   // ← Reemplazar
+
+let crmSupabase = null;
+try {
+    crmSupabase = supabase.createClient(CRM_SUPABASE_URL, CRM_SUPABASE_KEY);
+    console.log('✅ CRM Bridge: Supabase conectado');
+} catch (e) {
+    console.error('❌ CRM Bridge: Error conectando Supabase:', e);
+}
+
+const SCALE_DESCRIPTIONS = {
+    dor: [
+        "Não há identificação de necessidade ou dor pelo cliente",
+        "Vendedor assume necessidades do cliente",
+        "Pessoa de Contato admite necessidade",
+        "Pessoa de Contato admite razões e sintomas causadores de dor",
+        "Pessoa de Contato admite dor",
+        "Vendedor documenta dor e Pessoa de Contato concorda",
+        "Pessoa de Contato e outros necessidades do Tomador de Decisão",
+        "Tomador de Decisão admite necessidades",
+        "Tomador de Decisão admite razões e sintomas causadores de dor",
+        "Tomador de Decisão admite dor",
+        "Vendedor documenta dor e Power concorda"
+    ],
+    poder: [
+        "Tomador de Decisão não foi identificado ainda",
+        "Processo de decisão revelado por Pessoa de Contato",
+        "Tomador de Decisão Potencial identificado",
+        "Pedido de acesso a Tomador de Decisão concedido",
+        "Tomador de Decisão acessado",
+        "Tomador de Decisão concorda em explorar oportunidade",
+        "Processo de decisão e compra confirmado pelo Tomador de Decisão",
+        "Tomador de Decisão concorda em fazer uma Prova de Valor",
+        "Tomador de Decisão concorda com conteúdo da proposta",
+        "Tomador de Decisão confirma aprovação verbal",
+        "Tomador de Decisão aprova formalmente"
+    ],
+    visao: [
+        "Nenhuma visão ou visão concorrente estabelecida",
+        "Visão criada em termos de produto",
+        "Visão criada em termos: Situação/Problema/Implicação",
+        "Visão diferenciada criada com Pessoa de Contato",
+        "Visão diferenciada documentada com Pessoa de Contato",
+        "Documentação concordada por Pessoa de Contato",
+        "Visão Power criada em termos de produto",
+        "Visão Power criada em termos: SPI",
+        "Visão diferenciada criada com Tomador de Decisão",
+        "Visão diferenciada documentada com Tomador de Decisão",
+        "Documentação concordada por Tomador de Decisão"
+    ],
+    valor: [
+        "Valor não identificado",
+        "Vendedor identifica proposição de valor",
+        "Pessoa de Contato concorda em explorar valor",
+        "Tomador de Decisão concorda em explorar valor",
+        "Critérios de valor estabelecidos com Tomador de Decisão",
+        "Valor descoberto conduzido e visão Tomador de Decisão",
+        "Análise de valor conduzida por vendedor (demo)",
+        "Análise de valor conduzida pelo Pessoa de Contato (trial)",
+        "Tomador de Decisão concorda com análise de Valor",
+        "Conclusão da análise de valor documentada",
+        "Tomador de Decisão confirma conclusões por escrito"
+    ],
+    controle: [
+        "Nenhum follow documentado",
+        "1a visão (SPI) enviada para Pessoa de Contato",
+        "1a visão concordada por Pessoa de Contato",
+        "1a visão enviada para Tomador de Decisão",
+        "1a visão concordada por Tomador de Decisão",
+        "Vendedor recebe aprovação para explorar Valor",
+        "Plano de avaliação enviado para Tomador de Decisão",
+        "Tomador de Decisão concorda com Avaliação",
+        "Plano de Avaliação conduzido",
+        "Resultado da Avaliação aprovado",
+        "Tomador de Decisão aprova proposta final"
+    ],
+    compras: [
+        "Processo de compras desconhecido",
+        "Processo de compras esclarecido pela pessoa de contato",
+        "Processo de compras confirmado pelo Tomador de Decisão",
+        "Condições comerciais validadas",
+        "Proposta apresentada",
+        "Negociação iniciada com compras",
+        "Condições comerciais aprovadas",
+        "Contrato assinado",
+        "Pedido de compras recebido",
+        "Cobrança emitida",
+        "Pagamento realizado"
+    ]
+};
+
+function mapScoresToCRM(prospectorScores) {
+    if (!prospectorScores || typeof prospectorScores !== 'object') {
+        return emptyScalesForCRM();
+    }
+    const scaleKeys = ['dor', 'poder', 'visao', 'valor', 'controle', 'compras'];
+    const mapped = {};
+    scaleKeys.forEach(key => {
+        const rawScore = prospectorScores[key] 
+            || prospectorScores[key.replace('dor', 'pain')]
+            || prospectorScores[key.replace('poder', 'power')]
+            || prospectorScores[key.replace('visao', 'vision')]
+            || prospectorScores[key.replace('valor', 'value')]
+            || prospectorScores[key.replace('controle', 'control')]
+            || prospectorScores[key.replace('compras', 'purchase')]
+            || 0;
+        // Cap at 3 — prospection stage, no real interaction yet
+        const cappedScore = Math.min(Math.round(rawScore * 0.3), 3);
+        const descriptions = SCALE_DESCRIPTIONS[key] || [];
+        mapped[key] = {
+            score: cappedScore,
+            description: descriptions[cappedScore] || ''
+        };
+    });
+    return mapped;
+}
+
+function emptyScalesForCRM() {
+    const mapped = {};
+    ['dor', 'poder', 'visao', 'valor', 'controle', 'compras'].forEach(key => {
+        mapped[key] = { score: 0, description: SCALE_DESCRIPTIONS[key]?.[0] || '' };
+    });
+    return mapped;
+}
+
+function estimateOpportunityValue(company, analysis) {
+    const employees = company.estimated_num_employees || 100;
+    const industry = (company.industry || '').toLowerCase();
+    const estimatedBoxes = analysis?.estimated_boxes_day || null;
+    let boxesPerDay;
+    if (estimatedBoxes && estimatedBoxes > 0) {
+        boxesPerDay = estimatedBoxes;
+    } else {
+        const ratios = {
+            'logistics':    { base: 0.8, min: 200 },
+            'fulfillment':  { base: 1.2, min: 300 },
+            'ecommerce':    { base: 0.6, min: 150 },
+            'retail':       { base: 0.4, min: 100 },
+            'manufacturing':{ base: 0.3, min: 80 },
+            'food':         { base: 0.5, min: 120 },
+            'automotive':   { base: 0.2, min: 50 },
+            'pharma':       { base: 0.15, min: 30 },
+            'cosmetic':     { base: 0.15, min: 30 },
+            'default':      { base: 0.1, min: 20 }
+        };
+        let ratio = ratios.default;
+        for (const [key, val] of Object.entries(ratios)) {
+            if (industry.includes(key)) { ratio = val; break; }
+        }
+        boxesPerDay = Math.max(Math.round(employees * ratio.base), ratio.min);
+    }
+    const boxesPerMonth = boxesPerDay * 22;
+    const rollsPerMonth = Math.ceil(boxesPerMonth / 200);
+    const monthlyValueBRL = rollsPerMonth * 45;
+    return {
+        boxesPerDay, boxesPerMonth, rollsPerMonth, monthlyValueBRL,
+        annualValueBRL: monthlyValueBRL * 12
+    };
+}
+
+async function checkDuplicateInCRM(companyName) {
+    if (!crmSupabase) return { isDuplicate: false };
+    try {
+        const { data, error } = await crmSupabase
+            .from('opportunities')
+            .select('id, name, client, stage, vendor, value')
+            .ilike('client', `%${companyName}%`);
+        if (error) throw error;
+        if (data && data.length > 0) {
+            return {
+                isDuplicate: true,
+                existing: data,
+                message: `⚠️ "${companyName}" já existe no CRM com ${data.length} oportunidade(s)`
+            };
+        }
+        return { isDuplicate: false };
+    } catch (err) {
+        console.error('Error checking duplicates:', err);
+        return { isDuplicate: false, error: err.message };
+    }
+}
+
+async function sendToCRM(uniqueId) {
+    const data = analysisResults[uniqueId];
+    if (!data) {
+        alert('❌ Nenhuma análise encontrada. Execute a análise primeiro.');
+        return;
+    }
+    const { company, contact, analysis, intel } = data;
+    const btnId = `crm-btn-${uniqueId}`;
+    const statusId = `crm-status-${uniqueId}`;
+    const btn = document.getElementById(btnId);
+    const statusDiv = document.getElementById(statusId);
+
+    if (!crmSupabase) {
+        statusDiv.innerHTML = `<div class="p-3 bg-red-50 rounded-lg text-red-700 text-sm mt-2">
+            <i class="fas fa-exclamation-circle mr-2"></i>
+            Erro: Supabase não configurado. Verifique CRM_SUPABASE_URL e CRM_SUPABASE_KEY.</div>`;
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Enviando ao CRM...';
+
+    try {
+        const dupCheck = await checkDuplicateInCRM(company.name);
+        if (dupCheck.isDuplicate) {
+            const existingInfo = dupCheck.existing.map(e => 
+                `• "${e.name}" (${e.vendor || 'Sem vendedor'}) - Etapa ${e.stage}`
+            ).join('\n');
+            const proceed = confirm(
+                `${dupCheck.message}\n\nOportunidades existentes:\n${existingInfo}\n\nDeseja criar outra oportunidade mesmo assim?`
+            );
+            if (!proceed) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Enviar ao CRM';
+                return;
+            }
+        }
+
+        const crmScales = mapScoresToCRM(analysis.scores || {});
+        const valueEstimate = estimateOpportunityValue(company, analysis);
+
+        const totalScore = analysis.total_score || 0;
+        let crmPriority;
+        if (totalScore >= 7 || analysis.priority === 'HOT') {
+            crmPriority = 'alta';
+        } else if (totalScore >= 5 || analysis.priority === 'WARM') {
+            crmPriority = 'média';
+        } else {
+            crmPriority = 'baixa';
+        }
+
+        const productType = 'Fita WAT';
+        const oppName = `${productType} - ${company.name}`;
+
+        // Build next_action
+        const nextParts = [];
+        if (contact.name) nextParts.push(`Contatar ${contact.name} (${contact.title || 'cargo N/A'})`);
+        if (contact.phone || (contact.all_phones && contact.all_phones.length > 0)) {
+            nextParts.push('via telefone/WhatsApp');
+        } else if (contact.email && contact.email !== 'Não disponível') {
+            nextParts.push('via email');
+        } else if (contact.linkedin_url) {
+            nextParts.push('via LinkedIn');
+        }
+        if (analysis.approach) {
+            const approach = analysis.approach.length > 150 ? analysis.approach.substring(0, 147) + '...' : analysis.approach;
+            nextParts.push(`| Abordagem: ${approach}`);
+        }
+        const nextAction = nextParts.join(' ') || 'Realizar primeiro contato com decisor identificado';
+
+        // Build contact summary
+        const contactParts = [];
+        if (contact.email && contact.email !== 'Não disponível') contactParts.push(`Email: ${contact.email}`);
+        if (contact.all_phones && contact.all_phones.length > 0) {
+            contactParts.push(`Tel: ${contact.all_phones[0].number} (${contact.all_phones[0].type || 'N/A'})`);
+        } else if (contact.phone) {
+            contactParts.push(`Tel: ${contact.phone}`);
+        }
+        if (contact.linkedin_url) contactParts.push(`LinkedIn: ${contact.linkedin_url}`);
+
+        const expectedClose = new Date();
+        expectedClose.setDate(expectedClose.getDate() + 90);
+
+        const opportunity = {
+            name: oppName,
+            client: company.name,
+            vendor: '',
+            value: valueEstimate.annualValueBRL,
+            stage: 1,
+            priority: crmPriority,
+            probability: 0,
+            last_update: new Date().toISOString().split('T')[0],
+            scales: crmScales,
+            expected_close: expectedClose.toISOString().split('T')[0],
+            next_action: nextAction,
+            product: productType,
+            power_sponsor: null,
+            sponsor: contact.name || null,
+            influencer: null,
+            support_contact: contactParts.join(' | ') || null,
+            industry: company.industry || null
+        };
+
+        console.log('📤 Enviando ao CRM:', opportunity);
+
+        const { data: result, error } = await crmSupabase
+            .from('opportunities')
+            .insert([opportunity])
+            .select()
+            .single();
+
+        if (error) throw error;
+        console.log('✅ Oportunidade criada:', result);
+
+        statusDiv.innerHTML = `
+            <div class="p-4 bg-green-50 border border-green-300 rounded-lg mt-3">
+                <div class="flex items-center mb-2">
+                    <i class="fas fa-check-circle text-green-600 text-xl mr-2"></i>
+                    <span class="font-bold text-green-800">Oportunidade criada no CRM!</span>
+                </div>
+                <div class="text-sm text-green-700 space-y-1">
+                    <p><strong>ID:</strong> #${result.id}</p>
+                    <p><strong>Empresa:</strong> ${company.name}</p>
+                    <p><strong>Valor estimado:</strong> R$ ${valueEstimate.annualValueBRL.toLocaleString('pt-BR')}/ano</p>
+                    <p><strong>Volume:</strong> ~${valueEstimate.rollsPerMonth} rolos/mês (${valueEstimate.boxesPerDay} caixas/dia)</p>
+                    <p><strong>Etapa:</strong> Prospecção (Pool - sem vendedor)</p>
+                    <p><strong>Prioridade:</strong> ${crmPriority.toUpperCase()}</p>
+                </div>
+                <p class="text-xs text-green-600 mt-2">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    A oportunidade aparecerá no CRM sem vendedor atribuído. Qualquer vendedor pode assumir.
+                </p>
+            </div>`;
+
+        btn.innerHTML = '<i class="fas fa-check mr-2"></i>Enviado ao CRM ✓';
+        btn.style.background = 'linear-gradient(to right, #059669, #047857)';
+
+    } catch (error) {
+        console.error('❌ Erro ao enviar ao CRM:', error);
+        statusDiv.innerHTML = `
+            <div class="p-3 bg-red-50 border border-red-300 rounded-lg text-red-700 text-sm mt-2">
+                <i class="fas fa-exclamation-circle mr-2"></i>
+                <strong>Erro:</strong> ${error.message || 'Falha ao criar oportunidade'}
+                <br><small>Verifique as credenciais do Supabase e tente novamente.</small>
+            </div>`;
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-redo mr-2"></i>Tentar Novamente';
+    }
+}
+
+async function sendAllToCRM() {
+    const analyzed = Object.keys(analysisResults);
+    if (analyzed.length === 0) {
+        alert('Nenhuma análise realizada. Analise pelo menos um contato primeiro.');
+        return;
+    }
+    const proceed = confirm(
+        `Enviar ${analyzed.length} oportunidade(s) ao CRM?\n\nTodas serão criadas em etapa "Prospecção" sem vendedor atribuído.`
+    );
+    if (!proceed) return;
+    let success = 0;
+    let errors = 0;
+    for (const uniqueId of analyzed) {
+        try {
+            await sendToCRM(uniqueId);
+            success++;
+        } catch (e) {
+            errors++;
+            console.error(`Erro enviando ${uniqueId}:`, e);
+        }
+    }
+    alert(`✅ Concluído: ${success} enviada(s) | ${errors} erro(s)`);
+}
+
+function getCRMButtonHTML(uniqueId) {
+    return `
+        <div class="mt-4 pt-4 border-t-2 border-teal-200">
+            <button id="crm-btn-${uniqueId}"
+                    onclick="sendToCRM('${uniqueId}')" 
+                    class="w-full px-6 py-3 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-lg hover:from-teal-700 hover:to-blue-700 font-bold text-lg shadow-lg transition-all duration-200 transform hover:scale-[1.02]">
+                <i class="fas fa-paper-plane mr-2"></i>
+                Enviar ao CRM Ventapel
+            </button>
+            <p class="text-xs text-center text-gray-500 mt-1">
+                Cria oportunidade em etapa Prospecção (pool de vendedores)
+            </p>
+            <div id="crm-status-${uniqueId}"></div>
+        </div>
+    `;
+}
+// ============================================================================
+// END CRM BRIDGE
+// ============================================================================
     
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
