@@ -96,8 +96,40 @@ module.exports = async function(req, res) {
         var closeDate = new Date();
         closeDate.setDate(closeDate.getDate() + 90);
 
+        // Build contact string with all details
+        var contactDetails = [];
+        if (contact.email && contact.email !== 'Não disponível' && contact.email !== 'email_not_unlocked@domain.com') contactDetails.push('Email: ' + contact.email);
+        if (contact.all_phones && contact.all_phones.length > 0) {
+            contact.all_phones.forEach(function(p) { contactDetails.push('Tel: ' + p.number + (p.type ? ' (' + p.type + ')' : '')); });
+        } else if (contact.phone) { contactDetails.push('Tel: ' + contact.phone); }
+        if (contact.linkedin_url) contactDetails.push('LinkedIn: ' + contact.linkedin_url);
+
+        // Build sponsor name with title and contact info
+        var sponsorName = contact.name || null;
+        if (sponsorName && contact.title) sponsorName = contact.name + ' (' + contact.title + ')';
+
+        // Build support_contact with ALL contact details
+        var supportParts = [];
+        if (contact.email && contact.email !== 'Não disponível' && contact.email !== 'email_not_unlocked@domain.com') supportParts.push(contact.email);
+        if (contact.all_phones && contact.all_phones.length > 0) {
+            contact.all_phones.forEach(function(p) { supportParts.push(p.number); });
+        } else if (contact.phone) { supportParts.push(contact.phone); }
+        if (contact.linkedin_url) supportParts.push(contact.linkedin_url);
+
+        // Enrich DOR scale with pain/approach description
+        if (analysis.approach || analysis.pain_description) {
+            var painText = analysis.pain_description || analysis.approach || '';
+            if (painText) crmScales.dor.description = (crmScales.dor.description || '') + '. Prospector: ' + painText.substring(0, 300);
+        }
+
+        // Product name from analysis if available
+        var productName = 'Fita WAT';
+        if (analysis.recommended_products && analysis.recommended_products.length > 0) {
+            productName = analysis.recommended_products.join(' + ');
+        }
+
         var opp = {
-            name: 'Fita WAT - ' + company.name,
+            name: (productName || 'Fita WAT') + ' - ' + company.name,
             client: company.name,
             vendor: '',
             value: val.annualValueBRL,
@@ -108,11 +140,11 @@ module.exports = async function(req, res) {
             scales: crmScales,
             expected_close: closeDate.toISOString().split('T')[0],
             next_action: nextParts.join(' ') || 'Realizar primeiro contato',
-            product: 'Fita WAT',
+            product: productName,
             power_sponsor: null,
-            sponsor: contact.name || null,
+            sponsor: sponsorName,
             influencer: null,
-            support_contact: contactInfo.join(' | ') || null,
+            support_contact: supportParts.join(' | ') || null,
             industry: company.industry || null
         };
 
