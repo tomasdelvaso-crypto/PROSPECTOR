@@ -11,11 +11,6 @@
 
 const { createClient } = require('@supabase/supabase-js');
 
-const supabase = createClient(
-    process.env.VITE_SUPABASE_URL,
-    process.env.VITE_SUPABASE_ANON_KEY
-);
-
 // --- SCALE DESCRIPTIONS (mirror del CRM) ---
 const SCALE_DESCRIPTIONS = {
     dor: [
@@ -189,12 +184,24 @@ module.exports = async (req, res) => {
     }
 
     // Verificar config
-   if (!process.env.VITE_SUPABASE_URL || !process.env.VITE_SUPABASE_ANON_KEY)
+    const supabaseUrl = process.env.VITE_SUPABASE_URL;
+    const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY;
+    
+    console.log('🔧 ENV check:', { 
+        hasUrl: !!supabaseUrl, 
+        hasKey: !!supabaseKey,
+        urlPrefix: supabaseUrl ? supabaseUrl.substring(0, 20) + '...' : 'MISSING'
+    });
+
+    if (!supabaseUrl || !supabaseKey) {
         return res.status(500).json({
             success: false,
-            error: 'CRM_SUPABASE_URL y CRM_SUPABASE_KEY no configurados en Vercel env vars'
+            error: 'VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY no configurados en Vercel env vars del Prospector'
         });
     }
+
+    // Inicializar Supabase dentro del handler
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
     try {
         const { company, contact, analysis } = req.body;
