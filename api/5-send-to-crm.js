@@ -49,8 +49,8 @@ module.exports = async function(req, res) {
     if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method !== 'POST') return res.status(405).json({ success: false, error: 'Method not allowed' });
 
-    var url = process.env.VITE_SUPABASE_URL;
-    var key = process.env.VITE_SUPABASE_ANON_KEY;
+    var url = process.env.SUPABASE_URL;
+    var key = process.env.SUPABASE_ANON_KEY;
 
     console.log('ENV:', { hasUrl: !!url, hasKey: !!key });
 
