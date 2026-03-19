@@ -1,329 +1,137 @@
-// api/5-send-to-crm.js
-// Vercel Serverless Function — Inserta oportunidades en el CRM (Supabase)
-// Las credenciales quedan en env vars de Vercel, nunca expuestas al frontend.
-//
-// SETUP EN VERCEL:
-// 1. Ir a Settings → Environment Variables en tu proyecto de Vercel
-// 2. Agregar:
-//    - CRM_SUPABASE_URL   = https://tu-proyecto.supabase.co
-//    - CRM_SUPABASE_KEY   = eyJhbG...tu-anon-key
-// 3. Redeploy
-
 const { createClient } = require('@supabase/supabase-js');
 
-// --- SCALE DESCRIPTIONS (mirror del CRM) ---
-const SCALE_DESCRIPTIONS = {
-    dor: [
-        "Não há identificação de necessidade ou dor pelo cliente",
-        "Vendedor assume necessidades do cliente",
-        "Pessoa de Contato admite necessidade",
-        "Pessoa de Contato admite razões e sintomas causadores de dor",
-        "Pessoa de Contato admite dor",
-        "Vendedor documenta dor e Pessoa de Contato concorda",
-        "Pessoa de Contato e outros necessidades do Tomador de Decisão",
-        "Tomador de Decisão admite necessidades",
-        "Tomador de Decisão admite razões e sintomas causadores de dor",
-        "Tomador de Decisão admite dor",
-        "Vendedor documenta dor e Power concorda"
-    ],
-    poder: [
-        "Tomador de Decisão não foi identificado ainda",
-        "Processo de decisão revelado por Pessoa de Contato",
-        "Tomador de Decisão Potencial identificado",
-        "Pedido de acesso a Tomador de Decisão concedido",
-        "Tomador de Decisão acessado",
-        "Tomador de Decisão concorda em explorar oportunidade",
-        "Processo de decisão e compra confirmado pelo Tomador de Decisão",
-        "Tomador de Decisão concorda em fazer uma Prova de Valor",
-        "Tomador de Decisão concorda com conteúdo da proposta",
-        "Tomador de Decisão confirma aprovação verbal",
-        "Tomador de Decisão aprova formalmente"
-    ],
-    visao: [
-        "Nenhuma visão ou visão concorrente estabelecida",
-        "Visão criada em termos de produto",
-        "Visão criada em termos: Situação/Problema/Implicação",
-        "Visão diferenciada criada com Pessoa de Contato",
-        "Visão diferenciada documentada com Pessoa de Contato",
-        "Documentação concordada por Pessoa de Contato",
-        "Visão Power criada em termos de produto",
-        "Visão Power criada em termos: SPI",
-        "Visão diferenciada criada com Tomador de Decisão",
-        "Visão diferenciada documentada com Tomador de Decisão",
-        "Documentação concordada por Tomador de Decisão"
-    ],
-    valor: [
-        "Valor não identificado",
-        "Vendedor identifica proposição de valor",
-        "Pessoa de Contato concorda em explorar valor",
-        "Tomador de Decisão concorda em explorar valor",
-        "Critérios de valor estabelecidos com Tomador de Decisão",
-        "Valor descoberto conduzido e visão Tomador de Decisão",
-        "Análise de valor conduzida por vendedor (demo)",
-        "Análise de valor conduzida pelo Pessoa de Contato (trial)",
-        "Tomador de Decisão concorda com análise de Valor",
-        "Conclusão da análise de valor documentada",
-        "Tomador de Decisão confirma conclusões por escrito"
-    ],
-    controle: [
-        "Nenhum follow documentado",
-        "1a visão (SPI) enviada para Pessoa de Contato",
-        "1a visão concordada por Pessoa de Contato",
-        "1a visão enviada para Tomador de Decisão",
-        "1a visão concordada por Tomador de Decisão",
-        "Vendedor recebe aprovação para explorar Valor",
-        "Plano de avaliação enviado para Tomador de Decisão",
-        "Tomador de Decisão concorda com Avaliação",
-        "Plano de Avaliação conduzido",
-        "Resultado da Avaliação aprovado",
-        "Tomador de Decisão aprova proposta final"
-    ],
-    compras: [
-        "Processo de compras desconhecido",
-        "Processo de compras esclarecido pela pessoa de contato",
-        "Processo de compras confirmado pelo Tomador de Decisão",
-        "Condições comerciais validadas",
-        "Proposta apresentada",
-        "Negociação iniciada com compras",
-        "Condições comerciais aprovadas",
-        "Contrato assinado",
-        "Pedido de compras recebido",
-        "Cobrança emitida",
-        "Pagamento realizado"
-    ]
+var SCALE_DESCRIPTIONS = {
+    dor: ["Não há identificação de necessidade","Vendedor assume necessidades","PC admite necessidade","PC admite razões e sintomas","PC admite dor","Vendedor documenta dor e PC concorda","PC formaliza necessidades do TD","TD admite necessidades","TD admite razões e sintomas","TD admite dor","Vendedor documenta dor e Power concorda"],
+    poder: ["TD não identificado","Processo de decisão revelado","TD Potencial identificado","Acesso a TD concedido","TD acessado","TD concorda em explorar","Processo confirmado pelo TD","TD concorda em fazer Prova de Valor","TD concorda com proposta","TD confirma aprovação verbal","TD aprova formalmente"],
+    visao: ["Nenhuma visão estabelecida","Visão em termos de produto","Visão em termos SPI","Visão diferenciada criada","Visão diferenciada documentada","Documentação concordada por PC","Visão Power em termos de produto","Visão Power em termos SPI","Visão diferenciada com TD","Visão documentada com TD","Documentação concordada por TD"],
+    valor: ["Valor não identificado","Vendedor identifica valor","PC concorda em explorar valor","TD concorda em explorar valor","Critérios de valor estabelecidos","Valor associado a visão TD","Análise de valor por vendedor","Análise de valor por PC","TD concorda com análise","Conclusão documentada","TD confirma por escrito"],
+    controle: ["Nenhum follow documentado","1a visão enviada para PC","1a visão concordada por PC","1a visão enviada para TD","1a visão concordada por TD","Aprovação para explorar Valor","Plano de avaliação enviado","TD concorda com Avaliação","Plano conduzido","Resultado aprovado","TD aprova proposta final"],
+    compras: ["Processo desconhecido","Processo esclarecido por PC","Processo confirmado pelo TD","Condições validadas","Proposta apresentada","Negociação iniciada","Condições aprovadas","Contrato assinado","Pedido recebido","Cobrança emitida","Pagamento realizado"]
 };
 
-// --- MAPEO DE SCORES ---
-function mapScoresToCRM(prospectorScores) {
-    if (!prospectorScores || typeof prospectorScores !== 'object') {
-        return emptyScales();
-    }
-    const scaleKeys = ['dor', 'poder', 'visao', 'valor', 'controle', 'compras'];
-    const mapped = {};
-    scaleKeys.forEach(key => {
-        const rawScore = prospectorScores[key]
-            || prospectorScores[key.replace('dor', 'pain')]
-            || prospectorScores[key.replace('poder', 'power')]
-            || prospectorScores[key.replace('visao', 'vision')]
-            || prospectorScores[key.replace('valor', 'value')]
-            || prospectorScores[key.replace('controle', 'control')]
-            || prospectorScores[key.replace('compras', 'purchase')]
-            || 0;
-        const cappedScore = Math.min(Math.round(rawScore * 0.3), 3);
-        mapped[key] = {
-            score: cappedScore,
-            description: (SCALE_DESCRIPTIONS[key] || [])[cappedScore] || ''
-        };
+function mapScoresToCRM(scores) {
+    var result = {};
+    ['dor','poder','visao','valor','controle','compras'].forEach(function(key) {
+        var raw = (scores && scores[key]) ? scores[key] : 0;
+        var capped = Math.min(Math.round(raw * 0.3), 3);
+        result[key] = { score: capped, description: (SCALE_DESCRIPTIONS[key] || [])[capped] || '' };
     });
-    return mapped;
+    return result;
 }
 
-function emptyScales() {
-    const mapped = {};
-    ['dor', 'poder', 'visao', 'valor', 'controle', 'compras'].forEach(key => {
-        mapped[key] = { score: 0, description: SCALE_DESCRIPTIONS[key]?.[0] || '' };
-    });
-    return mapped;
-}
+function estimateValue(company, analysis) {
+    var employees = company.estimated_num_employees || 100;
+    var industry = (company.industry || '').toLowerCase();
+    var boxesPerDay;
 
-// --- ESTIMACIÓN DE VALOR ---
-function estimateOpportunityValue(company, analysis) {
-    const employees = company.estimated_num_employees || 100;
-    const industry = (company.industry || '').toLowerCase();
-    const estimatedBoxes = analysis?.estimated_boxes_day || null;
-
-    let boxesPerDay;
-    if (estimatedBoxes && estimatedBoxes > 0) {
-        boxesPerDay = estimatedBoxes;
+    if (analysis && analysis.estimated_boxes_day && analysis.estimated_boxes_day > 0) {
+        boxesPerDay = analysis.estimated_boxes_day;
     } else {
-        const ratios = {
-            'logistics': { base: 0.8, min: 200 },
-            'fulfillment': { base: 1.2, min: 300 },
-            'ecommerce': { base: 0.6, min: 150 },
-            'retail': { base: 0.4, min: 100 },
-            'manufacturing': { base: 0.3, min: 80 },
-            'food': { base: 0.5, min: 120 },
-            'automotive': { base: 0.2, min: 50 },
-            'pharma': { base: 0.15, min: 30 },
-            'cosmetic': { base: 0.15, min: 30 },
-            'default': { base: 0.1, min: 20 }
-        };
-        let ratio = ratios.default;
-        for (const [key, val] of Object.entries(ratios)) {
-            if (industry.includes(key)) { ratio = val; break; }
-        }
-        boxesPerDay = Math.max(Math.round(employees * ratio.base), ratio.min);
+        var base = 0.1, min = 20;
+        if (industry.indexOf('logistics') >= 0 || industry.indexOf('fulfillment') >= 0) { base = 1.0; min = 200; }
+        else if (industry.indexOf('ecommerce') >= 0) { base = 0.6; min = 150; }
+        else if (industry.indexOf('manufacturing') >= 0) { base = 0.3; min = 80; }
+        else if (industry.indexOf('food') >= 0) { base = 0.5; min = 120; }
+        else if (industry.indexOf('automotive') >= 0) { base = 0.2; min = 50; }
+        boxesPerDay = Math.max(Math.round(employees * base), min);
     }
 
-    const boxesPerMonth = boxesPerDay * 22;
-    const rollsPerMonth = Math.ceil(boxesPerMonth / 200);
-    const monthlyValueBRL = rollsPerMonth * 45;
-
-    return {
-        boxesPerDay,
-        boxesPerMonth,
-        rollsPerMonth,
-        monthlyValueBRL,
-        annualValueBRL: monthlyValueBRL * 12
-    };
+    var rollsPerMonth = Math.ceil((boxesPerDay * 22) / 200);
+    var monthly = rollsPerMonth * 45;
+    return { boxesPerDay: boxesPerDay, rollsPerMonth: rollsPerMonth, monthlyValueBRL: monthly, annualValueBRL: monthly * 12 };
 }
 
-// --- HANDLER PRINCIPAL ---
-module.exports = async (req, res) => {
-    // CORS
+module.exports = async function(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-    if (req.method === 'OPTIONS') {
-        return res.status(200).end();
+    if (req.method === 'OPTIONS') return res.status(200).end();
+    if (req.method !== 'POST') return res.status(405).json({ success: false, error: 'Method not allowed' });
+
+    var url = process.env.VITE_SUPABASE_URL;
+    var key = process.env.VITE_SUPABASE_ANON_KEY;
+
+    console.log('ENV:', { hasUrl: !!url, hasKey: !!key });
+
+    if (!url || !key) {
+        return res.status(500).json({ success: false, error: 'VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY missing in Vercel env' });
     }
 
-    if (req.method !== 'POST') {
-        return res.status(405).json({ success: false, error: 'Method not allowed' });
-    }
-
-    // Verificar config
-    const supabaseUrl = process.env.VITE_SUPABASE_URL;
-    const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY;
-    
-    console.log('🔧 ENV check:', { 
-        hasUrl: !!supabaseUrl, 
-        hasKey: !!supabaseKey,
-        urlPrefix: supabaseUrl ? supabaseUrl.substring(0, 20) + '...' : 'MISSING'
-    });
-
-    if (!supabaseUrl || !supabaseKey) {
-        return res.status(500).json({
-            success: false,
-            error: 'VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY no configurados en Vercel env vars del Prospector'
-        });
-    }
-
-    // Inicializar Supabase dentro del handler
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    var supabase = createClient(url, key);
 
     try {
-        const { company, contact, analysis } = req.body;
+        var company = req.body.company;
+        var contact = req.body.contact;
+        var analysis = req.body.analysis;
 
         if (!company || !contact || !analysis) {
-            return res.status(400).json({
-                success: false,
-                error: 'Faltan datos: company, contact y analysis son obligatorios'
-            });
+            return res.status(400).json({ success: false, error: 'company, contact, analysis required' });
         }
 
-        // 1. Check duplicados
-        const { data: existing, error: dupError } = await supabase
-            .from('opportunities')
-            .select('id, name, client, stage, vendor, value')
-            .ilike('client', `%${company.name}%`);
+        var dupCheck = await supabase.from('opportunities').select('id, name, client, stage, vendor').ilike('client', '%' + company.name + '%');
+        var duplicates = (dupCheck.data && dupCheck.data.length > 0) ? dupCheck.data : [];
 
-        if (dupError) {
-            console.error('Error checking duplicates:', dupError);
-        }
+        var crmScales = mapScoresToCRM(analysis.scores || {});
+        var val = estimateValue(company, analysis);
 
-        const duplicates = existing && existing.length > 0 ? existing : [];
+        var totalScore = analysis.total_score || 0;
+        var priority = 'baixa';
+        if (totalScore >= 7 || analysis.priority === 'HOT') priority = 'alta';
+        else if (totalScore >= 5 || analysis.priority === 'WARM') priority = 'média';
 
-        // 2. Mapear scores
-        const crmScales = mapScoresToCRM(analysis.scores || {});
+        var nextParts = [];
+        if (contact.name) nextParts.push('Contatar ' + contact.name + ' (' + (contact.title || 'N/A') + ')');
+        if (contact.phone || (contact.all_phones && contact.all_phones.length > 0)) nextParts.push('via telefone/WhatsApp');
+        else if (contact.email && contact.email !== 'Não disponível') nextParts.push('via email');
+        else if (contact.linkedin_url) nextParts.push('via LinkedIn');
+        if (analysis.approach) nextParts.push('| ' + (analysis.approach.length > 120 ? analysis.approach.substring(0, 117) + '...' : analysis.approach));
 
-        // 3. Estimar valor
-        const valueEstimate = estimateOpportunityValue(company, analysis);
+        var contactInfo = [];
+        if (contact.email && contact.email !== 'Não disponível') contactInfo.push('Email: ' + contact.email);
+        if (contact.all_phones && contact.all_phones.length > 0) contactInfo.push('Tel: ' + contact.all_phones[0].number);
+        else if (contact.phone) contactInfo.push('Tel: ' + contact.phone);
+        if (contact.linkedin_url) contactInfo.push('LinkedIn: ' + contact.linkedin_url);
 
-        // 4. Prioridad
-        const totalScore = analysis.total_score || 0;
-        let crmPriority;
-        if (totalScore >= 7 || analysis.priority === 'HOT') {
-            crmPriority = 'alta';
-        } else if (totalScore >= 5 || analysis.priority === 'WARM') {
-            crmPriority = 'média';
-        } else {
-            crmPriority = 'baixa';
-        }
+        var closeDate = new Date();
+        closeDate.setDate(closeDate.getDate() + 90);
 
-        // 5. Next action
-        const nextParts = [];
-        if (contact.name) {
-            nextParts.push(`Contatar ${contact.name} (${contact.title || 'cargo N/A'})`);
-        }
-        if (contact.phone || (contact.all_phones && contact.all_phones.length > 0)) {
-            nextParts.push('via telefone/WhatsApp');
-        } else if (contact.email && contact.email !== 'Não disponível') {
-            nextParts.push('via email');
-        } else if (contact.linkedin_url) {
-            nextParts.push('via LinkedIn');
-        }
-        if (analysis.approach) {
-            const approach = analysis.approach.length > 150
-                ? analysis.approach.substring(0, 147) + '...'
-                : analysis.approach;
-            nextParts.push(`| Abordagem: ${approach}`);
-        }
-
-        // 6. Contact summary
-        const contactParts = [];
-        if (contact.email && contact.email !== 'Não disponível') {
-            contactParts.push(`Email: ${contact.email}`);
-        }
-        if (contact.all_phones && contact.all_phones.length > 0) {
-            contactParts.push(`Tel: ${contact.all_phones[0].number} (${contact.all_phones[0].type || 'N/A'})`);
-        } else if (contact.phone) {
-            contactParts.push(`Tel: ${contact.phone}`);
-        }
-        if (contact.linkedin_url) {
-            contactParts.push(`LinkedIn: ${contact.linkedin_url}`);
-        }
-
-        // 7. Expected close: +90 días
-        const expectedClose = new Date();
-        expectedClose.setDate(expectedClose.getDate() + 90);
-
-        // 8. Construir oportunidad
-        const opportunity = {
-            name: `Fita WAT - ${company.name}`,
+        var opp = {
+            name: 'Fita WAT - ' + company.name,
             client: company.name,
-            vendor: '',   // Pool
-            value: valueEstimate.annualValueBRL,
+            vendor: '',
+            value: val.annualValueBRL,
             stage: 1,
-            priority: crmPriority,
+            priority: priority,
             probability: 0,
             last_update: new Date().toISOString().split('T')[0],
             scales: crmScales,
-            expected_close: expectedClose.toISOString().split('T')[0],
-            next_action: nextParts.join(' ') || 'Realizar primeiro contato com decisor identificado',
+            expected_close: closeDate.toISOString().split('T')[0],
+            next_action: nextParts.join(' ') || 'Realizar primeiro contato',
             product: 'Fita WAT',
             power_sponsor: null,
             sponsor: contact.name || null,
             influencer: null,
-            support_contact: contactParts.join(' | ') || null,
+            support_contact: contactInfo.join(' | ') || null,
             industry: company.industry || null
         };
 
-        // 9. Insertar
-        const { data: result, error: insertError } = await supabase
-            .from('opportunities')
-            .insert([opportunity])
-            .select()
-            .single();
+        console.log('Inserting:', company.name);
+        var result = await supabase.from('opportunities').insert([opp]).select().single();
 
-        if (insertError) throw insertError;
+        if (result.error) throw result.error;
 
-        console.log('✅ Oportunidade criada via API:', result.id, company.name);
-
+        console.log('Created #' + result.data.id);
         return res.status(200).json({
             success: true,
-            opportunity: result,
+            opportunity: result.data,
             duplicates: duplicates,
-            valueEstimate: valueEstimate,
-            priority: crmPriority
+            valueEstimate: val,
+            priority: priority
         });
 
-    } catch (error) {
-        console.error('❌ Erro ao criar oportunidade:', error);
-        return res.status(500).json({
-            success: false,
-            error: error.message || 'Erro interno ao criar oportunidade'
-        });
+    } catch (err) {
+        console.error('Error:', err);
+        return res.status(500).json({ success: false, error: err.message || 'Internal error' });
     }
 };
