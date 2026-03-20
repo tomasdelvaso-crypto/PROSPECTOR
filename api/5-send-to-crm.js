@@ -82,16 +82,12 @@ module.exports = async function(req, res) {
 
         var nextParts = [];
         if (contact.name) nextParts.push('Contatar ' + contact.name + ' (' + (contact.title || 'N/A') + ')');
-        if (contact.phone || (contact.all_phones && contact.all_phones.length > 0)) nextParts.push('via telefone/WhatsApp');
-        else if (contact.email && contact.email !== 'Não disponível') nextParts.push('via email');
+        var hasPhone = contact.phone || (contact.all_phones && contact.all_phones.length > 0);
+        var hasEmail = (contact.all_emails && contact.all_emails.some(function(e) { var addr = e.email || e; return addr && addr !== 'Não disponível' && addr !== 'email_not_unlocked@domain.com' && addr.indexOf('@') > 0; })) || (contact.email && contact.email !== 'Não disponível' && contact.email !== 'email_not_unlocked@domain.com' && contact.email.indexOf('@') > 0);
+        if (hasPhone) nextParts.push('via telefone/WhatsApp');
+        else if (hasEmail) nextParts.push('via email');
         else if (contact.linkedin_url) nextParts.push('via LinkedIn');
-        if (analysis.approach) nextParts.push('| ' + (analysis.approach.length > 120 ? analysis.approach.substring(0, 117) + '...' : analysis.approach));
-
-        var contactInfo = [];
-        if (contact.email && contact.email !== 'Não disponível') contactInfo.push('Email: ' + contact.email);
-        if (contact.all_phones && contact.all_phones.length > 0) contactInfo.push('Tel: ' + contact.all_phones[0].number);
-        else if (contact.phone) contactInfo.push('Tel: ' + contact.phone);
-        if (contact.linkedin_url) contactInfo.push('LinkedIn: ' + contact.linkedin_url);
+        if (analysis.approach) nextParts.push('| ' + (analysis.approach.length > 200 ? analysis.approach.substring(0, 197) + '...' : analysis.approach));
 
         var closeDate = new Date();
         closeDate.setDate(closeDate.getDate() + 90);
@@ -110,11 +106,28 @@ module.exports = async function(req, res) {
 
         // Build support_contact with ALL contact details
         var supportParts = [];
-        if (contact.email && contact.email !== 'Não disponível' && contact.email !== 'email_not_unlocked@domain.com') supportParts.push(contact.email);
+        // Emails: use all_emails array first, fallback to single email
+        var validEmails = [];
+        if (contact.all_emails && contact.all_emails.length > 0) {
+            contact.all_emails.forEach(function(e) {
+                var addr = e.email || e;
+                if (addr && addr !== 'Não disponível' && addr !== 'email_not_unlocked@domain.com' && addr.indexOf('@') > 0) {
+                    validEmails.push(addr);
+                }
+            });
+        } else if (contact.email && contact.email !== 'Não disponível' && contact.email !== 'email_not_unlocked@domain.com' && contact.email.indexOf('@') > 0) {
+            validEmails.push(contact.email);
+        }
+        validEmails.forEach(function(em) { supportParts.push(em); });
+        // Phones: use all_phones array first, fallback to single phone
         if (contact.all_phones && contact.all_phones.length > 0) {
             contact.all_phones.forEach(function(p) { supportParts.push(p.number); });
         } else if (contact.phone) { supportParts.push(contact.phone); }
         if (contact.linkedin_url) supportParts.push(contact.linkedin_url);
+        
+        console.log('📧 Emails para CRM:', validEmails);
+        console.log('📱 Phones para CRM:', (contact.all_phones || []).map(function(p){return p.number;}));
+        console.log('📋 Support contact:', supportParts.join(' | '));
 
         // Enrich DOR scale with pain/approach description
         if (analysis.approach || analysis.pain_description) {
