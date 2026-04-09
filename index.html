@@ -848,9 +848,9 @@ window.performDeepAnalysis = async function(uniqueId) {
         });
         const lushaData = await lushaRes.json();
 
-        // 3. Claude Analysis (Serper intel moved to Cadência Ventus on-demand)
-        updateProgress('Analisando com IA...', 90);
-        
+        // 3. Consolidate all enriched data
+        updateProgress('Consolidando dados...', 90);
+
         // CONSOLIDACIÓN COMPLETA DE TODOS LOS DATOS
         const allEmails = [];
         const allPhones = [];
@@ -1047,23 +1047,11 @@ window.performDeepAnalysis = async function(uniqueId) {
         console.log('📱 Total teléfonos encontrados:', consolidatedContact.all_phones.length, consolidatedContact.all_phones);
         console.log('📊 Fuentes de datos:', consolidatedContact.data_sources);
         
-        // Continuar con Claude
-        const claudeRes = await fetch('/api/4-analyze-claude', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                company,
-                contact: consolidatedContact,
-                intel: null
-            })
-        });
-        const analysis = await claudeRes.json();
-        
-        // Store results
+        // Store results (no Claude analysis — intel moves to Cadência Ventus)
         analysisResults[uniqueId] = {
             company,
             contact: consolidatedContact,
-            analysis,
+            analysis: null,
             intel: null
         };
         
@@ -1091,18 +1079,13 @@ window.performDeepAnalysis = async function(uniqueId) {
 // Display analysis results
 window.displayAnalysisResults = function(uniqueId, data) {
     const resultDiv = document.getElementById(`analysis-result-${uniqueId}`);
-    const { contact, analysis, intel } = data;
-    
+    const { contact } = data;
+
     const email = contact.email || 'Não disponível';
     const phone = contact.phone || null;
-    
-    // Procesar todos los teléfonos si vienen de Lusha
+
     const allPhones = contact.all_phones || [];
     const phoneSummary = contact.phone_summary || {};
-    
-    const score = analysis.total_score || 0;
-    const priority = analysis.priority || 'COLD';
-    const priorityColor = priority === 'HOT' ? 'red' : priority === 'WARM' ? 'yellow' : 'gray';
     
     // Generar HTML para todos los teléfonos
     let phonesHtml = '';
@@ -1189,113 +1172,20 @@ window.displayAnalysisResults = function(uniqueId, data) {
         <div class="mt-4 space-y-4">
             <!-- Contact Info -->
             <div class="bg-green-50 p-4 rounded-lg">
-                <h5 class="font-bold mb-2">📞 Informações de Contato</h5>
+                <h5 class="font-bold mb-2">📞 Informações de Contato Enriquecidas</h5>
                 <div class="space-y-2">
                     ${emailsHtml}
                     ${phonesHtml}
-                    ${contact.linkedin_url ? 
-                        `<p class="text-sm"><i class="fab fa-linkedin mr-2"></i><a href="${contact.linkedin_url}" target="_blank" class="text-blue-600 hover:underline">Ver perfil LinkedIn</a></p>` : 
+                    ${contact.linkedin_url ?
+                        `<p class="text-sm"><i class="fab fa-linkedin mr-2"></i><a href="${contact.linkedin_url}" target="_blank" class="text-blue-600 hover:underline">Ver perfil LinkedIn</a></p>` :
                         ''
                     }
                 </div>
-            </div>
-            
-            <!-- Company Context (NEW) -->
-            ${analysis.company_context ? `
-                <div class="bg-blue-50 p-4 rounded-lg">
-                    <h5 class="font-bold mb-2">🏢 Contexto da Empresa</h5>
-                    <p class="text-sm text-gray-700">${analysis.company_context}</p>
+                <div class="mt-3 pt-3 border-t border-green-200 text-xs text-green-700">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    Fontes: ${contact.data_sources?.emails?.from_apollo ? 'Apollo' : ''}${contact.data_sources?.emails?.from_lusha ? ' + Lusha' : ''}
+                    · ${allEmails.length} email${allEmails.length !== 1 ? 's' : ''} · ${allPhones.length} telefone${allPhones.length !== 1 ? 's' : ''}
                 </div>
-            ` : ''}
-            
-            <!-- Key Talking Points (NEW) -->
-            ${analysis.key_talking_points && analysis.key_talking_points.length > 0 ? `
-                <div class="bg-yellow-50 p-4 rounded-lg">
-                    <h5 class="font-bold mb-2">💡 Pontos-Chave para Abordagem</h5>
-                    <ul class="space-y-1">
-                        ${analysis.key_talking_points.map(point => 
-                            `<li class="text-sm flex items-start">
-                                <span class="text-yellow-600 mr-2">▸</span>
-                                <span>${point}</span>
-                            </li>`
-                        ).join('')}
-                    </ul>
-                </div>
-            ` : ''}
-            
-            <!-- PPVVC Analysis -->
-            <div class="bg-white border-2 border-indigo-200 rounded-lg p-4">
-                <div class="flex justify-between items-center mb-3">
-                    <h5 class="font-bold">Análise PPVVC</h5>
-                    <span class="px-3 py-1 bg-${priorityColor}-500 text-white rounded-full font-bold">
-                        ${priority} - ${score}/10
-                    </span>
-                </div>
-                
-                <div class="grid grid-cols-3 gap-2 mb-3">
-                    ${Object.entries(analysis.scores || {}).map(([key, value]) => `
-                        <div class="text-center p-2 bg-gray-50 rounded">
-                            <div class="text-xs font-semibold text-gray-600">${key.toUpperCase()}</div>
-                            <div class="text-xl font-bold ${value >= 7 ? 'text-green-600' : value >= 5 ? 'text-yellow-600' : 'text-red-600'}">
-                                ${value}/10
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-                
-                <div class="bg-gray-50 p-3 rounded text-sm">
-                    <p class="font-semibold mb-1">Justificativa:</p>
-                    <p class="text-gray-700">${analysis.justification || 'N/A'}</p>
-                </div>
-                
-                <!-- Recommended Case Study (NEW) -->
-                ${analysis.recommended_case_study ? `
-                    <div class="bg-green-50 p-3 rounded mt-3">
-                        <p class="font-semibold text-green-900 mb-1">
-                            <i class="fas fa-briefcase mr-2"></i>Case Recomendado:
-                        </p>
-                        <p class="text-green-800 text-sm">${analysis.recommended_case_study}</p>
-                    </div>
-                ` : ''}
-                
-                <!-- Discovery Questions (NEW) -->
-                ${analysis.discovery_questions && analysis.discovery_questions.length > 0 ? `
-                    <div class="bg-purple-50 p-3 rounded mt-3">
-                        <p class="font-semibold text-purple-900 mb-2">
-                            <i class="fas fa-question-circle mr-2"></i>Perguntas de Descoberta:
-                        </p>
-                        <ol class="list-decimal list-inside space-y-1">
-                            ${analysis.discovery_questions.map(q => 
-                                `<li class="text-sm text-purple-800">${q}</li>`
-                            ).join('')}
-                        </ol>
-                    </div>
-                ` : ''}
-                
-                <!-- Approach -->
-                <div class="bg-indigo-50 p-3 rounded mt-3">
-                    <p class="font-semibold text-indigo-900 mb-1">
-                        <i class="fas fa-bullseye mr-2"></i>Abordagem Recomendada:
-                    </p>
-                    <p class="text-indigo-800">${analysis.approach || 'N/A'}</p>
-                </div>
-                
-                <!-- Objection Handling -->
-                ${analysis.objection_handling ? `
-                    <div class="bg-red-50 p-3 rounded mt-3">
-                        <p class="font-semibold text-red-900 mb-1">
-                            <i class="fas fa-shield-alt mr-2"></i>Objeção Provável:
-                        </p>
-                        <p class="text-red-800 text-sm">${analysis.objection_handling}</p>
-                    </div>
-                ` : ''}
-                
-                ${analysis.estimated_boxes_day ? `
-                    <div class="text-center mt-3 pt-3 border-t">
-                        <span class="text-sm text-gray-600">Volume Estimado:</span>
-                        <span class="text-lg font-bold text-indigo-600 ml-2">${analysis.estimated_boxes_day} caixas/dia</span>
-                    </div>
-                ` : ''}
             </div>
             ${getCRMButtonHTML(uniqueId)}
         </div>
