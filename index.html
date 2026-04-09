@@ -8,6 +8,23 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body class="bg-gray-50">
+    <!-- LOGIN OVERLAY -->
+    <div id="login-overlay" class="fixed inset-0 bg-gradient-to-br from-blue-900 to-indigo-900 z-50 flex items-center justify-center">
+      <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm">
+        <div class="text-center mb-6">
+          <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3 text-3xl">🔎</div>
+          <h2 class="text-2xl font-bold text-gray-800">Prospector Pro</h2>
+          <p class="text-sm text-gray-500">Faça login com sua conta Ventapel</p>
+        </div>
+        <div id="login-error" class="hidden p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm mb-4"></div>
+        <input id="login-email" type="email" placeholder="Email" class="w-full border rounded-lg px-4 py-3 mb-3 text-sm focus:ring-2 focus:ring-blue-400 focus:outline-none" />
+        <input id="login-password" type="password" placeholder="Senha" class="w-full border rounded-lg px-4 py-3 mb-4 text-sm focus:ring-2 focus:ring-blue-400 focus:outline-none" />
+        <button id="login-btn" onclick="doLogin()" class="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-bold text-sm hover:shadow-lg transition-all">
+          Entrar
+        </button>
+      </div>
+    </div>
+
     <!-- Header -->
     <nav class="bg-gradient-to-r from-blue-900 to-indigo-800 shadow-xl">
         <div class="max-w-7xl mx-auto px-4">
@@ -16,11 +33,15 @@
                     <h1 class="text-3xl font-bold text-white">Ventapel Prospector Pro</h1>
                     <p class="text-sm text-blue-200">Company-First Intelligence System</p>
                 </div>
-                <div class="flex gap-2">
+                <div class="flex gap-2 items-center">
                     <span class="bg-green-500 px-3 py-1 rounded-full text-white text-xs font-semibold">Apollo.io</span>
                     <span class="bg-yellow-500 px-3 py-1 rounded-full text-white text-xs font-semibold">Lusha</span>
                     <span class="bg-purple-500 px-3 py-1 rounded-full text-white text-xs font-semibold">Serper</span>
                     <span class="bg-red-500 px-3 py-1 rounded-full text-white text-xs font-semibold">Claude AI</span>
+                    <span class="ml-3 border-l border-blue-400 pl-3">
+                      <span id="user-name" class="text-white text-sm font-semibold"></span>
+                      <button onclick="doLogout()" class="ml-2 text-blue-200 hover:text-white text-xs underline">Sair</button>
+                    </span>
                 </div>
             </div>
         </div>
@@ -233,6 +254,91 @@ const INDUSTRY_MAPPING = {
     farma_cosmetica: ["pharmaceuticals", "cosmetics", "biotechnology"],
     textil: ["textiles", "apparel & fashion", "footwear"]
 };
+
+// ── Auth ─────────────────────────────────────────────────────────────────────
+const SUPABASE_URL = 'https://wtrbvgqxgcfjacqcndmb.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0cmJ2Z3F4Z2NmamFjcWNuZG1iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjU5NzI4NjcsImV4cCI6MjA0MTU0ODg2N30.WFSCNfUuntVyQdev2mDX_tnGf-xWFRMGHHPHmGCDAx4';
+let currentSession = null;
+let currentVendorName = null;
+
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errDiv = document.getElementById('login-error');
+  const btn = document.getElementById('login-btn');
+  errDiv.classList.add('hidden');
+  btn.disabled = true; btn.textContent = 'Entrando...';
+  try {
+    const resp = await fetch(SUPABASE_URL + '/auth/v1/token?grant_type=password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await resp.json();
+    if (!resp.ok || !data.access_token) throw new Error(data.error_description || data.msg || 'Credenciais inválidas');
+    currentSession = data;
+    // Get vendor name
+    const vendorResp = await fetch(SUPABASE_URL + '/rest/v1/vendors?auth_id=eq.' + data.user.id + '&select=name&is_active=eq.true', {
+      headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + data.access_token }
+    });
+    const vendors = await vendorResp.json();
+    currentVendorName = vendors?.[0]?.name || email.split('@')[0];
+    document.getElementById('user-name').textContent = '👤 ' + currentVendorName;
+    document.getElementById('login-overlay').style.display = 'none';
+    sessionStorage.setItem('prospector_session', JSON.stringify({ token: data.access_token, vendor: currentVendorName, userId: data.user.id }));
+  } catch (e) {
+    errDiv.textContent = e.message; errDiv.classList.remove('hidden');
+  } finally { btn.disabled = false; btn.textContent = 'Entrar'; }
+}
+
+function doLogout() {
+  currentSession = null; currentVendorName = null;
+  sessionStorage.removeItem('prospector_session');
+  document.getElementById('login-overlay').style.display = 'flex';
+}
+
+function checkAuth() {
+  const saved = sessionStorage.getItem('prospector_session');
+  if (saved) {
+    const s = JSON.parse(saved);
+    currentSession = s; currentVendorName = s.vendor;
+    document.getElementById('user-name').textContent = '👤 ' + s.vendor;
+    document.getElementById('login-overlay').style.display = 'none';
+  }
+}
+
+// ── Send to Cadência ─────────────────────────────────────────────────────────
+async function sendToCadencia(uniqueId) {
+  const data = analysisResults[uniqueId];
+  if (!data) { alert('❌ Execute a análise primeiro.'); return; }
+  if (!currentVendorName) { alert('❌ Faça login primeiro.'); return; }
+  const { company, contact } = data;
+  const btn = document.getElementById('cad-btn-' + uniqueId);
+  const statusDiv = document.getElementById('cad-status-' + uniqueId);
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Enviando...';
+  try {
+    const saved = JSON.parse(sessionStorage.getItem('prospector_session') || '{}');
+    const resp = await fetch('/api/6-send-to-cadencia', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ company, contact, vendor_name: currentVendorName, vendor_auth_id: saved.userId, source: 'prospector' })
+    });
+    const result = await resp.json();
+    if (!resp.ok || !result.success) throw new Error(result.error || 'Erro');
+    let msg = '<div class="p-3 bg-green-50 border border-green-300 rounded-lg mt-2 text-sm"><i class="fas fa-check-circle text-green-600 mr-1"></i> <strong>Lead enviado para Cadência!</strong>';
+    if (result.collision) msg += '<br><span class="text-yellow-700">⚠️ ' + result.collision.taken_by + ' já prospecta esta empresa</span>';
+    msg += '<br><span class="text-green-700">Lead #' + result.lead.id + ' · Etapa ' + result.lead.stage.toUpperCase() + '</span></div>';
+    statusDiv.innerHTML = msg;
+    btn.innerHTML = '<i class="fas fa-check mr-2"></i>Na Cadência ✓';
+    btn.style.background = 'linear-gradient(to right, #2563eb, #4f46e5)';
+  } catch (e) {
+    console.error(e);
+    statusDiv.innerHTML = '<div class="p-2 bg-red-50 border border-red-300 rounded-lg text-red-700 text-sm mt-2"><i class="fas fa-exclamation-circle mr-1"></i> ' + e.message + '</div>';
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-redo mr-2"></i>Tentar novamente';
+  }
+}
 
 // Global state
 let currentCompanies = [];
@@ -1308,16 +1414,24 @@ async function sendAllToCRM() {
 
 function getCRMButtonHTML(uniqueId) {
     return `
-        <div class="mt-4 pt-4 border-t-2 border-teal-200">
-            <button id="crm-btn-${uniqueId}"
-                    onclick="sendToCRM('${uniqueId}')" 
-                    class="w-full px-6 py-3 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-lg hover:from-teal-700 hover:to-blue-700 font-bold text-lg shadow-lg transition-all duration-200 transform hover:scale-[1.02]">
-                <i class="fas fa-paper-plane mr-2"></i>
-                Enviar ao CRM Ventapel
+        <div class="mt-4 pt-4 border-t-2 border-teal-200 space-y-2">
+            <button id="cad-btn-${uniqueId}"
+                    onclick="sendToCadencia('${uniqueId}')"
+                    class="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 font-bold text-lg shadow-lg transition-all duration-200 transform hover:scale-[1.02]">
+                <i class="fas fa-phone-volume mr-2"></i>
+                Enviar para Cadência
             </button>
-            <p class="text-xs text-center text-gray-500 mt-1">
-                Cria oportunidade em etapa Prospecção (pool de vendedores)
+            <p class="text-xs text-center text-gray-500">
+                Lead atribuído a <strong>${currentVendorName || 'você'}</strong> na cadência de prospecção
             </p>
+            <div id="cad-status-${uniqueId}"></div>
+
+            <button id="crm-btn-${uniqueId}"
+                    onclick="sendToCRM('${uniqueId}')"
+                    class="w-full px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 font-medium text-sm transition-all">
+                <i class="fas fa-paper-plane mr-2"></i>
+                Enviar direto ao CRM (sem cadência)
+            </button>
             <div id="crm-status-${uniqueId}"></div>
         </div>
     `;
@@ -1329,6 +1443,7 @@ function getCRMButtonHTML(uniqueId) {
     
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+    checkAuth();
     updateStepIndicator(1);
     
     // Enter key en búsqueda por nombre
