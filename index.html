@@ -825,40 +825,30 @@ window.performDeepAnalysis = async function(uniqueId) {
         };
         
         // 1. Apollo Enrichment
-        updateProgress('Enriquecendo com Apollo...', 25);
-        
+        updateProgress('Enriquecendo com Apollo...', 33);
+
         const apolloRes = await fetch('/api/3-enrich-apollo', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ person: contact })
         });
         const apolloData = await apolloRes.json();
-        
+
         // 2. Lusha Enrichment
-        updateProgress('Buscando telefone com Lusha...', 50);
+        updateProgress('Buscando telefone com Lusha...', 66);
         const enrichedContact = apolloData.person || contact;
-        
+
         const lushaRes = await fetch('/api/3-enrich-lusha', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
+            body: JSON.stringify({
                 person: enrichedContact,
                 company: company.name
             })
         });
         const lushaData = await lushaRes.json();
-        
-        // 3. Serper Intel
-        updateProgress('Coletando inteligência de mercado...', 75);
-        
-        const serperRes = await fetch('/api/3-intel-serper', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ company })
-        });
-        const serperData = await serperRes.json();
-        
-        // 4. Claude Analysis
+
+        // 3. Claude Analysis (Serper intel moved to Cadência Ventus on-demand)
         updateProgress('Analisando com IA...', 90);
         
         // CONSOLIDACIÓN COMPLETA DE TODOS LOS DATOS
@@ -1064,7 +1054,7 @@ window.performDeepAnalysis = async function(uniqueId) {
             body: JSON.stringify({
                 company,
                 contact: consolidatedContact,
-                intel: serperData
+                intel: null
             })
         });
         const analysis = await claudeRes.json();
@@ -1074,7 +1064,7 @@ window.performDeepAnalysis = async function(uniqueId) {
             company,
             contact: consolidatedContact,
             analysis,
-            intel: serperData
+            intel: null
         };
         
         // Update credits (2 por análisis: Apollo + Lusha)
