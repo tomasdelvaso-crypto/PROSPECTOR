@@ -29,6 +29,21 @@ export default async function handler(req, res) {
 
     const collision = collisionData?.[0]?.is_taken ? collisionData[0] : null;
 
+    // Filter placeholder/invalid emails from Apollo ("email_not_unlocked@domain.com")
+    const isValidEmail = (e) => {
+      if (!e || typeof e !== 'string') return false;
+      return e.includes('@')
+        && e !== 'email_not_unlocked@domain.com'
+        && e !== 'Não disponível';
+    };
+
+    const emailCandidates = [
+      contact?.email,
+      ...(contact?.all_emails || []).map(e => typeof e === 'string' ? e : e?.email),
+      ...(contact?.emails_apollo || [])
+    ];
+    const email = emailCandidates.find(isValidEmail) || null;
+
     // 2. Insert lead
     const lead = {
       vendor: vendor_name,
@@ -37,7 +52,7 @@ export default async function handler(req, res) {
       company_domain: company.website_url || company.domain || null,
       contact_name: contact?.name || null,
       contact_title: contact?.title || null,
-      contact_email: contact?.email || (contact?.all_emails?.[0]?.email) || (contact?.emails_apollo?.[0]) || null,
+      contact_email: email,
       contact_phone: contact?.phone || (contact?.all_phones?.[0]?.number) || (contact?.phones_apollo?.[0]?.number) || null,
       contact_linkedin: contact?.linkedin_url || null,
       stage: contact?.name ? '1b' : '1a',
