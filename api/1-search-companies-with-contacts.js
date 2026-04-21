@@ -1,22 +1,46 @@
 const axios = require('axios');
+const apolloCache = require('./_apollo-cache');
+
+async function fetchApolloOrCache(endpoint, url, payload, apiKey) {
+    const cached = await apolloCache.tryGet(endpoint, payload);
+    if (cached.hit) return cached.data;
+
+    const response = await axios.post(url, payload, {
+        headers: {
+            'X-Api-Key': apiKey,
+            'Content-Type': 'application/json'
+        },
+        timeout: 30000
+    });
+
+    await apolloCache.set(
+        cached.cacheKey,
+        endpoint,
+        cached.normalized,
+        response.data,
+        response.data?.pagination?.total_entries
+    );
+
+    return response.data;
+}
 
 module.exports = async (req, res) => {
     // CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    
+
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
     }
 
     try {
         const apiKey = process.env.APOLLO_API_KEY;
-        
+
         if (!apiKey) {
-            return res.status(500).json({ 
+            return res.status(500).json({
                 success: false,
-                error: 'Apollo API key not configured' 
+                error: 'Apollo API key not configured'
             });
         }
 
@@ -28,28 +52,23 @@ module.exports = async (req, res) => {
             per_page: 10,
             organization_locations: filters.location ? [filters.location] : [],
             organization_num_employees_ranges: filters.size ? [filters.size] : [],
-            q_organization_keyword_tags: filters.keywords && filters.keywords.length > 0 
-                ? filters.keywords 
+            q_organization_keyword_tags: filters.keywords && filters.keywords.length > 0
+                ? filters.keywords
                 : ["logistics", "manufacturing", "ecommerce", "fulfillment", "warehouse", "distribution"]
         };
 
         console.log('Fetching companies with filters:', JSON.stringify(apolloPayload, null, 2));
 
-        const companiesResponse = await axios.post(
+        const companiesData = await fetchApolloOrCache(
+            'mixed_companies/search',
             'https://api.apollo.io/api/v1/mixed_companies/search',
             apolloPayload,
-            {
-                headers: {
-                    'X-Api-Key': apiKey,
-                    'Content-Type': 'application/json'
-                },
-                timeout: 30000
-            }
+            apiKey
         );
 
-        const organizations = companiesResponse.data?.organizations || [];
-        const pagination = companiesResponse.data?.pagination || {};
-        
+        const organizations = companiesData?.organizations || [];
+        const pagination = companiesData?.pagination || {};
+
         console.log(`Found ${organizations.length} companies`);
 
         if (organizations.length === 0) {
@@ -74,7 +93,7 @@ module.exports = async (req, res) => {
             person_seniorities: ["manager", "director", "head", "vp", "c_suite", "owner"],
             person_titles: [
                 "Operations Manager", "Operations Director", "COO",
-                "Logistics Manager", "Logistics Director", 
+                "Logistics Manager", "Logistics Director",
                 "Supply Chain Manager", "Supply Chain Director",
                 "Production Manager", "Production Director",
                 "Quality Manager", "Quality Director",
@@ -87,29 +106,24 @@ module.exports = async (req, res) => {
 
         console.log(`Fetching contacts for ${companyIds.length} companies...`);
 
-        const contactsResponse = await axios.post(
+        const contactsData = await fetchApolloOrCache(
+            'mixed_people/search',
             'https://api.apollo.io/api/v1/mixed_people/search',
             contactsPayload,
-            {
-                headers: {
-                    'X-Api-Key': apiKey,
-                    'Content-Type': 'application/json'
-                },
-                timeout: 30000
-            }
+            apiKey
         );
 
-        const allContacts = contactsResponse.data?.people || [];
+        const allContacts = contactsData?.people || [];
         console.log(`Retrieved ${allContacts.length} total contacts`);
 
         // STEP 3: Map contacts to companies
         const companiesWithContacts = organizations.map(company => {
-            const companyContacts = allContacts.filter(contact => 
-                contact.organization_id === company.id || 
+            const companyContacts = allContacts.filter(contact =>
+                contact.organization_id === company.id ||
                 contact.organization?.id === company.id ||
                 contact.organization?.name === company.name
             );
-            
+
             // Ordenar por senioridad y tomar top 10
             const prioritizedContacts = companyContacts
                 .sort((a, b) => {
@@ -133,7 +147,7 @@ module.exports = async (req, res) => {
         });
 
         // Ordenar empresas por número de empleados
-        companiesWithContacts.sort((a, b) => 
+        companiesWithContacts.sort((a, b) =>
             (b.estimated_num_employees || 0) - (a.estimated_num_employees || 0)
         );
 
@@ -152,7 +166,7 @@ module.exports = async (req, res) => {
 
     } catch (error) {
         console.error('Apollo search error:', error.response?.data || error.message);
-        
+
         res.status(500).json({
             success: false,
             error: 'Failed to fetch companies and contacts',

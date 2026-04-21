@@ -1,31 +1,56 @@
 const axios = require('axios');
+const apolloCache = require('./_apollo-cache');
+
+async function fetchApolloOrCache(endpoint, url, payload, apiKey) {
+    const cached = await apolloCache.tryGet(endpoint, payload);
+    if (cached.hit) return cached.data;
+
+    const response = await axios.post(url, payload, {
+        headers: {
+            'X-Api-Key': apiKey,
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache'
+        },
+        timeout: 30000
+    });
+
+    await apolloCache.set(
+        cached.cacheKey,
+        endpoint,
+        cached.normalized,
+        response.data,
+        response.data?.pagination?.total_entries
+    );
+
+    return response.data;
+}
 
 module.exports = async (req, res) => {
     // CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    
+
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
     }
 
     try {
         const apiKey = process.env.APOLLO_API_KEY;
-        
+
         if (!apiKey) {
-            return res.status(500).json({ 
+            return res.status(500).json({
                 success: false,
-                error: 'Apollo API key not configured in environment variables' 
+                error: 'Apollo API key not configured in environment variables'
             });
         }
 
         const { companyName, page = 1 } = req.body;
 
         if (!companyName || companyName.trim() === '') {
-            return res.status(400).json({ 
+            return res.status(400).json({
                 success: false,
-                error: 'Company name is required' 
+                error: 'Company name is required'
             });
         }
 
@@ -40,22 +65,16 @@ module.exports = async (req, res) => {
         console.log('Apollo search by name payload:', JSON.stringify(apolloPayload, null, 2));
 
         // STEP 1: Search companies by name
-        const companiesResponse = await axios.post(
+        const companiesData = await fetchApolloOrCache(
+            'mixed_companies/search',
             'https://api.apollo.io/api/v1/mixed_companies/search',
             apolloPayload,
-            {
-                headers: {
-                    'X-Api-Key': apiKey,
-                    'Content-Type': 'application/json',
-                    'Cache-Control': 'no-cache'
-                },
-                timeout: 30000
-            }
+            apiKey
         );
 
-        const organizations = companiesResponse.data?.organizations || [];
-        const pagination = companiesResponse.data?.pagination || {};
-        
+        const organizations = companiesData?.organizations || [];
+        const pagination = companiesData?.pagination || {};
+
         console.log(`Found ${organizations.length} companies matching "${companyName}"`);
 
         if (organizations.length === 0) {
@@ -77,25 +96,25 @@ module.exports = async (req, res) => {
             const bExact = b.name.toLowerCase() === companyName.toLowerCase();
             if (aExact && !bExact) return -1;
             if (!aExact && bExact) return 1;
-            
+
             // Second priority: starts with search term
             const aStarts = a.name.toLowerCase().startsWith(companyName.toLowerCase());
             const bStarts = b.name.toLowerCase().startsWith(companyName.toLowerCase());
             if (aStarts && !bStarts) return -1;
             if (!aStarts && bStarts) return 1;
-            
+
             // Third priority: employee count
             return (b.estimated_num_employees || 0) - (a.estimated_num_employees || 0);
         });
 
         // Extract company IDs for contact search
         const companyIds = organizations.slice(0, 5).map(org => org.id).filter(Boolean); // Limit to top 5 to save credits
-        
+
         console.log('Fetching contacts for top companies:', companyIds);
 
         // STEP 2: Get contacts for the found companies
         let allContacts = [];
-        
+
         if (companyIds.length > 0) {
             const contactsPayload = {
                 page: 1,
@@ -104,7 +123,7 @@ module.exports = async (req, res) => {
                 person_seniorities: ["manager", "director", "head", "vp", "c_suite", "owner"],
                 person_titles: [
                     "Operations Manager", "Operations Director", "COO",
-                    "Logistics Manager", "Logistics Director", 
+                    "Logistics Manager", "Logistics Director",
                     "Supply Chain Manager", "Supply Chain Director",
                     "Production Manager", "Production Director",
                     "Quality Manager", "Quality Director",
@@ -118,19 +137,14 @@ module.exports = async (req, res) => {
             console.log(`Fetching contacts for ${companyIds.length} companies...`);
 
             try {
-                const contactsResponse = await axios.post(
+                const contactsData = await fetchApolloOrCache(
+                    'mixed_people/search',
                     'https://api.apollo.io/api/v1/mixed_people/search',
                     contactsPayload,
-                    {
-                        headers: {
-                            'X-Api-Key': apiKey,
-                            'Content-Type': 'application/json'
-                        },
-                        timeout: 30000
-                    }
+                    apiKey
                 );
 
-                allContacts = contactsResponse.data?.people || [];
+                allContacts = contactsData?.people || [];
                 console.log(`Retrieved ${allContacts.length} total contacts`);
             } catch (contactError) {
                 console.error('Error fetching contacts:', contactError.message);
@@ -140,12 +154,12 @@ module.exports = async (req, res) => {
 
         // STEP 3: Map contacts to companies
         const companiesWithContacts = organizations.map(company => {
-            const companyContacts = allContacts.filter(contact => 
-                contact.organization_id === company.id || 
+            const companyContacts = allContacts.filter(contact =>
+                contact.organization_id === company.id ||
                 contact.organization?.id === company.id ||
                 contact.organization?.name === company.name
             );
-            
+
             // Sort by seniority and take top 5 per company to save on enrichment later
             const prioritizedContacts = companyContacts
                 .sort((a, b) => {
@@ -184,7 +198,7 @@ module.exports = async (req, res) => {
 
     } catch (error) {
         console.error('Apollo company name search error:', error.response?.data || error.message);
-        
+
         res.status(500).json({
             success: false,
             error: 'Failed to search companies by name',

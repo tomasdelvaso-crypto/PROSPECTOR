@@ -1,37 +1,62 @@
 const axios = require('axios');
+const apolloCache = require('./_apollo-cache');
+
+async function fetchApolloOrCache(endpoint, url, payload, apiKey) {
+    const cached = await apolloCache.tryGet(endpoint, payload);
+    if (cached.hit) return cached.data;
+
+    const response = await axios.post(url, payload, {
+        headers: {
+            'X-Api-Key': apiKey,
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache'
+        },
+        timeout: 30000
+    });
+
+    await apolloCache.set(
+        cached.cacheKey,
+        endpoint,
+        cached.normalized,
+        response.data,
+        response.data?.pagination?.total_entries
+    );
+
+    return response.data;
+}
 
 module.exports = async (req, res) => {
     // CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    
+
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
     }
-    
+
     try {
         const apiKey = process.env.APOLLO_API_KEY;
-        
+
         if (!apiKey) {
-            return res.status(500).json({ 
+            return res.status(500).json({
                 success: false,
-                error: 'Apollo API key not configured' 
+                error: 'Apollo API key not configured'
             });
         }
 
-        const { 
-            organizationId, 
-            titles = [], 
+        const {
+            organizationId,
+            titles = [],
             seniorities = [],
             page = 1,
-            per_page = 10 
+            per_page = 10
         } = req.body;
-        
+
         if (!organizationId) {
-            return res.status(400).json({ 
+            return res.status(400).json({
                 success: false,
-                error: 'Organization ID is required' 
+                error: 'Organization ID is required'
             });
         }
 
@@ -50,7 +75,7 @@ module.exports = async (req, res) => {
             // Default titles for Ventapel prospects
             apolloPayload.person_titles = [
                 "Operations Manager",
-                "Logistics Manager", 
+                "Logistics Manager",
                 "Supply Chain Manager",
                 "Quality Manager",
                 "Production Manager",
@@ -78,31 +103,25 @@ module.exports = async (req, res) => {
 
         console.log('Apollo contacts search payload:', JSON.stringify(apolloPayload, null, 2));
 
-        const response = await axios.post(
+        const data = await fetchApolloOrCache(
+            'mixed_people/search',
             'https://api.apollo.io/api/v1/mixed_people/search',
             apolloPayload,
-            {
-                headers: {
-                    'X-Api-Key': apiKey,
-                    'Content-Type': 'application/json',
-                    'Cache-Control': 'no-cache'
-                },
-                timeout: 30000
-            }
+            apiKey
         );
 
-        const people = response.data?.people || [];
+        const people = data?.people || [];
 
         res.status(200).json({
             success: true,
             people: people,
-            total: response.data?.pagination?.total_entries || people.length,
-            page: response.data?.pagination?.page || 1
+            total: data?.pagination?.total_entries || people.length,
+            page: data?.pagination?.page || 1
         });
 
     } catch (error) {
         console.error('Apollo contact search error:', error.response?.data || error.message);
-        
+
         res.status(500).json({
             success: false,
             error: 'Failed to fetch contacts from Apollo',

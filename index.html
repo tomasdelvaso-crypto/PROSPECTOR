@@ -180,9 +180,9 @@
                     <i class="fas fa-download mr-2"></i>Exportar CSV
                 </button>
                 
-                <button onclick="sendAllToCRM()" 
-                        class="px-4 py-3 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-lg hover:from-teal-700 hover:to-blue-700 transition-all duration-200 font-semibold">
-                    <i class="fas fa-paper-plane mr-2"></i>Enviar Todos ao CRM
+                <button onclick="sendAllToCadencia()"
+                        class="px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 font-semibold">
+                    <i class="fas fa-phone-volume mr-2"></i>Enviar Todos para Cadência
                 </button>
             </div>
         </div>
@@ -1274,6 +1274,7 @@ async function sendToCRM(uniqueId) {
     }
 }
 
+// sendAllToCRM: mantenida por compatibilidad/admin, no llamada desde UI principal.
 async function sendAllToCRM() {
     const analyzed = Object.keys(analysisResults);
     if (analyzed.length === 0) {
@@ -1292,6 +1293,29 @@ async function sendAllToCRM() {
     alert(`✅ Concluído: ${success} enviada(s) | ${errors} erro(s)`);
 }
 
+// sendAllToCadencia: path principal — todo va por Cadência, atribuído al vendedor logado.
+async function sendAllToCadencia() {
+    const analyzed = Object.keys(analysisResults);
+    if (analyzed.length === 0) {
+        alert('Nenhuma análise realizada. Analise pelo menos um contato primeiro.');
+        return;
+    }
+    if (!currentVendorName) {
+        alert('❌ Faça login primeiro.');
+        return;
+    }
+    const proceed = confirm(
+        `Enviar ${analyzed.length} lead(s) para Cadência?\n\nCada um será atribuído ao vendedor logado: ${currentVendorName}`
+    );
+    if (!proceed) return;
+    let success = 0, errors = 0;
+    for (const uid of analyzed) {
+        try { await sendToCadencia(uid); success++; }
+        catch (e) { errors++; console.error(`Erro ${uid}:`, e); }
+    }
+    alert(`✅ Concluído: ${success} enviado(s) à Cadência | ${errors} erro(s)`);
+}
+
 function getCRMButtonHTML(uniqueId) {
     return `
         <div class="mt-4 pt-4 border-t-2 border-teal-200 space-y-2">
@@ -1305,14 +1329,6 @@ function getCRMButtonHTML(uniqueId) {
                 Lead atribuído a <strong>${currentVendorName || 'você'}</strong> na cadência de prospecção
             </p>
             <div id="cad-status-${uniqueId}"></div>
-
-            <button id="crm-btn-${uniqueId}"
-                    onclick="sendToCRM('${uniqueId}')"
-                    class="w-full px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 font-medium text-sm transition-all">
-                <i class="fas fa-paper-plane mr-2"></i>
-                Enviar direto ao CRM (sem cadência)
-            </button>
-            <div id="crm-status-${uniqueId}"></div>
         </div>
     `;
 }
