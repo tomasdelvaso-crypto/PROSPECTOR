@@ -48,8 +48,29 @@ module.exports = async (req, res) => {
         // Intentar cache primero — shared entre vendedores, TTL 30 días
         const cached = await lushaCache.tryGet(params);
         if (cached.hit) {
+            const d = cached.data;
+
+            // Normalizar al shape PROSPECTOR por si el cache vino del ProspMini.
+            const all_emails = d.all_emails
+                || (d.enriched_data?.emails || []).map(e => ({
+                    email: typeof e === 'string' ? e : e.email,
+                    type: 'work',
+                    status: 'cached'
+                }));
+            const all_phones = d.all_phones
+                || d.enriched_data?.phones_detailed
+                || (d.enriched_data?.phones || []).map(p => ({
+                    number: typeof p === 'string' ? p : p.number,
+                    type: 'unknown',
+                    source: 'Lusha_cache'
+                }));
+
             return res.status(200).json({
-                ...cached.data,
+                ...d,
+                all_emails,
+                all_phones,
+                phone: all_phones[0]?.number || null,
+                email: all_emails[0]?.email || null,
                 from_cache: true,
                 credit_charged: false  // NO quemar crédito si vino del cache
             });
