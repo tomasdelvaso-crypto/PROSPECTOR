@@ -1,4 +1,5 @@
 const axios = require('axios');
+const lushaCache = require('./_lusha-cache');
 
 module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -43,7 +44,17 @@ module.exports = async (req, res) => {
         params.revealEmails = "true";
         
         console.log('Lusha API params:', params);
-        
+
+        // Intentar cache primero — shared entre vendedores, TTL 30 días
+        const cached = await lushaCache.tryGet(params);
+        if (cached.hit) {
+            return res.status(200).json({
+                ...cached.data,
+                from_cache: true,
+                credit_charged: false  // NO quemar crédito si vino del cache
+            });
+        }
+
         const response = await axios({
             method: 'GET',
             url: 'https://api.lusha.com/v2/person',
@@ -160,16 +171,16 @@ module.exports = async (req, res) => {
                 });
             }
             
-            return res.status(200).json({
+            const responsePayload = {
                 success: true,
                 enriched: true,
                 source: 'lusha',
-                
+
                 // COMPATIBILIDAD: Campos anteriores
                 phone: bestPhone,
                 phone_type: bestPhoneType,
                 email: emails[0]?.email || null,
-                
+
                 // DATOS COMPLETOS NUEVOS
                 all_phones: phones,
                 phone_summary: {
@@ -181,16 +192,17 @@ module.exports = async (req, res) => {
                     best_phone: bestPhone,
                     best_type: bestPhoneType
                 },
-                
+
                 all_emails: emails,
                 email_summary: {
                     total: emails.length,
                     primary: emails[0]?.email || null
                 },
-                
+
                 person_info: additionalInfo,
                 credit_charged: creditCharged,
-                
+                from_cache: false,
+
                 // Para debug
                 phones_by_type: {
                     mobile: mobilePhones,
@@ -198,7 +210,12 @@ module.exports = async (req, res) => {
                     work: workPhones,
                     other: otherPhones
                 }
-            });
+            };
+
+            // Guardar en cache — el helper filtra resultados vacíos internamente
+            await lushaCache.set(cached.cacheKey, params, responsePayload, null);
+
+            return res.status(200).json(responsePayload);
         }
         
         // No se encontraron datos

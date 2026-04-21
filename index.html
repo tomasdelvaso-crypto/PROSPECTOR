@@ -1055,8 +1055,12 @@ window.performDeepAnalysis = async function(uniqueId) {
             intel: null
         };
         
-        // Update credits (2 por análisis: Apollo + Lusha)
-        creditsUsed += 2;
+        // Update credits — solo contar los que efectivamente se cobraron
+        // (Apollo y Lusha pueden haber venido del cache → from_cache: true)
+        let actualCredits = 0;
+        if (!apolloData?.from_cache) actualCredits++;
+        if (!lushaData?.from_cache && lushaData?.credit_charged !== false) actualCredits++;
+        creditsUsed += actualCredits;
         document.getElementById('credits-used').textContent = creditsUsed;
         
         // Display results
