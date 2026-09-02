@@ -113,7 +113,7 @@
                            class="md:col-span-2 p-3 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:outline-none">
                     <button onclick="searchByPerson()" 
                             class="px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 font-semibold shadow-lg transition-all duration-200 transform hover:scale-105">
-                        <i class="fas fa-user-magnifying-glass mr-2"></i>Buscar Pessoa
+                        <i class="fas fa-magnifying-glass mr-2"></i>Buscar Pessoa
                     </button>
                 </div>
                 <label class="inline-flex items-center gap-2 mt-3 text-sm text-gray-700">
@@ -230,6 +230,7 @@
                         Página <span id="current-page">1</span> de <span id="total-pages">1</span>
                     </div>
                 </div>
+                <p id="results-note" class="hidden text-sm text-purple-800 bg-purple-50 border border-purple-200 rounded-lg px-3 py-2 mb-4"></p>
                 <div id="companies-list" class="space-y-4">
                     <!-- Companies will be inserted here -->
                 </div>
@@ -345,6 +346,10 @@ async function sendToCadencia(uniqueId) {
   if (!data) { alert('❌ Execute a análise primeiro.'); return; }
   if (!currentVendorName) { alert('❌ Faça login primeiro.'); return; }
   const { company, contact } = data;
+  if (company?.unidentified || !company?.name) {
+    alert('❌ Apollo não informou a empresa deste contato. Não é possível enviar para Cadência sem empresa.');
+    return;
+  }
   const btn = document.getElementById('cad-btn-' + uniqueId);
   const statusDiv = document.getElementById('cad-status-' + uniqueId);
   btn.disabled = true;
@@ -370,6 +375,17 @@ async function sendToCadencia(uniqueId) {
     btn.disabled = false;
     btn.innerHTML = '<i class="fas fa-redo mr-2"></i>Tentar novamente';
   }
+}
+
+// Escape de texto interpolado em innerHTML (nomes/cargos vindos do Apollo e input do usuário)
+function esc(value) {
+    if (value === null || value === undefined) return '';
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 
 // Global state
@@ -461,8 +477,7 @@ async function searchByPerson(page = 1) {
                 displayNoResults(personName + (companyName ? ` @ ${companyName}` : ''), 'pessoa');
             } else {
                 displayCompaniesWithContacts(currentCompanies);
-                document.getElementById('companies-total').textContent =
-                    `${totalCompanies} empresas (${data.total_people || 0} pessoas encontradas)`;
+                showPersonSearchNote(data, personName, companyName);
             }
 
             updatePaginationControls();
@@ -544,6 +559,24 @@ async function searchByCompanyName(page = 1) {
     }
 }
 
+// Nota contextual da busca por pessoa (contagem real de pessoas, como a empresa foi filtrada)
+function showPersonSearchNote(data, personName, companyName) {
+    const note = document.getElementById('results-note');
+    const totalPeople = data.total_people || 0;
+    let parts = [`<i class="fas fa-user mr-1"></i><strong>${totalPeople}</strong> pessoa${totalPeople === 1 ? '' : 's'} encontrada${totalPeople === 1 ? '' : 's'} para "<strong>${esc(personName)}</strong>"`];
+
+    if (data.company_filter_mode === 'organization_ids' && Array.isArray(data.company_resolved) && data.company_resolved.length > 0) {
+        parts.push(`filtrado pela empresa <strong>${esc(data.company_resolved.map(o => o.name).join(', '))}</strong>`);
+    } else if (data.company_filter_mode === 'keyword') {
+        parts.push(`empresa "<strong>${esc(companyName)}</strong>" não localizada no Apollo — filtro aproximado pelo nome`);
+    } else if (!companyName && totalPeople > 100) {
+        parts.push(`<span class="text-yellow-800">muitos resultados: informe a empresa para refinar</span>`);
+    }
+
+    note.innerHTML = parts.join(' · ');
+    note.classList.remove('hidden');
+}
+
 // Mostrar cuando no hay resultados
 function displayNoResults(searchTerm, kind = 'empresa') {
     const container = document.getElementById('companies-container');
@@ -553,7 +586,7 @@ function displayNoResults(searchTerm, kind = 'empresa') {
         <div class="text-center py-12">
             <i class="fas fa-search-minus text-6xl text-gray-300 mb-4"></i>
             <p class="text-xl text-gray-700 mb-2">Nenhuma ${kind} encontrada para:</p>
-            <p class="text-lg font-semibold text-gray-900">"${searchTerm}"</p>
+            <p class="text-lg font-semibold text-gray-900">"${esc(searchTerm)}"</p>
             <div class="mt-6 text-sm text-gray-600">
                 <p>Sugestões:</p>
                 <ul class="mt-2 space-y-1">
@@ -615,6 +648,7 @@ function clearAll() {
     document.getElementById('companyNameInput').value = '';
     document.getElementById('personNameInput').value = '';
     document.getElementById('personCompanyInput').value = '';
+    document.getElementById('results-note').classList.add('hidden');
     updateStepIndicator(1);
 }
 
@@ -753,6 +787,7 @@ function displayCompaniesWithContacts(companies) {
     
     showingSpan.textContent = companies.length;
     totalSpan.textContent = totalCompanies;
+    document.getElementById('results-note').classList.add('hidden');
     
     let html = '';
     companies.forEach((company, idx) => {
@@ -777,14 +812,14 @@ function displayCompaniesWithContacts(companies) {
                 <div class="flex justify-between items-start">
                     <div class="flex-1">
                         <div class="flex items-center gap-3 mb-2">
-                            <h4 class="text-lg font-bold text-gray-800">${company.name}</h4>
+                            <h4 class="text-lg font-bold text-gray-800">${esc(company.name)}</h4>
                             <span class="px-2 py-1 bg-${priorityColor}-100 text-${priorityColor}-700 rounded-full text-xs font-semibold">
                                 ${priority} - ~${boxesEstimate} caixas/dia
                             </span>
                         </div>
                         
                         <div class="grid grid-cols-2 gap-2 text-sm text-gray-600 mb-3">
-                            <p><i class="fas fa-industry fa-fw mr-1"></i>${company.industry || 'Não especificado'}</p>
+                            <p><i class="fas fa-industry fa-fw mr-1"></i>${esc(company.industry || 'Não especificado')}</p>
                             <p><i class="fas fa-users fa-fw mr-1"></i>${company.estimated_num_employees || 'N/A'} funcionários</p>
                             <p><i class="fas fa-map-marker-alt fa-fw mr-1"></i>${company.city || company.state || 'Brasil'}</p>
                             <p><i class="fas fa-globe fa-fw mr-1"></i>
@@ -809,8 +844,8 @@ function displayCompaniesWithContacts(companies) {
                                         const originalIdx = company.contacts.indexOf(contact);
                                         return `
                                         <div class="border rounded-lg p-2 bg-gray-50 hover:bg-gray-100 transition-colors">
-                                            <p class="font-semibold text-sm truncate">${contact.name}</p>
-                                            <p class="text-xs text-gray-600 truncate mb-2">${contact.title || 'Cargo não especificado'}</p>
+                                            <p class="font-semibold text-sm truncate">${esc(contact.name)}</p>
+                                            <p class="text-xs text-gray-600 truncate mb-2">${esc(contact.title || 'Cargo não especificado')}</p>
                                             
                                             <div class="flex gap-1">
                                                 ${contact.linkedin_url ? `
@@ -876,9 +911,9 @@ window.openAnalysisModal = function(uniqueId) {
     content.innerHTML = `
         <div class="space-y-4">
             <div class="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg">
-                <h4 class="font-bold text-lg mb-2">${contact.name}</h4>
-                <p class="text-gray-700">${contact.title}</p>
-                <p class="text-sm text-gray-600">${company.name}</p>
+                <h4 class="font-bold text-lg mb-2">${esc(contact.name)}</h4>
+                <p class="text-gray-700">${esc(contact.title || 'Cargo não especificado')}</p>
+                <p class="text-sm text-gray-600">${esc(company.name)}${company.unidentified ? ' <span class="text-xs text-yellow-700">(Apollo não informou a empresa)</span>' : ''}</p>
             </div>
             
             <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4">
@@ -886,11 +921,13 @@ window.openAnalysisModal = function(uniqueId) {
                     <i class="fas fa-exclamation-triangle mr-2"></i>
                     Antes de gastar créditos:
                 </p>
-                <a href="${contact.linkedin_url}" target="_blank" 
+                ${contact.linkedin_url ? `
+                <a href="${esc(contact.linkedin_url)}" target="_blank" 
                    class="inline-block px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
                     <i class="fab fa-linkedin mr-2"></i>
                     Revisar Perfil no LinkedIn Primeiro
-                </a>
+                </a>` : `
+                <p class="text-sm text-yellow-800"><i class="fab fa-linkedin mr-2"></i>Perfil LinkedIn não disponível no Apollo</p>`}
             </div>
             
             <button onclick="window.performDeepAnalysis('${uniqueId}')" 
@@ -953,7 +990,7 @@ window.performDeepAnalysis = async function(uniqueId) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 person: enrichedContact,
-                company: company.name
+                company: company.unidentified ? undefined : company.name
             })
         });
         const lushaData = await lushaRes.json();
@@ -1409,9 +1446,15 @@ async function sendAllToCRM() {
 
 // sendAllToCadencia: path principal — todo va por Cadência, atribuído al vendedor logado.
 async function sendAllToCadencia() {
-    const analyzed = Object.keys(analysisResults);
-    if (analyzed.length === 0) {
+    const allAnalyzed = Object.keys(analysisResults);
+    const analyzed = allAnalyzed.filter(uid => !analysisResults[uid]?.company?.unidentified);
+    const skipped = allAnalyzed.length - analyzed.length;
+    if (allAnalyzed.length === 0) {
         alert('Nenhuma análise realizada. Analise pelo menos um contato primeiro.');
+        return;
+    }
+    if (analyzed.length === 0) {
+        alert('❌ Nenhum lead com empresa identificada para enviar.');
         return;
     }
     if (!currentVendorName) {
@@ -1419,7 +1462,8 @@ async function sendAllToCadencia() {
         return;
     }
     const proceed = confirm(
-        `Enviar ${analyzed.length} lead(s) para Cadência?\n\nCada um será atribuído ao vendedor logado: ${currentVendorName}`
+        `Enviar ${analyzed.length} lead(s) para Cadência?\n\nCada um será atribuído ao vendedor logado: ${currentVendorName}` +
+        (skipped > 0 ? `\n\n${skipped} contato(s) sem empresa identificada serão ignorados.` : '')
     );
     if (!proceed) return;
     let success = 0, errors = 0;
@@ -1431,6 +1475,16 @@ async function sendAllToCadencia() {
 }
 
 function getCRMButtonHTML(uniqueId) {
+    if (analysisResults[uniqueId]?.company?.unidentified) {
+        return `
+        <div class="mt-4 pt-4 border-t-2 border-yellow-200">
+            <div class="p-3 bg-yellow-50 border border-yellow-300 rounded-lg text-sm text-yellow-800">
+                <i class="fas fa-exclamation-triangle mr-1"></i>
+                Apollo não informou a empresa deste contato. Confirme a empresa (LinkedIn) e use a busca por empresa para enviá-lo à Cadência.
+            </div>
+        </div>
+    `;
+    }
     return `
         <div class="mt-4 pt-4 border-t-2 border-teal-200 space-y-2">
             <button id="cad-btn-${uniqueId}"
