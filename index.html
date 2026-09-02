@@ -88,6 +88,38 @@
                         class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-semibold transition-all duration-200">
                     <i class="fas fa-search mr-2"></i>Busca por Nome da Empresa
                 </button>
+                <button id="searchByPerson" onclick="toggleSearchMode('person')" 
+                        class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-semibold transition-all duration-200">
+                    <i class="fas fa-user mr-2"></i>Busca por Pessoa
+                </button>
+            </div>
+
+            <!-- Panel de búsqueda por persona -->
+            <div id="personSearchPanel" class="hidden mb-4">
+                <div class="bg-purple-50 border-l-4 border-purple-400 p-4 mb-4">
+                    <p class="text-sm text-purple-800">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        Digite o nome da pessoa. Opcionalmente informe a empresa para refinar. Os resultados são agrupados por empresa.
+                    </p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-5 gap-3 items-center">
+                    <input type="text" 
+                           id="personNameInput"
+                           placeholder="Nome da pessoa. Ex: João Silva"
+                           class="md:col-span-2 p-3 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:outline-none">
+                    <input type="text" 
+                           id="personCompanyInput"
+                           placeholder="Empresa (opcional). Ex: Magazine Luiza"
+                           class="md:col-span-2 p-3 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:outline-none">
+                    <button onclick="searchByPerson()" 
+                            class="px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 font-semibold shadow-lg transition-all duration-200 transform hover:scale-105">
+                        <i class="fas fa-user-magnifying-glass mr-2"></i>Buscar Pessoa
+                    </button>
+                </div>
+                <label class="inline-flex items-center gap-2 mt-3 text-sm text-gray-700">
+                    <input type="checkbox" id="personOnlyBrazil" checked class="rounded border-gray-300 text-purple-600 focus:ring-purple-500">
+                    Somente pessoas localizadas no Brasil
+                </label>
             </div>
             
             <!-- Panel de búsqueda por nombre -->
@@ -354,25 +386,95 @@ let lastSearchParams = null;
 // Toggle entre modos de búsqueda
 function toggleSearchMode(mode) {
     currentSearchMode = mode;
-    const filtersPanel = document.getElementById('filtersPanel');
-    const namePanel = document.getElementById('nameSearchPanel');
-    const filterBtn = document.getElementById('searchByFilters');
-    const nameBtn = document.getElementById('searchByName');
-    
-    if (mode === 'name') {
-        filtersPanel.classList.add('hidden');
-        namePanel.classList.remove('hidden');
-        filterBtn.classList.remove('bg-blue-600', 'text-white');
-        filterBtn.classList.add('bg-gray-200', 'text-gray-700');
-        nameBtn.classList.remove('bg-gray-200', 'text-gray-700');
-        nameBtn.classList.add('bg-green-600', 'text-white');
-    } else {
-        filtersPanel.classList.remove('hidden');
-        namePanel.classList.add('hidden');
-        filterBtn.classList.remove('bg-gray-200', 'text-gray-700');
-        filterBtn.classList.add('bg-blue-600', 'text-white');
-        nameBtn.classList.remove('bg-green-600', 'text-white');
-        nameBtn.classList.add('bg-gray-200', 'text-gray-700');
+    const panels = {
+        filters: document.getElementById('filtersPanel'),
+        name: document.getElementById('nameSearchPanel'),
+        person: document.getElementById('personSearchPanel')
+    };
+    const buttons = {
+        filters: { el: document.getElementById('searchByFilters'), active: 'bg-blue-600' },
+        name: { el: document.getElementById('searchByName'), active: 'bg-green-600' },
+        person: { el: document.getElementById('searchByPerson'), active: 'bg-purple-600' }
+    };
+
+    Object.keys(panels).forEach(key => {
+        const isActive = key === mode;
+        panels[key].classList.toggle('hidden', !isActive);
+        const btn = buttons[key].el;
+        btn.classList.remove('bg-blue-600', 'bg-green-600', 'bg-purple-600', 'bg-gray-200', 'text-white', 'text-gray-700');
+        if (isActive) {
+            btn.classList.add(buttons[key].active, 'text-white');
+        } else {
+            btn.classList.add('bg-gray-200', 'text-gray-700');
+        }
+    });
+}
+
+// Búsqueda por persona
+async function searchByPerson(page = 1) {
+    const personName = document.getElementById('personNameInput').value.trim();
+    const companyName = document.getElementById('personCompanyInput').value.trim();
+    const onlyBrazil = document.getElementById('personOnlyBrazil').checked;
+
+    if (!personName) {
+        alert('Por favor, digite o nome da pessoa');
+        return;
+    }
+
+    const loadingDiv = document.getElementById('loading-companies');
+    const companiesContainer = document.getElementById('companies-container');
+    const loadingText = document.getElementById('loading-text');
+
+    loadingText.textContent = `Buscando "${personName}"${companyName ? ` em "${companyName}"` : ''}...`;
+    loadingDiv.classList.remove('hidden');
+    companiesContainer.classList.add('hidden');
+
+    currentPageNum = page;
+
+    lastSearchParams = {
+        type: 'person',
+        personName,
+        companyName,
+        onlyBrazil
+    };
+
+    try {
+        const response = await fetch('/api/1-search-person', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ personName, companyName, onlyBrazil, page })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            currentCompanies = data.organizations || [];
+            totalCompanies = data.total || 0;
+            totalPages = data.total_pages || 1;
+
+            currentContacts = {};
+            currentCompanies.forEach((company, idx) => {
+                currentContacts[idx] = company.contacts || [];
+            });
+
+            if (currentCompanies.length === 0) {
+                displayNoResults(personName + (companyName ? ` @ ${companyName}` : ''), 'pessoa');
+            } else {
+                displayCompaniesWithContacts(currentCompanies);
+                document.getElementById('companies-total').textContent =
+                    `${totalCompanies} empresas (${data.total_people || 0} pessoas encontradas)`;
+            }
+
+            updatePaginationControls();
+        } else {
+            alert(`Erro na busca: ${data.error || 'Erro desconhecido'}`);
+        }
+
+    } catch (error) {
+        console.error('Error searching person:', error);
+        alert('Erro ao buscar pessoa. Verifique o console.');
+    } finally {
+        loadingDiv.classList.add('hidden');
     }
 }
 
@@ -443,21 +545,23 @@ async function searchByCompanyName(page = 1) {
 }
 
 // Mostrar cuando no hay resultados
-function displayNoResults(searchTerm) {
+function displayNoResults(searchTerm, kind = 'empresa') {
     const container = document.getElementById('companies-container');
     const listDiv = document.getElementById('companies-list');
     
     listDiv.innerHTML = `
         <div class="text-center py-12">
             <i class="fas fa-search-minus text-6xl text-gray-300 mb-4"></i>
-            <p class="text-xl text-gray-700 mb-2">Nenhuma empresa encontrada para:</p>
+            <p class="text-xl text-gray-700 mb-2">Nenhuma ${kind} encontrada para:</p>
             <p class="text-lg font-semibold text-gray-900">"${searchTerm}"</p>
             <div class="mt-6 text-sm text-gray-600">
                 <p>Sugestões:</p>
                 <ul class="mt-2 space-y-1">
                     <li>• Verifique a ortografia</li>
                     <li>• Tente um nome mais curto ou parcial</li>
-                    <li>• Use apenas o nome principal (sem "Ltda", "S.A.", etc)</li>
+                    ${kind === 'pessoa'
+                        ? '<li>• Tente apenas nome e sobrenome, sem cargo</li><li>• Desmarque "Somente Brasil" se a pessoa pode estar em outro país</li>'
+                        : '<li>• Use apenas o nome principal (sem "Ltda", "S.A.", etc)</li>'}
                 </ul>
             </div>
         </div>
@@ -509,6 +613,8 @@ function clearAll() {
     document.getElementById('companies-container').classList.add('hidden');
     document.getElementById('credits-used').textContent = '0';
     document.getElementById('companyNameInput').value = '';
+    document.getElementById('personNameInput').value = '';
+    document.getElementById('personCompanyInput').value = '';
     updateStepIndicator(1);
 }
 
@@ -547,6 +653,8 @@ function previousPage() {
     if (currentPageNum > 1) {
         if (lastSearchParams?.type === 'name') {
             searchByCompanyName(currentPageNum - 1);
+        } else if (lastSearchParams?.type === 'person') {
+            searchByPerson(currentPageNum - 1);
         } else {
             searchCompaniesWithContacts(currentPageNum - 1);
         }
@@ -557,6 +665,8 @@ function nextPage() {
     if (currentPageNum < totalPages) {
         if (lastSearchParams?.type === 'name') {
             searchByCompanyName(currentPageNum + 1);
+        } else if (lastSearchParams?.type === 'person') {
+            searchByPerson(currentPageNum + 1);
         } else {
             searchCompaniesWithContacts(currentPageNum + 1);
         }
@@ -1351,6 +1461,15 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key === 'Enter') {
             searchByCompanyName();
         }
+    });
+
+    // Enter key en búsqueda por persona
+    ['personNameInput', 'personCompanyInput'].forEach(id => {
+        document.getElementById(id).addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchByPerson();
+            }
+        });
     });
 });
 </script>
